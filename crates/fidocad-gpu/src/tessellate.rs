@@ -6,9 +6,7 @@ use fidocad_core::primitive::{PadStyle, Primitive};
 use fidocad_core::{Editor, Tool};
 use lyon::math::point;
 use lyon::path::Path;
-use lyon::tessellation::{
-    BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers,
-};
+use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -72,17 +70,14 @@ fn display_rgb(c: [u8; 3], dark: bool) -> [f32; 3] {
             return [1.0, 1.0, 1.0];
         }
     }
-    [c[0] as f32 / 255.0, c[1] as f32 / 255.0, c[2] as f32 / 255.0]
+    [
+        c[0] as f32 / 255.0,
+        c[1] as f32 / 255.0,
+        c[2] as f32 / 255.0,
+    ]
 }
 
-fn line(
-    scene: &mut Scene,
-    a: Point,
-    b: Point,
-    w: f32,
-    rgb: [f32; 3],
-    selected: bool,
-) {
+fn line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
     scene.lines.push(LineInstance {
         ax: a.x as f32,
         ay: a.y as f32,
@@ -172,245 +167,37 @@ fn add_text(scene: &mut Scene, p: &Primitive, rgb: [f32; 3], sel: bool) {
     let h = (*sy as f32).max(2.0);
     let wch = (*sx as f32).max(1.5);
     let mirrored = style & 4 != 0;
+    let italic = style & 2 != 0;
     let rad = (*angle as f32).to_radians();
     let (sin, cos) = rad.sin_cos();
     let mut x_off = 0.0f32;
+    let sel_f = if sel { 1.0 } else { 0.0 };
     for ch in text.chars() {
-        let glyph = glyph_strokes(ch);
-        for (a, b) in glyph {
-            let mut ax = a.0 * wch + x_off;
-            let ay = (1.0 - a.1) * h;
-            let mut bx = b.0 * wch + x_off;
-            let by = (1.0 - b.1) * h;
+        for v in crate::font::glyph_triangles(ch) {
+            let mut ax = v[0] * wch + x_off;
+            let ay = v[1] * h;
+            if italic {
+                ax += (1.0 - v[1]) * wch * 0.22;
+            }
             if mirrored {
                 ax = -ax;
-                bx = -bx;
             }
             let ra = rot(ax, ay, cos, sin);
-            let rb = rot(bx, by, cos, sin);
-            line(
-                scene,
-                Point::new(
-                    (pos.x as f32 + ra.0).round() as i32,
-                    (pos.y as f32 + ra.1).round() as i32,
-                ),
-                Point::new(
-                    (pos.x as f32 + rb.0).round() as i32,
-                    (pos.y as f32 + rb.1).round() as i32,
-                ),
-                0.35,
-                rgb,
-                sel,
-            );
+            scene.fills.push(FillVertexGpu {
+                x: pos.x as f32 + ra.0,
+                y: pos.y as f32 + ra.1,
+                r: rgb[0],
+                g: rgb[1],
+                b: rgb[2],
+                selected: sel_f,
+            });
         }
-        x_off += wch * 1.15;
+        x_off += wch;
     }
 }
 
 fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
     (x * cos - y * sin, x * sin + y * cos)
-}
-
-/// Very small vector font (unit square 0..1) for CAD labels.
-fn glyph_strokes(ch: char) -> Vec<((f32, f32), (f32, f32))> {
-    let c = if ch.is_ascii() { ch } else { '?' };
-    match c {
-        ' ' => vec![],
-        '-' => vec![((0.1, 0.5), (0.9, 0.5))],
-        '+' => vec![((0.5, 0.15), (0.5, 0.85)), ((0.15, 0.5), (0.85, 0.5))],
-        '=' => vec![((0.1, 0.4), (0.9, 0.4)), ((0.1, 0.6), (0.9, 0.6))],
-        '.' => vec![((0.4, 0.1), (0.6, 0.1)), ((0.4, 0.1), (0.4, 0.2))],
-        ',' => vec![((0.4, 0.15), (0.55, 0.0))],
-        '/' => vec![((0.15, 0.05), (0.85, 0.95))],
-        '0' => box_glyph(true),
-        '1' => vec![((0.5, 0.1), (0.5, 0.9)), ((0.35, 0.75), (0.5, 0.9))],
-        '2' => vec![
-            ((0.15, 0.85), (0.85, 0.85)),
-            ((0.85, 0.85), (0.85, 0.55)),
-            ((0.85, 0.55), (0.15, 0.55)),
-            ((0.15, 0.55), (0.15, 0.15)),
-            ((0.15, 0.15), (0.85, 0.15)),
-        ],
-        '3' => vec![
-            ((0.15, 0.85), (0.85, 0.85)),
-            ((0.85, 0.85), (0.85, 0.15)),
-            ((0.15, 0.15), (0.85, 0.15)),
-            ((0.35, 0.5), (0.85, 0.5)),
-        ],
-        '4' => vec![
-            ((0.2, 0.9), (0.2, 0.5)),
-            ((0.2, 0.5), (0.85, 0.5)),
-            ((0.7, 0.9), (0.7, 0.1)),
-        ],
-        '5' => vec![
-            ((0.85, 0.85), (0.15, 0.85)),
-            ((0.15, 0.85), (0.15, 0.55)),
-            ((0.15, 0.55), (0.8, 0.55)),
-            ((0.8, 0.55), (0.8, 0.15)),
-            ((0.8, 0.15), (0.15, 0.15)),
-        ],
-        '6' => vec![
-            ((0.8, 0.85), (0.2, 0.85)),
-            ((0.2, 0.85), (0.2, 0.15)),
-            ((0.2, 0.15), (0.8, 0.15)),
-            ((0.8, 0.15), (0.8, 0.5)),
-            ((0.8, 0.5), (0.2, 0.5)),
-        ],
-        '7' => vec![((0.15, 0.85), (0.85, 0.85)), ((0.85, 0.85), (0.35, 0.1))],
-        '8' => {
-            let mut g = box_glyph(true);
-            g.push(((0.15, 0.5), (0.85, 0.5)));
-            g
-        }
-        '9' => vec![
-            ((0.2, 0.15), (0.8, 0.15)),
-            ((0.8, 0.15), (0.8, 0.85)),
-            ((0.8, 0.85), (0.2, 0.85)),
-            ((0.2, 0.85), (0.2, 0.5)),
-            ((0.2, 0.5), (0.8, 0.5)),
-        ],
-        'A' => vec![
-            ((0.1, 0.1), (0.5, 0.9)),
-            ((0.5, 0.9), (0.9, 0.1)),
-            ((0.28, 0.4), (0.72, 0.4)),
-        ],
-        'B' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.7, 0.9)),
-            ((0.7, 0.9), (0.8, 0.7)),
-            ((0.8, 0.7), (0.7, 0.5)),
-            ((0.2, 0.5), (0.7, 0.5)),
-            ((0.7, 0.5), (0.85, 0.3)),
-            ((0.85, 0.3), (0.7, 0.1)),
-            ((0.7, 0.1), (0.2, 0.1)),
-        ],
-        'C' => vec![
-            ((0.85, 0.8), (0.25, 0.8)),
-            ((0.25, 0.8), (0.2, 0.2)),
-            ((0.2, 0.2), (0.85, 0.2)),
-        ],
-        'D' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.65, 0.9)),
-            ((0.65, 0.9), (0.85, 0.55)),
-            ((0.85, 0.55), (0.65, 0.1)),
-            ((0.65, 0.1), (0.2, 0.1)),
-        ],
-        'E' => vec![
-            ((0.8, 0.9), (0.2, 0.9)),
-            ((0.2, 0.9), (0.2, 0.1)),
-            ((0.2, 0.1), (0.8, 0.1)),
-            ((0.2, 0.5), (0.65, 0.5)),
-        ],
-        'F' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.8, 0.9)),
-            ((0.2, 0.5), (0.65, 0.5)),
-        ],
-        'G' => vec![
-            ((0.8, 0.8), (0.25, 0.8)),
-            ((0.25, 0.8), (0.2, 0.2)),
-            ((0.2, 0.2), (0.8, 0.2)),
-            ((0.8, 0.2), (0.8, 0.5)),
-            ((0.8, 0.5), (0.55, 0.5)),
-        ],
-        'H' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.8, 0.1), (0.8, 0.9)),
-            ((0.2, 0.5), (0.8, 0.5)),
-        ],
-        'I' => vec![
-            ((0.3, 0.9), (0.7, 0.9)),
-            ((0.5, 0.9), (0.5, 0.1)),
-            ((0.3, 0.1), (0.7, 0.1)),
-        ],
-        'K' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.5), (0.8, 0.9)),
-            ((0.2, 0.5), (0.8, 0.1)),
-        ],
-        'L' => vec![((0.2, 0.9), (0.2, 0.1)), ((0.2, 0.1), (0.8, 0.1))],
-        'M' => vec![
-            ((0.15, 0.1), (0.15, 0.9)),
-            ((0.15, 0.9), (0.5, 0.5)),
-            ((0.5, 0.5), (0.85, 0.9)),
-            ((0.85, 0.9), (0.85, 0.1)),
-        ],
-        'N' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.8, 0.1)),
-            ((0.8, 0.1), (0.8, 0.9)),
-        ],
-        'O' => box_glyph(true),
-        'P' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.75, 0.9)),
-            ((0.75, 0.9), (0.75, 0.5)),
-            ((0.75, 0.5), (0.2, 0.5)),
-        ],
-        'Q' => {
-            let mut g = box_glyph(true);
-            g.push(((0.55, 0.35), (0.9, 0.05)));
-            g
-        }
-        'R' => vec![
-            ((0.2, 0.1), (0.2, 0.9)),
-            ((0.2, 0.9), (0.75, 0.9)),
-            ((0.75, 0.9), (0.75, 0.5)),
-            ((0.75, 0.5), (0.2, 0.5)),
-            ((0.45, 0.5), (0.8, 0.1)),
-        ],
-        'S' => vec![
-            ((0.8, 0.8), (0.2, 0.8)),
-            ((0.2, 0.8), (0.2, 0.5)),
-            ((0.2, 0.5), (0.8, 0.5)),
-            ((0.8, 0.5), (0.8, 0.2)),
-            ((0.8, 0.2), (0.2, 0.2)),
-        ],
-        'T' => vec![((0.15, 0.9), (0.85, 0.9)), ((0.5, 0.9), (0.5, 0.1))],
-        'U' => vec![
-            ((0.2, 0.9), (0.2, 0.2)),
-            ((0.2, 0.2), (0.8, 0.2)),
-            ((0.8, 0.2), (0.8, 0.9)),
-        ],
-        'V' => vec![((0.15, 0.9), (0.5, 0.1)), ((0.5, 0.1), (0.85, 0.9))],
-        'W' => vec![
-            ((0.1, 0.9), (0.3, 0.1)),
-            ((0.3, 0.1), (0.5, 0.55)),
-            ((0.5, 0.55), (0.7, 0.1)),
-            ((0.7, 0.1), (0.9, 0.9)),
-        ],
-        'X' => vec![((0.2, 0.9), (0.8, 0.1)), ((0.8, 0.9), (0.2, 0.1))],
-        'Y' => vec![
-            ((0.2, 0.9), (0.5, 0.5)),
-            ((0.8, 0.9), (0.5, 0.5)),
-            ((0.5, 0.5), (0.5, 0.1)),
-        ],
-        'Z' => vec![
-            ((0.15, 0.9), (0.85, 0.9)),
-            ((0.85, 0.9), (0.15, 0.1)),
-            ((0.15, 0.1), (0.85, 0.1)),
-        ],
-        _ => {
-            let up = c.to_ascii_uppercase();
-            if up != c && up.is_ascii_alphabetic() {
-                return glyph_strokes(up);
-            }
-            box_glyph(false)
-        }
-    }
-}
-
-fn box_glyph(closed: bool) -> Vec<((f32, f32), (f32, f32))> {
-    let mut g = vec![
-        ((0.2, 0.15), (0.8, 0.15)),
-        ((0.8, 0.15), (0.8, 0.85)),
-        ((0.8, 0.85), (0.2, 0.85)),
-    ];
-    if closed {
-        g.push(((0.2, 0.85), (0.2, 0.15)));
-    }
-    g
 }
 
 fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, dark: bool) {
@@ -544,6 +331,14 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
     }
 }
 
+pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet, dark: bool) -> Scene {
+    let mut scene = Scene::default();
+    for p in prims {
+        add_prim(&mut scene, p, layers, false, dark);
+    }
+    scene
+}
+
 pub fn tessellate_editor(ed: &Editor) -> Scene {
     tessellate_impl(ed, None, false)
 }
@@ -598,6 +393,9 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
                 });
             }
         }
+    }
+    for q in ed.pending_macro_preview() {
+        add_prim(&mut scene, &q, layers, false, dark);
     }
     add_draft(&mut scene, ed, preview);
     if let Some((a, b)) = ed.marquee_rect() {
@@ -706,15 +504,7 @@ fn add_marquee(scene: &mut Scene, a: Point, b: Point, rgb: [f32; 3]) {
     }
 }
 
-fn dash_line(
-    scene: &mut Scene,
-    a: Point,
-    b: Point,
-    w: f32,
-    rgb: [f32; 3],
-    dash: f32,
-    gap: f32,
-) {
+fn dash_line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], dash: f32, gap: f32) {
     let dx = (b.x - a.x) as f32;
     let dy = (b.y - a.y) as f32;
     let len = (dx * dx + dy * dy).sqrt();
@@ -756,6 +546,20 @@ pub fn scene_to_svg(scene: &Scene, w: f32, h: f32, zoom: f32, pan: (f32, f32)) -
     ));
     s.push_str(r#"<rect width="100%" height="100%" fill="white"/>"#);
     let tx = |x: f32, y: f32| (x * zoom + pan.0, y * zoom + pan.1);
+    for tri in scene.fills.chunks(3) {
+        if tri.len() != 3 {
+            continue;
+        }
+        let (x1, y1) = tx(tri[0].x, tri[0].y);
+        let (x2, y2) = tx(tri[1].x, tri[1].y);
+        let (x3, y3) = tx(tri[2].x, tri[2].y);
+        s.push_str(&format!(
+            r#"<polygon points="{x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="rgb({},{},{})"/>"#,
+            (tri[0].r * 255.0) as u8,
+            (tri[0].g * 255.0) as u8,
+            (tri[0].b * 255.0) as u8,
+        ));
+    }
     for l in &scene.lines {
         let (x1, y1) = tx(l.ax, l.ay);
         let (x2, y2) = tx(l.bx, l.by);
@@ -769,4 +573,95 @@ pub fn scene_to_svg(scene: &Scene, w: f32, h: f32, zoom: f32, pan: (f32, f32)) -
     }
     s.push_str("</svg>");
     s
+}
+
+pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
+    let mut minx = f32::MAX;
+    let mut miny = f32::MAX;
+    let mut maxx = f32::MIN;
+    let mut maxy = f32::MIN;
+    let mut empty = true;
+    let mut include = |x: f32, y: f32| {
+        empty = false;
+        minx = minx.min(x);
+        miny = miny.min(y);
+        maxx = maxx.max(x);
+        maxy = maxy.max(y);
+    };
+    for l in &scene.lines {
+        include(l.ax, l.ay);
+        include(l.bx, l.by);
+    }
+    for c in &scene.circles {
+        include(c.x - c.rx, c.y - c.ry);
+        include(c.x + c.rx, c.y + c.ry);
+    }
+    for v in &scene.fills {
+        include(v.x, v.y);
+    }
+    if empty {
+        return format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"></svg>"#
+        );
+    }
+    let bw = (maxx - minx).max(1.0);
+    let bh = (maxy - miny).max(1.0);
+    let pad = 0.14 * bw.max(bh);
+    let span = bw.max(bh) + 2.0 * pad;
+    let ox = minx - (span - bw) * 0.5;
+    let oy = miny - (span - bh) * 0.5;
+    let s = size / span;
+    let tx = |x: f32, y: f32| ((x - ox) * s, (y - oy) * s);
+    let mut out = String::new();
+    out.push_str(&format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}" fill="none">"#
+    ));
+    for tri in scene.fills.chunks(3) {
+        if tri.len() != 3 {
+            continue;
+        }
+        let (x1, y1) = tx(tri[0].x, tri[0].y);
+        let (x2, y2) = tx(tri[1].x, tri[1].y);
+        let (x3, y3) = tx(tri[2].x, tri[2].y);
+        out.push_str(&format!(
+            r#"<polygon points="{x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="rgb({},{},{})"/>"#,
+            (tri[0].r * 255.0) as u8,
+            (tri[0].g * 255.0) as u8,
+            (tri[0].b * 255.0) as u8,
+        ));
+    }
+    for l in &scene.lines {
+        let (x1, y1) = tx(l.ax, l.ay);
+        let (x2, y2) = tx(l.bx, l.by);
+        out.push_str(&format!(
+            r#"<line x1="{x1:.2}" y1="{y1:.2}" x2="{x2:.2}" y2="{y2:.2}" stroke="rgb({},{},{})" stroke-width="{:.2}" stroke-linecap="round"/>"#,
+            (l.r * 255.0) as u8,
+            (l.g * 255.0) as u8,
+            (l.b * 255.0) as u8,
+            (l.width * s).max(1.15),
+        ));
+    }
+    for c in &scene.circles {
+        let (cx, cy) = tx(c.x, c.y);
+        let rx = (c.rx * s).max(0.8);
+        let ry = (c.ry * s).max(0.8);
+        let stroke = format!(
+            "rgb({},{},{})",
+            (c.r * 255.0) as u8,
+            (c.g * 255.0) as u8,
+            (c.b * 255.0) as u8
+        );
+        if c.stroke > 0.001 {
+            out.push_str(&format!(
+                r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" stroke="{stroke}" stroke-width="{:.2}"/>"#,
+                (c.stroke * s).max(1.15),
+            ));
+        } else {
+            out.push_str(&format!(
+                r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="{stroke}"/>"#
+            ));
+        }
+    }
+    out.push_str("</svg>");
+    out
 }

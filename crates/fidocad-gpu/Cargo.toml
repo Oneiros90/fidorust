@@ -10,6 +10,7 @@ fidocad-core.workspace = true
 bytemuck.workspace = true
 glow.workspace = true
 lyon = { workspace = true }
+ttf-parser.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true

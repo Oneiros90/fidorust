@@ -27,3 +27,4 @@ web-sys = "0.3"
 glow = "0.16"
 bytemuck = { version = "1", features = ["derive"] }
 lyon = "1"
+ttf-parser = "0.25"

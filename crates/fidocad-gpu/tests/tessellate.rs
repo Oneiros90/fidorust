@@ -59,11 +59,61 @@ fn draft_ellipse_previews_as_ellipse_not_line() {
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(80, 10), (80.0, 10.0));
     let scene = tessellate_editor(&ed);
-    assert_eq!(scene.circles.len(), 1, "expected ellipse instance, not a segment");
+    assert_eq!(
+        scene.circles.len(),
+        1,
+        "expected ellipse instance, not a segment"
+    );
     assert!(scene.circles[0].rx > scene.circles[0].ry);
     assert!(scene.circles[0].stroke > 0.0);
     assert!(
         scene.lines.is_empty(),
         "ellipse draft must not fall back to a line"
     );
+}
+
+#[test]
+fn macro_thumb_svg_has_geometry() {
+    let libs = builtin_libraries();
+    let (_, def) = libs.lookup("080").expect("resistor");
+    let prims = fidocad_core::library::expand_macro(
+        def,
+        fidocad_core::geom::Transform {
+            origin: fidocad_core::MACRO_ORIGIN,
+            rotations: 0,
+            mirrored: false,
+        },
+        &libs,
+        0,
+    );
+    let scene =
+        fidocad_gpu::tessellate_primitives(&prims, &fidocad_core::LayerSet::default(), false);
+    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    assert!(svg.contains("<svg"));
+    assert!(svg.contains("<line") || svg.contains("<ellipse") || svg.contains("<polygon"));
+}
+
+#[test]
+fn tessellate_text_uses_filled_glyphs() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::Text {
+        pos: fidocad_core::Point::new(0, 0),
+        sy: 10,
+        sx: 6,
+        angle: 0,
+        style: 0,
+        layer: fidocad_core::LayerId(0),
+        font: "Courier New".into(),
+        text: "Vcc".into(),
+        simple: false,
+    });
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc = doc;
+    let scene = tessellate_editor(&ed);
+    assert!(
+        scene.fills.len() >= 27,
+        "expected filled glyph triangles, got {}",
+        scene.fills.len()
+    );
+    assert_eq!(scene.fills.len() % 3, 0);
 }
