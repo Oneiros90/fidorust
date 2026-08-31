@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { attachSvgString } from '../lib/attachSvg';
+
 	let {
 		svg,
 		x,
@@ -19,17 +21,7 @@
 		scale: number;
 	} = $props();
 
-	const attachSvg = $derived.by(() => {
-		const raw = svg;
-		return (node: HTMLElement) => {
-			if (!raw) return;
-			const parsed = new DOMParser().parseFromString(raw, 'image/svg+xml');
-			const el = parsed.documentElement;
-			if (el.tagName.toLowerCase() === 'svg') {
-				node.replaceChildren(document.importNode(el, true));
-			}
-		};
-	});
+	const attachSvg = $derived(attachSvgString(svg));
 </script>
 
 <div

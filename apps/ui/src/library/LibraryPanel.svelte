@@ -1,39 +1,14 @@
 <script lang="ts">
-	import type { App as WasmApp } from './wasm/fidocad_wasm.js';
-	import { macroFullName } from './libraryDrag';
+	import { getAppSession } from '../app/appContext';
+	import { macroFullName } from '../lib/libraryDrag';
 	import LibraryItem from './LibraryItem.svelte';
 
-	let {
-		engine,
-		libs,
-		pendingMacro,
-		theme,
-		title,
-		hideLabel,
-		showLabel,
-		onPick,
-		onArmDrag
-	}: {
-		engine: WasmApp | null;
-		libs: {
-			stem: string;
-			title: string;
-			categories: { name: string; macros: [string, string][] }[];
-		}[];
-		pendingMacro: string | null;
-		theme: 'light' | 'dark';
-		title: string;
-		hideLabel: string;
-		showLabel: string;
-		onPick: (stem: string, key: string) => void;
-		onArmDrag: (name: string, e: PointerEvent) => void;
-	} = $props();
-
+	const app = getAppSession();
 	let collapsed = $state(matchMedia('(max-width: 768px)').matches);
-	let toggleLabel = $derived(collapsed ? showLabel : hideLabel);
+	let toggleLabel = $derived(collapsed ? app.t.showLibrary : app.t.hideLibrary);
 </script>
 
-<aside class={['libs', { collapsed }]} aria-label={title}>
+<aside class={['libs', { collapsed }]} aria-label={app.t.libraries}>
 	<div class="head">
 		<button
 			type="button"
@@ -60,10 +35,10 @@
 				{/if}
 			</svg>
 		</button>
-		<h3>{title}</h3>
+		<h3>{app.t.libraries}</h3>
 	</div>
 	<div class="tree" id="library-tree" inert={collapsed}>
-		{#each libs as lib (lib.stem)}
+		{#each app.libs as lib (lib.stem)}
 			<details class="node" open={lib.stem === 'stdlib'}>
 				<summary class="node-label">{lib.title}</summary>
 				<div class="kids">
@@ -73,14 +48,14 @@
 							<div class="kids">
 								{#each cat.macros as [key, name] (`${lib.stem}:${key}`)}
 									<LibraryItem
-										{engine}
+										engine={app.engine}
 										stem={lib.stem}
 										macroKey={key}
 										label={name}
-										selected={pendingMacro === macroFullName(lib.stem, key)}
-										{theme}
-										{onPick}
-										{onArmDrag}
+										selected={app.status.pending_macro === macroFullName(lib.stem, key)}
+										theme={app.theme}
+										onPick={app.pickMacro}
+										onArmDrag={app.armLibraryDrag}
 									/>
 								{/each}
 							</div>

@@ -1,0 +1,468 @@
+import { SvelteMap } from 'svelte/reactivity';
+import { dict, type Locale } from '../i18n';
+import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from '../lib/libraryDrag';
+import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
+import {
+	defaultStatus,
+	type LayersData,
+	type LibraryEntry,
+	type Status,
+	type Theme
+} from './types';
+
+export type LibGhost = MacroCursor & { x: number; y: number; scale: number };
+
+function download(name: string, content: string, mime: string) {
+	const blob = new Blob([content], { type: mime });
+	const a = document.createElement('a');
+	a.href = URL.createObjectURL(blob);
+	a.download = name;
+	a.click();
+	URL.revokeObjectURL(a.href);
+}
+
+export class AppSession {
+	engine = $state<WasmApp | null>(null);
+	locale = $state<Locale>((navigator.language.startsWith('en') ? 'en' : 'it') as Locale);
+	theme = $state<Theme>('light');
+	t = $derived.by(() => dict(this.locale));
+	status = $state<Status>(defaultStatus());
+	libs = $state<LibraryEntry[]>([]);
+	layers = $state<LayersData>({ layers: [] });
+	showLayers = $state(false);
+	showAbout = $state(false);
+	showGridDlg = $state(false);
+	splitMacros = $state(true);
+	filled = $state(false);
+	menu = $state<string | null>(null);
+	error = $state('');
+	fileHandleName = $state('untitled.fcd');
+	filePicker: HTMLInputElement | undefined;
+	ctxMenu = $state<{ x: number; y: number } | null>(null);
+	libGhost = $state<LibGhost | null>(null);
+	cursorCache = new SvelteMap<string, MacroCursor>();
+
+	assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+
+	refresh = () => {
+		if (!this.engine) return;
+		this.status = JSON.parse(this.engine.status_json());
+		this.layers = JSON.parse(this.engine.layers_json());
+	};
+
+	afterChange = () => {
+		this.engine?.render();
+		this.refresh();
+	};
+
+	toggleMenu = (id: string) => {
+		this.menu = this.menu === id ? null : id;
+	};
+
+	closeMenu = () => {
+		this.menu = null;
+	};
+
+	openContextMenu = (x: number, y: number) => {
+		this.menu = null;
+		this.ctxMenu = { x, y };
+	};
+
+	applyTheme = () => {
+		document.documentElement.dataset.theme = this.theme;
+		this.cursorCache.clear();
+		this.engine?.set_theme(this.theme);
+		this.engine?.render();
+	};
+
+	syncLocale = () => {
+		document.documentElement.lang = this.locale;
+		this.engine?.set_locale(this.locale);
+	};
+
+	init = async () => {
+		this.applyTheme();
+		const initWasm = (await import('../wasm/fidocad_wasm.js')).default;
+		const { App } = await import('../wasm/fidocad_wasm.js');
+		await initWasm();
+		this.engine = new App();
+		this.libs = JSON.parse(this.engine.library_json());
+		this.engine.set_locale(this.locale);
+		this.engine.set_theme(this.theme);
+		this.refresh();
+	};
+
+	onKey = (e: KeyboardEvent) => {
+		if (e.key === 'Escape' && this.showLayers) {
+			this.showLayers = false;
+			e.preventDefault();
+			return;
+		}
+		if (this.showGridDlg || this.showAbout || this.error) return;
+		if (e.defaultPrevented) return;
+		const target = e.target as HTMLElement | null;
+		if (target?.closest('input, textarea, select, [contenteditable]')) return;
+		const meta = e.metaKey || e.ctrlKey;
+		if (this.engine?.key(e.key, meta)) {
+			e.preventDefault();
+			this.engine.render();
+			this.refresh();
+		}
+		if (meta && e.key.toLowerCase() === 'o') {
+			e.preventDefault();
+			this.openFile();
+		}
+		if (meta && e.key.toLowerCase() === 's') {
+			e.preventDefault();
+			this.saveFile();
+		}
+		if (meta && e.key.toLowerCase() === 'x') {
+			e.preventDefault();
+			void this.cutFcd();
+		}
+		if (meta && e.key.toLowerCase() === 'c') {
+			e.preventDefault();
+			void this.copyFcd();
+		}
+		if (meta && e.key.toLowerCase() === 'v') {
+			e.preventDefault();
+			void this.pasteFcd();
+		}
+	};
+
+	onDragOver = (e: DragEvent) => {
+		const types = [...(e.dataTransfer?.types ?? [])];
+		if (types.includes('Files')) e.preventDefault();
+	};
+
+	onDropFile = async (e: DragEvent) => {
+		e.preventDefault();
+		const file = e.dataTransfer?.files[0];
+		if (file) await this.loadFromFile(file);
+	};
+
+	tool = (id: string) => {
+		this.engine?.set_tool(id);
+		if (id === 'text') {
+			const txt = prompt(this.t.textPrompt, 'TEXT');
+			if (txt) this.engine?.set_pending_text(txt);
+		}
+		this.afterChange();
+	};
+
+	setFilled = (on: boolean) => {
+		this.filled = on;
+		this.engine?.set_filled(on);
+	};
+
+	setTrackWidth = (w: number) => {
+		this.engine?.set_track_width(w);
+	};
+
+	setLayer = (n: number) => {
+		this.engine?.set_layer(n);
+		this.afterChange();
+	};
+
+	loadBytes = (bytes: Uint8Array, name: string) => {
+		if (!this.engine) return;
+		try {
+			this.engine.load_fcd_bytes(bytes);
+			this.fileHandleName = name;
+			this.afterChange();
+			this.error = '';
+		} catch (err) {
+			this.error = String(err);
+		}
+	};
+
+	loadFromFile = async (file: File) => {
+		this.loadBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+	};
+
+	openSample = async () => {
+		if (!this.engine) return;
+		const r = await fetch(this.assetUrl('sample.fcd'));
+		if (!r.ok) {
+			this.error = `${r.status} ${r.url}`;
+			return;
+		}
+		this.loadBytes(new Uint8Array(await r.arrayBuffer()), 'sample.fcd');
+	};
+
+	openFile = () => {
+		this.filePicker?.click();
+	};
+
+	onPickedFile = async (e: Event) => {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (file) await this.loadFromFile(file);
+	};
+
+	newDoc = () => {
+		this.engine?.new_doc();
+		this.afterChange();
+	};
+
+	saveFile = () => {
+		if (!this.engine) return;
+		download(
+			this.fileHandleName.endsWith('.fcd') ? this.fileHandleName : 'drawing.fcd',
+			this.engine.save_fcd(),
+			'text/plain'
+		);
+	};
+
+	exportSvg = () => {
+		if (!this.engine) return;
+		download(this.fileHandleName.replace(/\.fcd$/i, '') + '.svg', this.engine.export_svg(), 'image/svg+xml');
+	};
+
+	exportPng = () => {
+		const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+		if (!canvas) return;
+		canvas.toBlob((b) => {
+			if (!b) return;
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(b);
+			a.download = this.fileHandleName.replace(/\.fcd$/i, '') + '.png';
+			a.click();
+		});
+	};
+
+	printDoc = () => {
+		const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+		if (!canvas) return;
+		const w = window.open('');
+		if (!w) return;
+		w.document.write(`<img src="${canvas.toDataURL('image/png')}" style="max-width:100%">`);
+		w.document.close();
+		w.focus();
+		w.print();
+	};
+
+	copyFcd = async () => {
+		if (!this.engine) return;
+		await navigator.clipboard.writeText(this.engine.clipboard_fcd());
+	};
+
+	cutFcd = async () => {
+		if (!this.engine) return;
+		await this.copyFcd();
+		this.engine.key('Delete', false);
+		this.afterChange();
+	};
+
+	pasteFcd = async () => {
+		if (!this.engine) return;
+		const text = await navigator.clipboard.readText();
+		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
+			this.engine.paste_selection(text);
+			this.afterChange();
+		}
+	};
+
+	pasteNewDoc = async () => {
+		if (!this.engine) return;
+		const text = await navigator.clipboard.readText();
+		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
+			this.engine.new_doc();
+			this.engine.load_fcd(text);
+			this.afterChange();
+		}
+	};
+
+	doDelete = () => {
+		this.engine?.key('Delete', false);
+		this.afterChange();
+	};
+
+	doUndo = () => {
+		this.engine?.undo();
+		this.afterChange();
+	};
+
+	doRedo = () => {
+		this.engine?.redo();
+		this.afterChange();
+	};
+
+	doRotate = () => {
+		this.engine?.rotate();
+		this.afterChange();
+	};
+
+	doMirror = () => {
+		this.engine?.mirror();
+		this.afterChange();
+	};
+
+	doSplit = () => {
+		this.engine?.split_selected_macros();
+		this.afterChange();
+	};
+
+	doSelectAll = () => {
+		this.engine?.key('a', true);
+		this.afterChange();
+	};
+
+	doInvert = () => {
+		this.engine?.invert_selection();
+		this.afterChange();
+	};
+
+	fit = () => {
+		this.engine?.fit();
+		this.afterChange();
+	};
+
+	togglePcb = () => {
+		this.engine?.set_pcb_mode(!this.status.pcb);
+		this.refresh();
+	};
+
+	toggleSplitMacros = () => {
+		this.splitMacros = !this.splitMacros;
+		this.engine?.set_split_macros(this.splitMacros);
+	};
+
+	toggleLocale = () => {
+		this.locale = this.locale === 'it' ? 'en' : 'it';
+	};
+
+	toggleTheme = () => {
+		this.theme = this.theme === 'light' ? 'dark' : 'light';
+		this.applyTheme();
+	};
+
+	pickMacro = (stem: string, key: string) => {
+		const name = stem === 'stdlib' ? key : `${stem}.${key}`;
+		this.engine?.set_pending_macro(name);
+		this.afterChange();
+	};
+
+	getCursor = (name: string): MacroCursor | null => {
+		if (!this.engine) return null;
+		const key = `${this.theme}:${name}`;
+		let c = this.cursorCache.get(key);
+		if (!c) {
+			const parsed = parseMacroCursor(this.engine.macro_cursor_json(name));
+			if (!parsed) return null;
+			this.cursorCache.set(key, parsed);
+			c = parsed;
+		}
+		return c;
+	};
+
+	armLibraryDrag = (name: string, e: PointerEvent) => {
+		const pointerId = e.pointerId;
+		const x0 = e.clientX;
+		const y0 = e.clientY;
+		let active = false;
+
+		const finish = () => {
+			window.removeEventListener('pointermove', move);
+			window.removeEventListener('pointerup', stop);
+			window.removeEventListener('pointercancel', stop);
+			window.removeEventListener('keydown', onEsc);
+			document.body.classList.remove('lib-dragging');
+			this.libGhost = null;
+		};
+
+		const move = (ev: PointerEvent) => {
+			if (ev.pointerId !== pointerId || !this.engine) return;
+			if (!active) {
+				if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+				active = true;
+				document.body.classList.add('lib-dragging');
+			}
+			const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+			if (canvas) {
+				const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
+				if (loc.inside) {
+					this.engine.pointer_move(loc.x, loc.y);
+					this.engine.render();
+					this.libGhost = null;
+					return;
+				}
+				this.engine.clear_hover();
+				this.engine.render();
+			}
+			const cur = this.getCursor(name);
+			if (!cur) {
+				this.libGhost = null;
+				return;
+			}
+			this.libGhost = { ...cur, x: ev.clientX, y: ev.clientY, scale: cssPerLu(this.status.zoom) };
+		};
+
+		const stop = (ev: PointerEvent) => {
+			if (ev.pointerId !== pointerId) return;
+			const wasActive = active;
+			finish();
+			if (!wasActive || !this.engine) return;
+			const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+			if (!canvas) return;
+			const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
+			if (loc.inside) {
+				this.engine.place_macro_at(name, loc.x, loc.y);
+				this.afterChange();
+			} else {
+				this.engine.clear_hover();
+				this.engine.render();
+			}
+		};
+
+		const onEsc = (ke: KeyboardEvent) => {
+			if (ke.key !== 'Escape') return;
+			ke.preventDefault();
+			finish();
+			this.engine?.clear_hover();
+			this.engine?.render();
+		};
+
+		window.addEventListener('pointermove', move);
+		window.addEventListener('pointerup', stop);
+		window.addEventListener('pointercancel', stop);
+		window.addEventListener('keydown', onEsc);
+	};
+
+	applyGrid = (v: {
+		gridX: number;
+		gridY: number;
+		snapX: number;
+		snapY: number;
+		showGrid: boolean;
+		snapEnable: boolean;
+		hideMacroOrigin: boolean;
+	}) => {
+		this.engine?.set_grid(v.gridX, v.gridY);
+		this.engine?.set_snap(v.snapX, v.snapY);
+		this.engine?.set_show_grid(v.showGrid);
+		this.engine?.set_snap_enable(v.snapEnable);
+		this.engine?.set_hide_macro_origin(v.hideMacroOrigin);
+		this.afterChange();
+		this.showGridDlg = false;
+	};
+
+	setLayerColor = (i: number, r: number, g: number, b: number) => {
+		this.engine?.set_layer_color(i, r, g, b);
+		this.engine?.render();
+	};
+
+	setLayerName = (i: number, name: string) => {
+		this.engine?.set_layer_name(i, name);
+	};
+
+	setLayerShow = (i: number, show: boolean) => {
+		this.engine?.set_layer_show(i, show);
+		this.afterChange();
+	};
+
+	setLayerPrint = (i: number, print: boolean) => {
+		this.engine?.set_layer_print(i, print);
+	};
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { App as WasmApp } from './wasm/fidocad_wasm.js';
-	import { macroFullName } from './libraryDrag';
+	import { parseSvgElement } from '../lib/attachSvg';
+	import { macroFullName } from '../lib/libraryDrag';
+	import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 
 	let {
 		engine,
@@ -35,13 +36,8 @@
 				(entries) => {
 					if (!entries.some((e) => e.isIntersecting)) return;
 					const raw = eng.macro_preview_svg(n);
-					if (raw) {
-						const parsed = new DOMParser().parseFromString(raw, 'image/svg+xml');
-						const el = parsed.documentElement;
-						if (el.tagName.toLowerCase() === 'svg') {
-							node.replaceChildren(document.importNode(el, true));
-						}
-					}
+					const el = raw ? parseSvgElement(raw) : null;
+					if (el) node.replaceChildren(el);
 					io.disconnect();
 				},
 				{ rootMargin: '160px' }

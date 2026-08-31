@@ -1,72 +1,17 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import type { App as WasmApp } from './wasm/fidocad_wasm.js';
+	import { getAppSession } from '../app/appContext';
+	import { canvasLocal, dpr } from '../lib/canvasCoords';
+	import { parseEdit, textOverlayLayout, type TextEdit } from '../lib/textEdit';
 	import TextEditor from './TextEditor.svelte';
 
-	type TextEdit = {
-		text: string;
-		wx: number;
-		wy: number;
-		sx: number;
-		sy: number;
-		angle: number;
-		style: number;
-		screenX: number;
-		screenY: number;
-		zoom: number;
-	};
-
-	let {
-		engine = $bindable(),
-		onStatus,
-		onContextMenu
-	}: {
-		engine: WasmApp | null;
-		onStatus: () => void;
-		onContextMenu?: (clientX: number, clientY: number) => void;
-	} = $props();
+	const app = getAppSession();
+	let engine = $derived(app.engine);
 
 	let canvas: HTMLCanvasElement | undefined;
 	let wrap: HTMLDivElement | undefined;
 	let space = $state(false);
 	let textEdit = $state.raw<TextEdit | null>(null);
-
-	function dpr() {
-		return Math.min(window.devicePixelRatio || 1, 2);
-	}
-
-	function parseEdit(raw: string): TextEdit | null {
-		if (!raw || raw === 'null') return null;
-		try {
-			const o = JSON.parse(raw) as {
-				text?: string;
-				wx: number;
-				wy: number;
-				sx: number;
-				sy: number;
-				angle: number;
-				style: number;
-				screen_x: number;
-				screen_y: number;
-				zoom: number;
-			};
-			if (typeof o?.text !== 'string') return null;
-			return {
-				text: o.text,
-				wx: o.wx,
-				wy: o.wy,
-				sx: o.sx,
-				sy: o.sy,
-				angle: o.angle,
-				style: o.style,
-				screenX: o.screen_x,
-				screenY: o.screen_y,
-				zoom: o.zoom
-			};
-		} catch {
-			return null;
-		}
-	}
 
 	function resizeCanvas() {
 		if (!canvas || !wrap || !engine) return;
@@ -82,9 +27,7 @@
 
 	function local(e: { clientX: number; clientY: number }) {
 		if (!canvas) return { x: 0, y: 0 };
-		const r = canvas.getBoundingClientRect();
-		const scale = dpr();
-		return { x: (e.clientX - r.left) * scale, y: (e.clientY - r.top) * scale };
+		return canvasLocal(canvas, e.clientX, e.clientY);
 	}
 
 	function syncEditPos() {
@@ -114,7 +57,7 @@
 		engine.commit_text_edit(value);
 		textEdit = null;
 		engine.render();
-		onStatus();
+		app.refresh();
 	}
 
 	function cancelEdit() {
@@ -122,7 +65,7 @@
 		engine.cancel_text_edit();
 		textEdit = null;
 		engine.render();
-		onStatus();
+		app.refresh();
 	}
 
 	function down(e: PointerEvent) {
@@ -133,32 +76,34 @@
 		if (e.detail >= 2) {
 			engine.pointer_up(p.x, p.y);
 		}
-		onStatus();
+		app.refresh();
 		engine.render();
 	}
+
 	function move(e: PointerEvent) {
 		if (!engine || textEdit) return;
 		const p = local(e);
 		engine.pointer_move(p.x, p.y);
-		onStatus();
+		app.refresh();
 		engine.render();
 	}
+
 	function up(e: PointerEvent) {
 		if (!engine || textEdit) return;
 		const p = local(e);
 		engine.pointer_up(p.x, p.y);
-		onStatus();
+		app.refresh();
 		engine.render();
 	}
+
 	function wheel(e: WheelEvent) {
 		if (!engine || !canvas) return;
 		e.preventDefault();
-		const r = canvas.getBoundingClientRect();
-		const scale = dpr();
-		engine.wheel((e.clientX - r.left) * scale, (e.clientY - r.top) * scale, e.deltaY);
+		const p = canvasLocal(canvas, e.clientX, e.clientY);
+		engine.wheel(p.x, p.y, e.deltaY);
 		engine.render();
 		syncEditPos();
-		onStatus();
+		app.refresh();
 	}
 
 	function dblclick(e: MouseEvent) {
@@ -166,13 +111,13 @@
 		const p = local(e);
 		openEdit(engine.dblclick(p.x, p.y));
 		engine.render();
-		onStatus();
+		app.refresh();
 	}
 
 	function onCtx(e: MouseEvent) {
 		e.preventDefault();
 		if (textEdit) return;
-		onContextMenu?.(e.clientX, e.clientY);
+		app.openContextMenu(e.clientX, e.clientY);
 	}
 
 	onMount(() => {
@@ -193,20 +138,7 @@
 		untrack(() => resizeCanvas());
 	});
 
-	const overlay = $derived.by(() => {
-		if (!textEdit) return null;
-		const scale = dpr();
-		return {
-			x: textEdit.screenX / scale,
-			y: textEdit.screenY / scale,
-			fontSize: Math.max(8, (textEdit.sy * textEdit.zoom) / scale),
-			charWidth: Math.max(4, (textEdit.sx * textEdit.zoom) / scale),
-			angle: textEdit.angle,
-			italic: (textEdit.style & 2) !== 0,
-			mirrored: (textEdit.style & 4) !== 0,
-			text: textEdit.text
-		};
-	});
+	const overlay = $derived.by(() => (textEdit ? textOverlayLayout(textEdit, dpr()) : null));
 </script>
 
 <svelte:window
@@ -217,7 +149,7 @@
 			e.preventDefault();
 			openEdit(engine.begin_selected_text_edit());
 			engine.render();
-			onStatus();
+			app.refresh();
 		}
 	}}
 	onkeyup={(e) => {
