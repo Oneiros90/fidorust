@@ -1,6 +1,9 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { dict, type Locale } from '../i18n';
+import { svgToPdfBlob } from '../lib/svgPdf';
 import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from '../lib/libraryDrag';
+import { loadRecents, pushRecent, type RecentEntry } from '../lib/recentFiles';
+import { decodeProject, encodeProject, looksLikeFcd, shareUrl } from '../lib/shareCodec';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import {
 	defaultStatus,
@@ -10,10 +13,12 @@ import {
 	type Theme
 } from './types';
 
+export type { RecentEntry };
+
 export type LibGhost = MacroCursor & { x: number; y: number; scale: number; rot: number };
 
-function download(name: string, content: string, mime: string) {
-	const blob = new Blob([content], { type: mime });
+function download(name: string, content: string | Blob, mime: string) {
+	const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
 	const a = document.createElement('a');
 	a.href = URL.createObjectURL(blob);
 	a.download = name;
@@ -41,6 +46,13 @@ export class AppSession {
 	ctxMenu = $state<{ x: number; y: number } | null>(null);
 	libGhost = $state<LibGhost | null>(null);
 	cursorCache = new SvelteMap<string, MacroCursor>();
+	recents = $state<RecentEntry[]>(loadRecents());
+	savedSnapshot = '';
+	pendingDiscard: (() => void) | null = null;
+	showDiscardConfirm = $state(false);
+	shareLinkUrl = $state<string | null>(null);
+	showShareLink = $state(false);
+	shareFcdText = $state<string | null>(null);
 
 	assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
 
@@ -90,6 +102,21 @@ export class AppSession {
 		this.engine.set_locale(this.locale);
 		this.engine.set_theme(this.theme);
 		this.refresh();
+		const project = new URLSearchParams(window.location.search).get('project');
+		if (project) {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('project');
+			const search = url.searchParams.toString();
+			history.replaceState(null, '', `${url.pathname}${search ? `?${search}` : ''}${url.hash}`);
+			try {
+				this.loadText(await decodeProject(project), 'shared.fcd');
+			} catch (err) {
+				this.error = String(err);
+				this.markClean();
+			}
+		} else {
+			this.markClean();
+		}
 	};
 
 	onKey = (e: KeyboardEvent) => {
@@ -98,7 +125,15 @@ export class AppSession {
 			e.preventDefault();
 			return;
 		}
-		if (this.showGridDlg || this.showAbout || this.error) return;
+		if (
+			this.showGridDlg ||
+			this.showAbout ||
+			this.error ||
+			this.showDiscardConfirm ||
+			this.showShareLink ||
+			this.shareFcdText
+		)
+			return;
 		if (e.defaultPrevented) return;
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('input, textarea, select, [contenteditable]')) return;
@@ -138,7 +173,9 @@ export class AppSession {
 	onDropFile = async (e: DragEvent) => {
 		e.preventDefault();
 		const file = e.dataTransfer?.files[0];
-		if (file) await this.loadFromFile(file);
+		if (!file) return;
+		const bytes = new Uint8Array(await file.arrayBuffer());
+		this.confirmDiscard(() => this.loadBytes(bytes, file.name));
 	};
 
 	tool = (id: string) => {
@@ -164,31 +201,81 @@ export class AppSession {
 		this.afterChange();
 	};
 
-	loadBytes = (bytes: Uint8Array, name: string) => {
+	isDirty = () => {
+		if (!this.engine) return false;
+		return this.engine.save_fcd() !== this.savedSnapshot;
+	};
+
+	markClean = () => {
+		this.savedSnapshot = this.engine?.save_fcd() ?? '';
+	};
+
+	rememberCurrent = (name: string) => {
+		if (!this.engine) return;
+		this.recents = pushRecent(this.recents, name, this.engine.save_fcd());
+	};
+
+	confirmDiscard = (action: () => void) => {
+		if (!this.isDirty()) {
+			action();
+			return;
+		}
+		this.pendingDiscard = action;
+		this.showDiscardConfirm = true;
+	};
+
+	acceptDiscard = () => {
+		const action = this.pendingDiscard;
+		this.pendingDiscard = null;
+		this.showDiscardConfirm = false;
+		action?.();
+	};
+
+	cancelDiscard = () => {
+		this.pendingDiscard = null;
+		this.showDiscardConfirm = false;
+	};
+
+	applyLoaded = (load: () => void, name: string) => {
 		if (!this.engine) return;
 		try {
-			this.engine.load_fcd_bytes(bytes);
+			load();
 			this.fileHandleName = name;
 			this.afterChange();
 			this.error = '';
+			this.markClean();
+			this.rememberCurrent(name);
 		} catch (err) {
 			this.error = String(err);
 		}
+	};
+
+	loadBytes = (bytes: Uint8Array, name: string) => {
+		this.applyLoaded(() => this.engine!.load_fcd_bytes(bytes), name);
+	};
+
+	loadText = (text: string, name: string) => {
+		this.applyLoaded(() => this.engine!.load_fcd(text), name);
 	};
 
 	loadFromFile = async (file: File) => {
 		this.loadBytes(new Uint8Array(await file.arrayBuffer()), file.name);
 	};
 
-	openSample = async () => {
-		if (!this.engine) return;
-		const r = await fetch(this.assetUrl('sample.fcd'));
+	openExample = async (file: string) => {
+		this.confirmDiscard(() => void this.loadExampleFile(file));
+	};
+
+	loadExampleFile = async (file: string) => {
+		const r = await fetch(this.assetUrl(file));
 		if (!r.ok) {
 			this.error = `${r.status} ${r.url}`;
 			return;
 		}
-		this.loadBytes(new Uint8Array(await r.arrayBuffer()), 'sample.fcd');
+		this.loadBytes(new Uint8Array(await r.arrayBuffer()), file);
 	};
+
+	openSample = () => this.openExample('sample.fcd');
 
 	openFile = () => {
 		this.filePicker?.click();
@@ -198,21 +285,33 @@ export class AppSession {
 		const input = e.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		input.value = '';
-		if (file) await this.loadFromFile(file);
+		if (!file) return;
+		const bytes = new Uint8Array(await file.arrayBuffer());
+		this.confirmDiscard(() => this.loadBytes(bytes, file.name));
+	};
+
+	openRecent = (entry: RecentEntry) => {
+		this.confirmDiscard(() => this.loadText(entry.fcd, entry.name));
+	};
+
+	requestNewDoc = () => {
+		this.confirmDiscard(() => this.newDoc());
 	};
 
 	newDoc = () => {
 		this.engine?.new_doc();
+		this.fileHandleName = 'untitled.fcd';
 		this.afterChange();
+		this.markClean();
 	};
 
 	saveFile = () => {
 		if (!this.engine) return;
-		download(
-			this.fileHandleName.endsWith('.fcd') ? this.fileHandleName : 'drawing.fcd',
-			this.engine.save_fcd(),
-			'text/plain'
-		);
+		const name = this.fileHandleName.endsWith('.fcd') ? this.fileHandleName : 'drawing.fcd';
+		download(name, this.engine.save_fcd(), 'text/plain');
+		this.fileHandleName = name;
+		this.markClean();
+		this.rememberCurrent(name);
 	};
 
 	exportSvg = () => {
@@ -230,6 +329,19 @@ export class AppSession {
 			a.download = this.fileHandleName.replace(/\.fcd$/i, '') + '.png';
 			a.click();
 		});
+	};
+
+	exportPdf = () => {
+		if (!this.engine) return;
+		try {
+			download(
+				this.fileHandleName.replace(/\.fcd$/i, '') + '.pdf',
+				svgToPdfBlob(this.engine.export_svg()),
+				'application/pdf'
+			);
+		} catch (err) {
+			this.error = String(err);
+		}
 	};
 
 	printDoc = () => {
@@ -258,20 +370,46 @@ export class AppSession {
 	pasteFcd = async () => {
 		if (!this.engine) return;
 		const text = await navigator.clipboard.readText();
-		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
+		if (looksLikeFcd(text)) {
 			this.engine.paste_selection(text);
 			this.afterChange();
 		}
 	};
 
 	pasteNewDoc = async () => {
-		if (!this.engine) return;
 		const text = await navigator.clipboard.readText();
-		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
-			this.engine.new_doc();
-			this.engine.load_fcd(text);
-			this.afterChange();
+		if (!looksLikeFcd(text)) {
+			this.error = this.t.clipboardNotFcd;
+			return;
 		}
+		this.confirmDiscard(() => this.loadText(text, 'clipboard.fcd'));
+	};
+
+	openShareLink = async () => {
+		if (!this.engine) return;
+		this.shareFcdText = null;
+		this.showShareLink = true;
+		this.shareLinkUrl = '';
+		try {
+			this.shareLinkUrl = shareUrl(await encodeProject(this.engine.save_fcd()));
+		} catch (err) {
+			this.showShareLink = false;
+			this.shareLinkUrl = null;
+			this.error = String(err);
+		}
+	};
+
+	openShareFcd = () => {
+		if (!this.engine) return;
+		this.showShareLink = false;
+		this.shareLinkUrl = null;
+		this.shareFcdText = this.engine.save_fcd();
+	};
+
+	closeShare = () => {
+		this.showShareLink = false;
+		this.shareLinkUrl = null;
+		this.shareFcdText = null;
 	};
 
 	doDelete = () => {

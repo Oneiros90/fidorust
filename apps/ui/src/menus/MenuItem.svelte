@@ -8,7 +8,7 @@
 		label: string;
 		shortcut?: string;
 		disabled?: boolean;
-		onclick: () => void;
+		onclick?: () => void;
 	} = $props();
 </script>
 

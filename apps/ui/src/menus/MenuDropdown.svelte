@@ -50,5 +50,6 @@
 		display: flex;
 		flex-direction: column;
 		z-index: 5;
+		overflow: visible;
 	}
 </style>

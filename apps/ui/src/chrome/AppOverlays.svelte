@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
 	import AboutDialog from '../dialogs/AboutDialog.svelte';
+	import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import GridDialog from '../dialogs/GridDialog.svelte';
 	import LayersDialog from '../dialogs/LayersDialog.svelte';
+	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
+	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import MacroGhost from '../library/MacroGhost.svelte';
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
@@ -69,6 +72,18 @@
 
 {#if app.error}
 	<ErrorDialog />
+{/if}
+
+{#if app.showDiscardConfirm}
+	<ConfirmDialog />
+{/if}
+
+{#if app.showShareLink}
+	<ShareLinkDialog />
+{/if}
+
+{#if app.shareFcdText !== null}
+	<ShareFcdDialog />
 {/if}
 
 <style>
