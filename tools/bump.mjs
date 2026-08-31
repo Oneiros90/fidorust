@@ -64,6 +64,7 @@ function currentVersion() {
 }
 
 function nextVersion(spec) {
+	if (spec.startsWith('v') && SEMVER.test(spec.slice(1))) return spec.slice(1);
 	if (SEMVER.test(spec)) return spec;
 	if (!['patch', 'minor', 'major'].includes(spec)) {
 		console.error(`Unknown version spec: ${spec}`);
