@@ -1,0 +1,26 @@
+[package]
+name = "fidocad-gpu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GPU tessellation and WebGL2 renderer for FidoRust drawings"
+
+[dependencies]
+fidocad-core.workspace = true
+bytemuck.workspace = true
+glow.workspace = true
+lyon = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = [
+    "HtmlCanvasElement",
+    "WebGl2RenderingContext",
+    "WebGlBuffer",
+    "WebGlProgram",
+    "WebGlShader",
+    "WebGlUniformLocation",
+    "WebGlVertexArrayObject",
+    "WebGlTexture",
+] }

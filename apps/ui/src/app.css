@@ -1,0 +1,68 @@
+:root {
+  --bg: #f4f0eb;
+  --bg-panel: #ece6df;
+  --bg-menu: #fbf8f4;
+  --fg: #1c1916;
+  --fg-muted: #6b6158;
+  --border: #d4c8bc;
+  --accent: #b56a3c;
+  --accent-fg: #fffaf5;
+  --danger: #c53030;
+  --canvas-bg: #f7f4ef;
+  --shadow: 0 8px 24px rgba(80, 48, 24, 0.08);
+  --radius: 8px;
+  --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+:root[data-theme='dark'] {
+  --bg: #1a1714;
+  --bg-panel: #141210;
+  --bg-menu: #221e1a;
+  --fg: #ece8e3;
+  --fg-muted: #a3988c;
+  --border: #3a342e;
+  --accent: #d4a07a;
+  --accent-fg: #1a1410;
+  --danger: #fc8181;
+  --canvas-bg: #12100e;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+button, select, input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--bg-menu);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+button {
+  cursor: pointer;
+  padding: 4px 10px;
+}
+button:hover { border-color: var(--accent); }
+button.active, button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+button:disabled { opacity: 0.45; cursor: default; }
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}

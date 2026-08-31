@@ -1,0 +1,38 @@
+# Original FidoCAD Win 0.96 sources and installer (reference only)
+/vendor/
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Keep workspace lockfile for apps that need reproducible builds
+!/Cargo.lock
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Tauri
+apps/ui/src-tauri/target/
+apps/ui/src-tauri/gen/
+
+# WASM build artifacts (regenerated)
+apps/ui/src/wasm/
+crates/fidocad-wasm/pkg/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# Env
+.env
+.env.*
+!.env.example

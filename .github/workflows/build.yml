@@ -1,0 +1,161 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/ui
+        run: npm ci
+
+      - name: Run core tests
+        run: cargo test -p fidocad-core
+
+      - name: Build FidoRust
+        working-directory: apps/ui
+        run: npm run tauri build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidorust-${{ matrix.os }}
+          path: |
+            target/release/bundle/dmg
+            target/release/bundle/macos
+            target/release/bundle/nsis
+            target/release/bundle/msi
+            apps/ui/src-tauri/target/release/bundle/dmg
+            apps/ui/src-tauri/target/release/bundle/macos
+            apps/ui/src-tauri/target/release/bundle/nsis
+            apps/ui/src-tauri/target/release/bundle/msi
+          if-no-files-found: warn
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/ui
+        run: npm ci
+
+      - name: Run core tests
+        run: cargo test -p fidocad-core
+
+      - name: Build web
+        working-directory: apps/ui
+        run: |
+          npm run wasm
+          npx vite build --base /${{ github.event.repository.name }}/
+          touch dist/.nojekyll
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidorust-wasm
+          path: apps/ui/dist
+
+      - name: Upload GitHub Pages artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/ui/dist
+
+  release:
+    needs: [build, wasm]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: fidorust-*
+          merge-multiple: false
+
+      - name: Zip web build
+        run: |
+          cd artifacts/fidorust-wasm
+          zip -r ../fidorust-web.zip .
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/fidorust-web.zip
+
+  deploy-pages:
+    needs: wasm
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
