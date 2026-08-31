@@ -4,6 +4,8 @@
 	import ToolIcon from './ToolIcon.svelte';
 	import LibraryPanel from './LibraryPanel.svelte';
 	import MacroGhost from './MacroGhost.svelte';
+	import ContextMenu from './ContextMenu.svelte';
+	import EditMenu from './EditMenu.svelte';
 	import { dict, type Locale } from './i18n';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from './libraryDrag';
@@ -46,6 +48,7 @@
 	let error = $state('');
 	let fileHandleName = $state('untitled.fcd');
 	let filePicker: HTMLInputElement | undefined;
+	let ctxMenu = $state<{ x: number; y: number } | null>(null);
 
 	function assetUrl(path: string) {
 		return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
@@ -178,14 +181,81 @@
 		await navigator.clipboard.writeText(engine.clipboard_fcd());
 	}
 
+	async function cutFcd() {
+		if (!engine) return;
+		await copyFcd();
+		engine.key('Delete', false);
+		engine.render();
+		refresh();
+	}
+
 	async function pasteFcd() {
 		if (!engine) return;
 		const text = await navigator.clipboard.readText();
 		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
+			engine.paste_selection(text);
+			engine.render();
+			refresh();
+		}
+	}
+
+	async function pasteNewDoc() {
+		if (!engine) return;
+		const text = await navigator.clipboard.readText();
+		if (text.includes('FIDOCAD') || text.includes('LI ') || text.includes('MC ')) {
+			engine.new_doc();
 			engine.load_fcd(text);
 			engine.render();
 			refresh();
 		}
+	}
+
+	function doDelete() {
+		engine?.key('Delete', false);
+		engine?.render();
+		refresh();
+	}
+
+	function doUndo() {
+		engine?.undo();
+		engine?.render();
+		refresh();
+	}
+
+	function doRedo() {
+		engine?.redo();
+		engine?.render();
+		refresh();
+	}
+
+	function doRotate() {
+		engine?.rotate();
+		engine?.render();
+		refresh();
+	}
+
+	function doMirror() {
+		engine?.mirror();
+		engine?.render();
+		refresh();
+	}
+
+	function doSplit() {
+		engine?.split_selected_macros();
+		engine?.render();
+		refresh();
+	}
+
+	function doSelectAll() {
+		engine?.key('a', true);
+		engine?.render();
+		refresh();
+	}
+
+	function doInvert() {
+		engine?.invert_selection();
+		engine?.render();
+		refresh();
 	}
 
 	function pickMacro(stem: string, key: string) {
@@ -327,6 +397,18 @@
 					}
 				}
 			}
+			if (meta && e.key.toLowerCase() === 'x') {
+				e.preventDefault();
+				void cutFcd();
+			}
+			if (meta && e.key.toLowerCase() === 'c') {
+				e.preventDefault();
+				void copyFcd();
+			}
+			if (meta && e.key.toLowerCase() === 'v') {
+				e.preventDefault();
+				void pasteFcd();
+			}
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
@@ -339,6 +421,28 @@
 </script>
 
 <svelte:document ondragover={onDragOver} ondrop={onDropFile} />
+
+{#snippet editActions(onDone)}
+	<EditMenu
+		{t}
+		hasSelection={status.selected > 0}
+		canUndo={status.can_undo}
+		canRedo={status.can_redo}
+		onCut={() => void cutFcd()}
+		onCopy={() => void copyFcd()}
+		onPaste={() => void pasteFcd()}
+		onPasteNew={() => void pasteNewDoc()}
+		onDelete={doDelete}
+		onUndo={doUndo}
+		onRedo={doRedo}
+		onRotate={doRotate}
+		onMirror={doMirror}
+		onSplit={doSplit}
+		onSelectAll={doSelectAll}
+		onInvert={doInvert}
+		{onDone}
+	/>
+{/snippet}
 
 <div class="shell">
 	<input
@@ -371,12 +475,7 @@
 							<button onclick={() => { copyFcd(); menu = null; }}>{t.copyFcd}</button>
 							<button onclick={() => { pasteFcd(); menu = null; }}>{t.pasteFcd}</button>
 						{:else if id === 'edit'}
-							<button disabled={!status.can_undo} onclick={() => { engine?.undo(); engine?.render(); refresh(); }}>{t.undo}</button>
-							<button disabled={!status.can_redo} onclick={() => { engine?.redo(); engine?.render(); refresh(); }}>{t.redo}</button>
-							<button onclick={() => { engine?.key('Delete', false); engine?.render(); refresh(); }}>{t.delete}</button>
-							<button onclick={() => { engine?.key('a', true); engine?.render(); refresh(); }}>{t.selectAll}</button>
-							<button onclick={() => { engine?.rotate(); engine?.render(); refresh(); }}>{t.rotate}</button>
-							<button onclick={() => { engine?.mirror(); engine?.render(); refresh(); }}>{t.mirror}</button>
+							{@render editActions(() => (menu = null))}
 						{:else if id === 'view'}
 							<button
 								onclick={() => {
@@ -472,7 +571,14 @@
 			</label>
 		</nav>
 
-		<CanvasHost bind:engine onStatus={refresh} />
+		<CanvasHost
+			bind:engine
+			onStatus={refresh}
+			onContextMenu={(x, y) => {
+				menu = null;
+				ctxMenu = { x, y };
+			}}
+		/>
 
 		<LibraryPanel
 			{engine}
@@ -504,6 +610,12 @@
 
 {#if libGhost}
 	<MacroGhost {...libGhost} />
+{/if}
+
+{#if ctxMenu}
+	<ContextMenu x={ctxMenu.x} y={ctxMenu.y} {t} onClose={() => (ctxMenu = null)}>
+		{@render editActions(() => (ctxMenu = null))}
+	</ContextMenu>
 {/if}
 
 {#if menu}
@@ -631,7 +743,7 @@
 		position: absolute;
 		top: 100%;
 		left: 0;
-		min-width: 220px;
+		min-width: 260px;
 		background: var(--bg-menu);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
