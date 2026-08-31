@@ -10,7 +10,7 @@ import {
 	type Theme
 } from './types';
 
-export type LibGhost = MacroCursor & { x: number; y: number; scale: number };
+export type LibGhost = MacroCursor & { x: number; y: number; scale: number; rot: number };
 
 function download(name: string, content: string, mime: string) {
 	const blob = new Blob([content], { type: mime });
@@ -362,12 +362,14 @@ export class AppSession {
 		const x0 = e.clientX;
 		const y0 = e.clientY;
 		let active = false;
+		let rot = 0;
 
 		const finish = () => {
 			window.removeEventListener('pointermove', move);
 			window.removeEventListener('pointerup', stop);
 			window.removeEventListener('pointercancel', stop);
 			window.removeEventListener('keydown', onEsc);
+			window.removeEventListener('contextmenu', onCtx, true);
 			document.body.classList.remove('lib-dragging');
 			this.libGhost = null;
 		};
@@ -396,11 +398,17 @@ export class AppSession {
 				this.libGhost = null;
 				return;
 			}
-			this.libGhost = { ...cur, x: ev.clientX, y: ev.clientY, scale: cssPerLu(this.status.zoom) };
+			this.libGhost = {
+				...cur,
+				x: ev.clientX,
+				y: ev.clientY,
+				scale: cssPerLu(this.status.zoom),
+				rot
+			};
 		};
 
 		const stop = (ev: PointerEvent) => {
-			if (ev.pointerId !== pointerId) return;
+			if (ev.pointerId !== pointerId || ev.button !== 0) return;
 			const wasActive = active;
 			finish();
 			if (!wasActive || !this.engine) return;
@@ -416,6 +424,16 @@ export class AppSession {
 			}
 		};
 
+		const onCtx = (ev: MouseEvent) => {
+			ev.preventDefault();
+			ev.stopPropagation();
+			if (!this.engine) return;
+			this.engine.pointer_right(0, 0);
+			rot = (rot + 1) % 4;
+			this.engine.render();
+			if (this.libGhost) this.libGhost = { ...this.libGhost, rot };
+		};
+
 		const onEsc = (ke: KeyboardEvent) => {
 			if (ke.key !== 'Escape') return;
 			ke.preventDefault();
@@ -428,6 +446,7 @@ export class AppSession {
 		window.addEventListener('pointerup', stop);
 		window.addEventListener('pointercancel', stop);
 		window.addEventListener('keydown', onEsc);
+		window.addEventListener('contextmenu', onCtx, true);
 	};
 
 	applyGrid = (v: {

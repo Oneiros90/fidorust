@@ -69,6 +69,10 @@
 	}
 
 	function down(e: PointerEvent) {
+		if (e.button === 2) {
+			e.preventDefault();
+			return;
+		}
 		if (!engine || !canvas || textEdit) return;
 		canvas.setPointerCapture(e.pointerId);
 		const p = local(e);
@@ -89,7 +93,7 @@
 	}
 
 	function up(e: PointerEvent) {
-		if (!engine || textEdit) return;
+		if (e.button === 2 || !engine || textEdit) return;
 		const p = local(e);
 		engine.pointer_up(p.x, p.y);
 		app.refresh();
@@ -116,7 +120,17 @@
 
 	function onCtx(e: MouseEvent) {
 		e.preventDefault();
-		if (textEdit) return;
+		e.stopPropagation();
+		if (!engine || textEdit) return;
+		const p = local(e);
+		if (engine.pointer_right(p.x, p.y)) {
+			engine.render();
+			app.refresh();
+			return;
+		}
+		engine.prepare_context_menu(p.x, p.y);
+		engine.render();
+		app.refresh();
 		app.openContextMenu(e.clientX, e.clientY);
 	}
 

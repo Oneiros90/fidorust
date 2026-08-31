@@ -23,7 +23,11 @@
 </script>
 
 <svelte:window onkeydown={app.onKey} />
-<svelte:document ondragover={app.onDragOver} ondrop={app.onDropFile} />
+<svelte:document
+	ondragover={app.onDragOver}
+	ondrop={app.onDropFile}
+	oncontextmenu={(e) => e.preventDefault()}
+/>
 
 <div class="shell">
 	<MenuBar />

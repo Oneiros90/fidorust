@@ -9,7 +9,8 @@
 		oy,
 		w,
 		h,
-		scale
+		scale,
+		rot = 0
 	}: {
 		svg: string;
 		x: number;
@@ -19,6 +20,7 @@
 		w: number;
 		h: number;
 		scale: number;
+		rot?: number;
 	} = $props();
 
 	const attachSvg = $derived(attachSvgString(svg));
@@ -30,6 +32,8 @@
 	style:top="{y - oy * scale}px"
 	style:width="{w * scale}px"
 	style:height="{h * scale}px"
+	style:transform="rotate({rot * 90}deg)"
+	style:transform-origin="{ox * scale}px {oy * scale}px"
 	{@attach attachSvg}
 ></div>
 
