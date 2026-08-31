@@ -40,6 +40,11 @@
 	let menu = $state<string | null>(null);
 	let error = $state('');
 	let fileHandleName = $state('untitled.fcd');
+	let filePicker: HTMLInputElement | undefined;
+
+	function assetUrl(path: string) {
+		return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+	}
 
 	const tools = [
 		['select', 'select'],
@@ -72,34 +77,52 @@
 		refresh();
 	}
 
-	async function openSample() {
+	function loadBytes(bytes: Uint8Array, name: string) {
 		if (!engine) return;
-		const r = await fetch('/sample.fcd');
-		const buf = await r.arrayBuffer();
-		engine.load_fcd_bytes(new Uint8Array(buf));
-		fileHandleName = 'sample.fcd';
-		engine.render();
-		refresh();
+		try {
+			engine.load_fcd_bytes(bytes);
+			fileHandleName = name;
+			engine.render();
+			refresh();
+			error = '';
+		} catch (e) {
+			error = String(e);
+		}
 	}
 
-	async function openFile() {
-		const input = document.createElement('input');
-		input.type = 'file';
-		input.accept = '.fcd,.txt';
-		input.onchange = async () => {
-			const f = input.files?.[0];
-			if (!f || !engine) return;
-			const buf = await f.arrayBuffer();
-				try {
-					engine.load_fcd_bytes(new Uint8Array(buf));
-				fileHandleName = f.name;
-				engine.render();
-				refresh();
-			} catch (e) {
-				error = String(e);
-			}
-		};
-		input.click();
+	async function loadFromFile(file: File) {
+		loadBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+	}
+
+	async function openSample() {
+		if (!engine) return;
+		const r = await fetch(assetUrl('sample.fcd'));
+		if (!r.ok) {
+			error = `${r.status} ${r.url}`;
+			return;
+		}
+		loadBytes(new Uint8Array(await r.arrayBuffer()), 'sample.fcd');
+	}
+
+	function openFile() {
+		filePicker?.click();
+	}
+
+	async function onPickedFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (file) await loadFromFile(file);
+	}
+
+	function onDragOver(e: DragEvent) {
+		if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+	}
+
+	async function onDropFile(e: DragEvent) {
+		e.preventDefault();
+		const file = e.dataTransfer?.files[0];
+		if (file) await loadFromFile(file);
 	}
 
 	function download(name: string, content: string, mime: string) {
@@ -218,9 +241,18 @@
 	});
 </script>
 
+<svelte:document ondragover={onDragOver} ondrop={onDropFile} />
+
 <div class="shell">
+	<input
+		bind:this={filePicker}
+		type="file"
+		accept=".fcd,.txt"
+		hidden
+		onchange={onPickedFile}
+	/>
 	<header class="menubar">
-		<img class="brand-mark" src="/favicon.svg" width="22" height="22" alt="" aria-hidden="true" />
+		<img class="brand-mark" src={assetUrl('favicon.svg')} width="22" height="22" alt="" aria-hidden="true" />
 		<strong class="brand">{t.app}</strong>
 		{#each [['file', t.file], ['edit', t.edit], ['view', t.view], ['options', t.options], ['help', t.help]] as [id, label]}
 			<div class="menu">
@@ -233,7 +265,8 @@
 					<div class="dropdown">
 						{#if id === 'file'}
 							<button onclick={() => { engine?.new_doc(); engine?.render(); refresh(); menu = null; }}>{t.new}</button>
-							<button onclick={() => { openSample(); menu = null; }}>Esempio / Sample</button>
+							<button onclick={() => { openFile(); menu = null; }}>{t.open}</button>
+							<button onclick={() => { openSample(); menu = null; }}>{t.sample}</button>
 							<button onclick={() => { saveFile(); menu = null; }}>{t.save}</button>
 							<button onclick={() => { exportSvg(); menu = null; }}>{t.exportSvg}</button>
 							<button onclick={() => { exportPng(); menu = null; }}>{t.exportPng}</button>
@@ -450,7 +483,7 @@
 {#if showAbout}
 	<div class="modal">
 		<div class="card about">
-			<img src="/favicon.svg" width="56" height="56" alt="" />
+			<img src={assetUrl('favicon.svg')} width="56" height="56" alt="" />
 			<h2>{t.about}</h2>
 			<p>{t.aboutBody}</p>
 			<button onclick={() => (showAbout = false)}>{t.close}</button>
