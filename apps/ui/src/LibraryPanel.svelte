@@ -9,6 +9,8 @@
 		pendingMacro,
 		theme,
 		title,
+		hideLabel,
+		showLabel,
 		onPick,
 		onArmDrag
 	}: {
@@ -21,14 +23,46 @@
 		pendingMacro: string | null;
 		theme: 'light' | 'dark';
 		title: string;
+		hideLabel: string;
+		showLabel: string;
 		onPick: (stem: string, key: string) => void;
 		onArmDrag: (name: string, e: PointerEvent) => void;
 	} = $props();
+
+	let collapsed = $state(matchMedia('(max-width: 768px)').matches);
+	let toggleLabel = $derived(collapsed ? showLabel : hideLabel);
 </script>
 
-<aside class="libs">
-	<h3>{title}</h3>
-	<div class="tree">
+<aside class={['libs', { collapsed }]} aria-label={title}>
+	<div class="head">
+		<button
+			type="button"
+			class="collapse-btn"
+			onclick={() => (collapsed = !collapsed)}
+			aria-expanded={!collapsed}
+			aria-controls="library-tree"
+			title={toggleLabel}
+			aria-label={toggleLabel}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				aria-hidden="true"
+			>
+				{#if collapsed}
+					<polyline points="15 6 9 12 15 18" />
+				{:else}
+					<polyline points="9 6 15 12 9 18" />
+				{/if}
+			</svg>
+		</button>
+		<h3>{title}</h3>
+	</div>
+	<div class="tree" id="library-tree" inert={collapsed}>
 		{#each libs as lib (lib.stem)}
 			<details class="node" open={lib.stem === 'stdlib'}>
 				<summary class="node-label">{lib.title}</summary>
@@ -60,6 +94,7 @@
 
 <style>
 	.libs {
+		position: relative;
 		width: 300px;
 		border-left: 1px solid var(--border);
 		background: var(--bg-panel);
@@ -70,12 +105,59 @@
 		line-height: 1.35;
 		font-family: var(--font);
 	}
+	.libs.collapsed {
+		width: 0;
+		border: none;
+		background: transparent;
+		overflow: visible;
+		pointer-events: none;
+	}
+	.head {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px 6px 8px;
+		border-bottom: 1px solid var(--border);
+		flex-shrink: 0;
+	}
+	.libs.collapsed .head {
+		position: absolute;
+		top: 8px;
+		right: 100%;
+		margin-right: 8px;
+		padding: 0;
+		border: none;
+		pointer-events: auto;
+		z-index: 4;
+	}
+	.collapse-btn {
+		width: 26px;
+		height: 26px;
+		padding: 0;
+		flex-shrink: 0;
+		display: grid;
+		place-items: center;
+		background: var(--bg-menu);
+	}
+	.libs.collapsed .collapse-btn {
+		box-shadow: var(--shadow);
+	}
+	.collapse-btn svg {
+		width: 14px;
+		height: 14px;
+		display: block;
+	}
 	h3 {
 		margin: 0;
-		padding: 10px 12px;
+		padding: 4px 2px;
 		font-size: 13px;
 		font-weight: 650;
-		border-bottom: 1px solid var(--border);
+		min-width: 0;
+		flex: 1;
+	}
+	.libs.collapsed h3,
+	.libs.collapsed .tree {
+		display: none;
 	}
 	.tree {
 		overflow: auto;

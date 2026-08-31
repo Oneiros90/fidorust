@@ -480,6 +480,8 @@
 			pendingMacro={status.pending_macro}
 			{theme}
 			title={t.libraries}
+			hideLabel={t.hideLibrary}
+			showLabel={t.showLibrary}
 			onPick={pickMacro}
 			onArmDrag={armLibraryDrag}
 		/>
