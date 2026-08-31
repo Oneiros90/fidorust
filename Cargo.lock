@@ -804,7 +804,7 @@ dependencies = [
 
 [[package]]
 name = "fidocad-core"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "encoding_rs",
  "serde",
@@ -814,7 +814,7 @@ dependencies = [
 
 [[package]]
 name = "fidocad-gpu"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "bytemuck",
  "fidocad-core",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "fidocad-tauri"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -839,7 +839,7 @@ dependencies = [
 
 [[package]]
 name = "fidocad-wasm"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "fidocad-core",
  "fidocad-gpu",

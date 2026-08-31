@@ -47,6 +47,10 @@ jobs:
         working-directory: apps/ui
         run: npm ci
 
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node tools/bump.mjs "${GITHUB_REF_NAME#v}" --files-only
+
       - name: Run core tests
         run: cargo test -p fidocad-core
 
