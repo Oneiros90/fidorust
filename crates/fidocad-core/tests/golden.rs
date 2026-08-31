@@ -160,11 +160,62 @@ fn marquee_rect_while_dragging() {
     ed.tool = Tool::Select;
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(40, 25), (40.0, 25.0));
-    let (a, b) = ed.marquee_rect().expect("marquee should be live while dragging");
+    let (a, b) = ed
+        .marquee_rect()
+        .expect("marquee should be live while dragging");
     assert_eq!(a, Point::new(0, 0));
     assert_eq!(b, Point::new(40, 25));
     ed.pointer_up(Point::new(40, 25));
     assert!(ed.marquee_rect().is_none());
+}
+
+#[test]
+fn right_click_rotates_pending_macro() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.tool = Tool::Macro;
+    ed.pending_macro = Some("080".into());
+    assert!(ed.right_click(Point::new(20, 20)));
+    assert_eq!(ed.pending_rotations, 1);
+    assert!(ed.right_click(Point::new(20, 20)));
+    assert_eq!(ed.pending_rotations, 2);
+}
+
+#[test]
+fn right_click_rotates_while_moving_selection() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.tool = Tool::Select;
+    ed.doc.snap = 1;
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    });
+    ed.selected.push(0);
+    ed.pointer_down(Point::new(5, 0), (5.0, 0.0), false, false);
+    ed.pointer_move(Point::new(8, 0), (8.0, 0.0));
+    assert!(ed.right_click(Point::new(8, 0)));
+    match &ed.doc.primitives[0] {
+        Primitive::Line { a, b, .. } => {
+            assert_ne!((*a, *b), (Point::new(3, 0), Point::new(13, 0)));
+        }
+        _ => panic!("expected line"),
+    }
+}
+
+#[test]
+fn invert_selection_toggles_indices() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.insert(Primitive::Connection {
+        pos: Point::new(0, 0),
+        layer: LayerId(0),
+    });
+    ed.doc.insert(Primitive::Connection {
+        pos: Point::new(10, 0),
+        layer: LayerId(0),
+    });
+    ed.selected = vec![0];
+    ed.invert_selection();
+    assert_eq!(ed.selected, vec![1]);
 }
 
 fn sample_text(pos: Point, text: &str) -> Primitive {
@@ -186,6 +237,7 @@ fn text_hit_matches_glyph_box() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc.snap = 1;
     ed.doc.insert(sample_text(Point::new(10, 20), "AB"));
+    // "AB" is 2×3 LU wide and 4 LU tall, origin top-left at (10, 20).
     assert!(ed.begin_text_edit_at(Point::new(11, 21)).is_some());
     ed.cancel_text_edit();
     assert!(ed.begin_text_edit_at(Point::new(13, 14)).is_none());
@@ -218,10 +270,19 @@ fn dblclick_finishes_poly_instead_of_text_edit() {
     ed.pointer_down(Point::new(10, 0), (10.0, 0.0), false, false);
     ed.pointer_up(Point::new(10, 0));
     assert!(ed.begin_text_edit_at(Point::new(5, 0)).is_none());
-    assert!(
-        ed.doc
-            .primitives
-            .iter()
-            .any(|p| matches!(p, Primitive::Poly { .. }))
-    );
+    assert!(ed
+        .doc
+        .primitives
+        .iter()
+        .any(|p| matches!(p, Primitive::Poly { .. })));
+}
+
+#[test]
+fn snap_xy_independent_and_disable() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.snap = 10;
+    ed.doc.snap_y = 5;
+    assert_eq!(ed.snap_pt(Point::new(14, 8)), Point::new(10, 10));
+    ed.snap_enable = false;
+    assert_eq!(ed.snap_pt(Point::new(14, 8)), Point::new(14, 8));
 }

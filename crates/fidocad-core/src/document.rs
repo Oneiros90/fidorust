@@ -25,8 +25,14 @@ pub struct Document {
     pub primitives: Vec<Primitive>,
     pub layers: LayerSet,
     pub pcb_mode: bool,
+    /// Grid pitch in LU (X). Original `m_xgrid`, 1..=40.
     pub grid: i32,
+    /// Grid pitch in LU (Y). Original `m_ygrid`, 1..=40.
+    pub grid_y: i32,
+    /// Snap pitch in LU (X). Original `m_xsnap`, 1..=20.
     pub snap: i32,
+    /// Snap pitch in LU (Y). Original `m_ysnap`, 1..=20.
+    pub snap_y: i32,
     pub warnings: u32,
 }
 
@@ -38,7 +44,9 @@ impl Default for Document {
             layers: LayerSet::default(),
             pcb_mode: false,
             grid: 5,
+            grid_y: 5,
             snap: 5,
+            snap_y: 5,
             warnings: 0,
         }
     }

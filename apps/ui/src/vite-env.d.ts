@@ -15,6 +15,12 @@ declare module './wasm/fidocad_wasm.js' {
     pointer_down(sx: number, sy: number, shift: boolean, pan: boolean): void;
     pointer_move(sx: number, sy: number): void;
     pointer_up(sx: number, sy: number): void;
+    pointer_right(sx: number, sy: number): boolean;
+    prepare_context_menu(sx: number, sy: number): void;
+    invert_selection(): void;
+    split_selected_macros(): void;
+    paste_selection(text: string): void;
+    load_fcd(text: string): void;
     dblclick(sx: number, sy: number): string;
     begin_selected_text_edit(): string;
     commit_text_edit(text: string): void;
@@ -25,8 +31,10 @@ declare module './wasm/fidocad_wasm.js' {
     set_tool(id: string): void;
     set_layer(n: number): void;
     set_pcb_mode(on: boolean): void;
-    set_grid(n: number): void;
-    set_snap(n: number): void;
+    set_grid(x: number, y: number): void;
+    set_snap(x: number, y: number): void;
+    set_snap_enable(on: boolean): void;
+    set_hide_macro_origin(on: boolean): void;
     set_show_grid(on: boolean): void;
     set_filled(on: boolean): void;
     set_track_width(w: number): void;

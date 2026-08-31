@@ -6,6 +6,7 @@
 	import MacroGhost from './MacroGhost.svelte';
 	import ContextMenu from './ContextMenu.svelte';
 	import EditMenu from './EditMenu.svelte';
+	import GridDialog from './GridDialog.svelte';
 	import { dict, type Locale } from './i18n';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from './libraryDrag';
@@ -30,7 +31,12 @@
 		can_redo: false,
 		title: '',
 		snap: 5,
+		snap_y: 5,
 		grid: 5,
+		grid_y: 5,
+		snap_enable: true,
+		show_grid: true,
+		hide_macro_origin: true,
 		pending_macro: null as string | null
 	});
 	let libs = $state<
@@ -41,7 +47,7 @@
 	}>({ layers: [] });
 	let showLayers = $state(false);
 	let showAbout = $state(false);
-	let showGrid = $state(true);
+	let showGridDlg = $state(false);
 	let splitMacros = $state(true);
 	let filled = $state(false);
 	let menu = $state<string | null>(null);
@@ -469,13 +475,7 @@
 						{:else if id === 'edit'}
 							{@render editActions(() => (menu = null))}
 						{:else if id === 'view'}
-							<button
-								onclick={() => {
-									showGrid = !showGrid;
-									engine?.set_show_grid(showGrid);
-									engine?.render();
-								}}>{t.grid}</button
-							>
+							<button onclick={() => { showGridDlg = true; menu = null; }}>{t.gridSnap}</button>
 							<button onclick={() => { engine?.fit(); engine?.render(); refresh(); }}>{t.fit}</button>
 							<button
 								onclick={() => {
@@ -596,7 +596,7 @@
 		<span>{status.n} obj</span>
 		{#if status.selected}<span>sel {status.selected}</span>{/if}
 		{#if status.pending_macro}<span>{t.macro}: {status.pending_macro}</span>{/if}
-		<span>snap {status.snap} / grid {status.grid}</span>
+		<span>snap {status.snap}×{status.snap_y}{status.snap_enable ? '' : ' off'} / grid {status.grid}×{status.grid_y}</span>
 	</footer>
 </div>
 
@@ -686,6 +686,30 @@
 			<button onclick={() => (showAbout = false)}>{t.close}</button>
 		</div>
 	</div>
+{/if}
+
+{#if showGridDlg}
+	<GridDialog
+		{t}
+		gridX={status.grid}
+		gridY={status.grid_y}
+		snapX={status.snap}
+		snapY={status.snap_y}
+		showGrid={status.show_grid}
+		snapEnable={status.snap_enable}
+		hideMacroOrigin={status.hide_macro_origin}
+		onApply={(v) => {
+			engine?.set_grid(v.gridX, v.gridY);
+			engine?.set_snap(v.snapX, v.snapY);
+			engine?.set_show_grid(v.showGrid);
+			engine?.set_snap_enable(v.snapEnable);
+			engine?.set_hide_macro_origin(v.hideMacroOrigin);
+			engine?.render();
+			refresh();
+			showGridDlg = false;
+		}}
+		onCancel={() => (showGridDlg = false)}
+	/>
 {/if}
 
 {#if error}

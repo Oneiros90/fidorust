@@ -69,10 +69,7 @@ pub enum Command {
     Insert(Primitive),
     Delete(Vec<(usize, Primitive)>),
     Replace(usize, Primitive, Primitive),
-    Move {
-        indices: Vec<usize>,
-        delta: Point,
-    },
+    Move { indices: Vec<usize>, delta: Point },
 }
 
 #[derive(Clone, Debug)]
@@ -98,6 +95,7 @@ pub struct Editor {
     pub pad_hole: i32,
     pub pad_style: PadStyle,
     pub pending_macro: Option<String>,
+    pub pending_rotations: u8,
     pub pending_text: String,
     /// Primitive index whose glyphs are hidden while the UI overlay edits them.
     pub editing_text: Option<usize>,
@@ -108,6 +106,10 @@ pub struct Editor {
     pub hover: Option<Point>,
     /// Screen theme only: invert near-black layer colours when drawing. Not saved.
     pub canvas_dark: bool,
+    /// Original `m_bSnapEnable`. When false, coordinates are not quantized.
+    pub snap_enable: bool,
+    /// Original `m_bHideMacroOrigin`. When true, skip the red origin handle on macros.
+    pub hide_macro_origin: bool,
 }
 
 /// Layout of a text primitive for an in-scene editor overlay.
@@ -125,10 +127,21 @@ pub struct TextEditSession {
 
 #[derive(Clone, Debug)]
 enum Drag {
-    Move { last: Point },
-    Marquee { start: Point, current: Point },
-    Handle { index: usize, handle: usize },
-    Pan { start_screen: (f32, f32), pan0: (f32, f32) },
+    Move {
+        last: Point,
+    },
+    Marquee {
+        start: Point,
+        current: Point,
+    },
+    Handle {
+        index: usize,
+        handle: usize,
+    },
+    Pan {
+        start_screen: (f32, f32),
+        pan0: (f32, f32),
+    },
 }
 
 impl Editor {
@@ -149,6 +162,7 @@ impl Editor {
             pad_hole: 8,
             pad_style: PadStyle::Oval,
             pending_macro: None,
+            pending_rotations: 0,
             pending_text: "TEXT".into(),
             editing_text: None,
             undo: Vec::new(),
@@ -157,11 +171,16 @@ impl Editor {
             drag: None,
             hover: None,
             canvas_dark: false,
+            snap_enable: true,
+            hide_macro_origin: true,
         }
     }
 
     pub fn snap_pt(&self, p: Point) -> Point {
-        Point::new(snap(p.x, self.doc.snap), snap(p.y, self.doc.snap))
+        if !self.snap_enable {
+            return p;
+        }
+        Point::new(snap(p.x, self.doc.snap), snap(p.y, self.doc.snap_y))
     }
 
     fn push_undo(&mut self) {
@@ -223,6 +242,10 @@ impl Editor {
             let bb = self.doc.selected_aabb(&self.selected, &self.libs);
             Point::new((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2)
         };
+        self.rotate_at(origin);
+    }
+
+    fn rotate_at(&mut self, origin: Point) {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
                 p.transform(|q| q.rotate90_cw(origin));
@@ -230,6 +253,101 @@ impl Editor {
                     *rotations = (*rotations + 1) % 4;
                 }
             }
+        }
+    }
+
+    pub fn invert_selection(&mut self) {
+        let n = self.doc.primitives.len();
+        let sel: std::collections::HashSet<usize> = self.selected.iter().copied().collect();
+        self.selected = (0..n).filter(|i| !sel.contains(i)).collect();
+    }
+
+    pub fn paste_primitives(&mut self, text: &str) -> Result<(), crate::parse::ParseError> {
+        let incoming = crate::parse::parse_document(text)?;
+        if incoming.primitives.is_empty() {
+            return Ok(());
+        }
+        self.push_undo();
+        self.selected.clear();
+        for p in incoming.primitives {
+            let i = self.doc.insert(p);
+            self.selected.push(i);
+        }
+        Ok(())
+    }
+
+    pub fn split_selected_macros(&mut self) {
+        let set: std::collections::HashSet<usize> = self.selected.iter().copied().collect();
+        let has_macro = set
+            .iter()
+            .any(|&i| matches!(self.doc.primitives.get(i), Some(Primitive::Macro { .. })));
+        if !has_macro {
+            return;
+        }
+        self.push_undo();
+        let mut out = Vec::new();
+        let mut new_sel = Vec::new();
+        for (i, p) in self.doc.primitives.iter().enumerate() {
+            if set.contains(&i) {
+                if matches!(p, Primitive::Macro { .. }) {
+                    for q in crate::library::expand_primitive(p, &self.libs) {
+                        new_sel.push(out.len());
+                        out.push(q);
+                    }
+                    continue;
+                }
+                new_sel.push(out.len());
+            }
+            out.push(p.clone());
+        }
+        self.doc.primitives = out;
+        self.selected = new_sel;
+    }
+
+    /// Right-click: rotate while dragging/placing, otherwise the caller shows the context menu.
+    /// Returns true if the click was consumed.
+    pub fn right_click(&mut self, world: Point) -> bool {
+        match &self.drag {
+            Some(Drag::Move { .. }) => {
+                let pt = self.snap_pt(world);
+                self.hover = Some(pt);
+                self.rotate_at(pt);
+                return true;
+            }
+            Some(Drag::Marquee { .. }) => {
+                self.drag = None;
+                return true;
+            }
+            Some(Drag::Handle { .. } | Drag::Pan { .. }) => return true,
+            None => {}
+        }
+        if self.draft.is_some() {
+            self.cancel_draft();
+            return true;
+        }
+        if self.tool == Tool::Macro && self.pending_macro.is_some() {
+            self.pending_rotations = (self.pending_rotations + 1) % 4;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// FidoCAD right-click: select the object under the cursor (or clear if none).
+    pub fn prepare_context_menu(&mut self, world: Point) {
+        if let Some(hit) = hit_test(
+            &self.doc.primitives,
+            &self.libs,
+            &self.doc.layers,
+            world,
+            self.zoom,
+        ) {
+            if !self.selected.contains(&hit.index) {
+                self.selected.clear();
+                self.selected.push(hit.index);
+            }
+        } else {
+            self.selected.clear();
         }
     }
 
@@ -262,7 +380,10 @@ impl Editor {
     }
 
     pub fn draft_points(&self) -> &[Point] {
-        self.draft.as_ref().map(|d| d.points.as_slice()).unwrap_or(&[])
+        self.draft
+            .as_ref()
+            .map(|d| d.points.as_slice())
+            .unwrap_or(&[])
     }
 
     /// Live rubber-band while dragging a selection marquee.
@@ -294,7 +415,7 @@ impl Editor {
             def,
             Transform {
                 origin: pos,
-                rotations: 0,
+                rotations: self.pending_rotations,
                 mirrored: false,
             },
             &self.libs,
@@ -315,7 +436,7 @@ impl Editor {
         let standard = self.libs.is_standard(&name);
         self.doc.insert(Primitive::Macro {
             pos: pt,
-            rotations: 0,
+            rotations: self.pending_rotations,
             mirrored: false,
             name,
             standard,
@@ -437,7 +558,10 @@ impl Editor {
                     }
                 }
             }
-            if matches!(d.tool, Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack) {
+            if matches!(
+                d.tool,
+                Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack
+            ) {
                 if d.points.len() == 1 {
                     d.points.push(pt);
                 } else {
@@ -449,7 +573,8 @@ impl Editor {
             Some(Drag::Move { last }) => {
                 let delta = Point::new(pt.x - last.x, pt.y - last.y);
                 if delta != Point::new(0, 0) {
-                    if self.undo.last().map(|d| d.primitives.len()) != Some(self.doc.primitives.len())
+                    if self.undo.last().map(|d| d.primitives.len())
+                        != Some(self.doc.primitives.len())
                     {
                         // already snapshot
                     }

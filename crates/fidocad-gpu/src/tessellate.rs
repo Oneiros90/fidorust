@@ -381,6 +381,9 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
             add_prim(&mut scene, &q, layers, sel, dark);
         }
         if sel {
+            if ed.hide_macro_origin && matches!(p, Primitive::Macro { .. }) {
+                continue;
+            }
             for h in p.control_points() {
                 scene.handles.push(CircleInstance {
                     x: h.x as f32,

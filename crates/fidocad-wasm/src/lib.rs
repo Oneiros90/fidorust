@@ -1,11 +1,11 @@
 use fidocad_core::parse::builtin_libraries;
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{Editor, LayerId, SaveOptions, TextEditSession, Tool};
+#[cfg(target_arch = "wasm32")]
+use fidocad_gpu::renderer::Renderer;
 use fidocad_gpu::tessellate::{
     scene_to_svg, scene_to_thumb_svg, tessellate_editor, tessellate_primitives, tessellate_view,
 };
-#[cfg(target_arch = "wasm32")]
-use fidocad_gpu::renderer::Renderer;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
@@ -39,7 +39,12 @@ struct Status {
     can_redo: bool,
     title: String,
     snap: i32,
+    snap_y: i32,
     grid: i32,
+    grid_y: i32,
+    snap_enable: bool,
+    show_grid: bool,
+    hide_macro_origin: bool,
     pending_macro: Option<String>,
 }
 
@@ -92,7 +97,7 @@ impl App {
                 self.editor.pan,
                 self.editor.zoom,
                 (self.width, self.height),
-                self.editor.doc.grid as f32,
+                (self.editor.doc.grid as f32, self.editor.doc.grid_y as f32),
                 self.show_grid,
             );
         }
@@ -137,7 +142,11 @@ impl App {
             .filter_map(|&i| self.editor.doc.primitives.get(i).cloned())
             .collect();
         if prims.is_empty() {
-            serialize_document(&self.editor.doc, SaveOptions::default(), Some(&self.editor.libs))
+            serialize_document(
+                &self.editor.doc,
+                SaveOptions::default(),
+                Some(&self.editor.libs),
+            )
         } else {
             serialize_clipboard(&prims)
         }
@@ -292,14 +301,27 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_grid(&mut self, n: i32) {
-        self.editor.doc.grid = n.clamp(1, 40);
+    pub fn set_grid(&mut self, x: i32, y: i32) {
+        self.editor.doc.grid = x.clamp(1, 40);
+        self.editor.doc.grid_y = y.clamp(1, 40);
         self.dirty = true;
     }
 
     #[wasm_bindgen]
-    pub fn set_snap(&mut self, n: i32) {
-        self.editor.doc.snap = n.clamp(0, 20);
+    pub fn set_snap(&mut self, x: i32, y: i32) {
+        self.editor.doc.snap = x.clamp(1, 20);
+        self.editor.doc.snap_y = y.clamp(1, 20);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_snap_enable(&mut self, on: bool) {
+        self.editor.snap_enable = on;
+    }
+
+    #[wasm_bindgen]
+    pub fn set_hide_macro_origin(&mut self, on: bool) {
+        self.editor.hide_macro_origin = on;
+        self.dirty = true;
     }
 
     #[wasm_bindgen]
@@ -327,6 +349,7 @@ impl App {
     #[wasm_bindgen]
     pub fn set_pending_macro(&mut self, name: &str) {
         self.editor.pending_macro = Some(name.to_string());
+        self.editor.pending_rotations = 0;
         self.editor.tool = Tool::Macro;
         self.editor.clear_hover();
     }
@@ -337,6 +360,39 @@ impl App {
         self.editor.tool = Tool::Macro;
         let w = self.editor.screen_to_world(sx, sy);
         self.editor.insert_pending_macro_at(w);
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn pointer_right(&mut self, sx: f32, sy: f32) -> bool {
+        let w = self.editor.screen_to_world(sx, sy);
+        let consumed = self.editor.right_click(w);
+        self.dirty = true;
+        consumed
+    }
+
+    #[wasm_bindgen]
+    pub fn prepare_context_menu(&mut self, sx: f32, sy: f32) {
+        let w = self.editor.screen_to_world(sx, sy);
+        self.editor.prepare_context_menu(w);
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn invert_selection(&mut self) {
+        self.editor.invert_selection();
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn split_selected_macros(&mut self) {
+        self.editor.split_selected_macros();
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn paste_selection(&mut self, text: &str) {
+        let _ = self.editor.paste_primitives(text);
         self.dirty = true;
     }
 
@@ -494,7 +550,12 @@ impl App {
             can_redo: self.editor.can_redo(),
             title: self.editor.doc.title.clone(),
             snap: self.editor.doc.snap,
+            snap_y: self.editor.doc.snap_y,
             grid: self.editor.doc.grid,
+            grid_y: self.editor.doc.grid_y,
+            snap_enable: self.editor.snap_enable,
+            show_grid: self.show_grid,
+            hide_macro_origin: self.editor.hide_macro_origin,
             pending_macro: if self.editor.tool == Tool::Macro {
                 self.editor.pending_macro.clone()
             } else {
