@@ -75,7 +75,8 @@ export const it = {
   textPrompt: 'Testo',
   trackWidth: 'Spessore pista',
   cancel: 'Annulla',
-  ok: 'OK'
+  ok: 'OK',
+  updateTo: 'aggiorna a {version}'
 };
 
 export const en: typeof it = {
@@ -155,7 +156,8 @@ export const en: typeof it = {
   textPrompt: 'Text',
   trackWidth: 'Track width',
   cancel: 'Cancel',
-  ok: 'OK'
+  ok: 'OK',
+  updateTo: 'update to {version}'
 };
 
 export type Locale = 'it' | 'en';

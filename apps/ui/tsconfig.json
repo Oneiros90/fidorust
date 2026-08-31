@@ -7,6 +7,7 @@
     "strict": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "isolatedModules": true,
     "lib": ["ESNext", "DOM"],
     "types": ["svelte"]
