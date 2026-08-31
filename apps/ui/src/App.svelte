@@ -368,6 +368,12 @@
 		engine?.render();
 	}
 
+	function closeLayersOnEsc(e: KeyboardEvent) {
+		if (e.key !== 'Escape' || !showLayers) return;
+		showLayers = false;
+		e.preventDefault();
+	}
+
 	onMount(async () => {
 		applyTheme();
 		const init = (await import('./wasm/fidocad_wasm.js')).default;
@@ -379,6 +385,8 @@
 		engine.set_theme(theme);
 		refresh();
 		const onKey = (e: KeyboardEvent) => {
+			closeLayersOnEsc(e);
+			if (e.defaultPrevented) return;
 			const target = e.target as HTMLElement | null;
 			if (target?.closest('input, textarea, select, [contenteditable]')) return;
 			const meta = e.metaKey || e.ctrlKey;
@@ -418,6 +426,7 @@
 	});
 </script>
 
+<svelte:window onkeydown={closeLayersOnEsc} />
 <svelte:document ondragover={onDragOver} ondrop={onDropFile} />
 
 {#snippet editActions(onDone)}
@@ -615,9 +624,19 @@
 {/if}
 
 {#if showLayers}
-	<div class="modal" role="dialog">
+	<div class="modal" role="dialog" aria-modal="true" aria-labelledby="layers-title">
 		<div class="card">
-			<h2>{t.layers}</h2>
+			<div class="card-head">
+				<h2 id="layers-title">{t.layers}</h2>
+				<button
+					type="button"
+					class="card-close"
+					onclick={() => (showLayers = false)}
+					aria-label={t.close}
+				>
+					<span aria-hidden="true">×</span>
+				</button>
+			</div>
 			<table>
 				<thead>
 					<tr>
@@ -672,7 +691,6 @@
 					{/each}
 				</tbody>
 			</table>
-			<button onclick={() => (showLayers = false)}>{t.close}</button>
 		</div>
 	</div>
 {/if}
@@ -842,6 +860,25 @@
 		max-height: 80vh;
 		overflow: auto;
 		box-shadow: var(--shadow);
+	}
+	.card-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+	.card-head h2 {
+		margin: 0;
+	}
+	.card-close {
+		width: 28px;
+		height: 28px;
+		padding: 0;
+		display: grid;
+		place-items: center;
+		font-size: 18px;
+		line-height: 1;
+		flex-shrink: 0;
 	}
 	.about {
 		text-align: center;
