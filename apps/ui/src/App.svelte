@@ -2,7 +2,11 @@
 	import { onMount } from 'svelte';
 	import CanvasHost from './CanvasHost.svelte';
 	import ToolIcon from './ToolIcon.svelte';
+	import LibraryPanel from './LibraryPanel.svelte';
+	import MacroGhost from './MacroGhost.svelte';
 	import { dict, type Locale } from './i18n';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from './libraryDrag';
 	import type { App as WasmApp } from './wasm/fidocad_wasm.js';
 
 	let engine = $state<WasmApp | null>(null);
@@ -24,7 +28,8 @@
 		can_redo: false,
 		title: '',
 		snap: 5,
-		grid: 5
+		grid: 5,
+		pending_macro: null as string | null
 	});
 	let libs = $state<
 		{ stem: string; title: string; categories: { name: string; macros: [string, string][] }[] }[]
@@ -116,7 +121,8 @@
 	}
 
 	function onDragOver(e: DragEvent) {
-		if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+		const types = [...(e.dataTransfer?.types ?? [])];
+		if (types.includes('Files')) e.preventDefault();
 	}
 
 	async function onDropFile(e: DragEvent) {
@@ -189,8 +195,99 @@
 		refresh();
 	}
 
+	let libGhost = $state<(MacroCursor & { x: number; y: number; scale: number }) | null>(null);
+	const cursorCache = new SvelteMap<string, MacroCursor>();
+
+	function getCursor(name: string): MacroCursor | null {
+		if (!engine) return null;
+		const key = `${theme}:${name}`;
+		let c = cursorCache.get(key);
+		if (!c) {
+			const parsed = parseMacroCursor(engine.macro_cursor_json(name));
+			if (!parsed) return null;
+			cursorCache.set(key, parsed);
+			c = parsed;
+		}
+		return c;
+	}
+
+	function armLibraryDrag(name: string, e: PointerEvent) {
+		const pointerId = e.pointerId;
+		const x0 = e.clientX;
+		const y0 = e.clientY;
+		let active = false;
+
+		const finish = () => {
+			window.removeEventListener('pointermove', move);
+			window.removeEventListener('pointerup', stop);
+			window.removeEventListener('pointercancel', stop);
+			window.removeEventListener('keydown', onEsc);
+			document.body.classList.remove('lib-dragging');
+			libGhost = null;
+		};
+
+		const move = (ev: PointerEvent) => {
+			if (ev.pointerId !== pointerId || !engine) return;
+			if (!active) {
+				if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+				active = true;
+				document.body.classList.add('lib-dragging');
+			}
+			const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+			if (canvas) {
+				const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
+				if (loc.inside) {
+					engine.pointer_move(loc.x, loc.y);
+					engine.render();
+					libGhost = null;
+					return;
+				}
+				engine.clear_hover();
+				engine.render();
+			}
+			const cur = getCursor(name);
+			if (!cur) {
+				libGhost = null;
+				return;
+			}
+			libGhost = { ...cur, x: ev.clientX, y: ev.clientY, scale: cssPerLu(status.zoom) };
+		};
+
+		const stop = (ev: PointerEvent) => {
+			if (ev.pointerId !== pointerId) return;
+			const wasActive = active;
+			finish();
+			if (!wasActive || !engine) return;
+			const canvas = document.getElementById('draw-canvas') as HTMLCanvasElement | null;
+			if (!canvas) return;
+			const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
+			if (loc.inside) {
+				engine.place_macro_at(name, loc.x, loc.y);
+				engine.render();
+				refresh();
+			} else {
+				engine.clear_hover();
+				engine.render();
+			}
+		};
+
+		const onEsc = (ke: KeyboardEvent) => {
+			if (ke.key !== 'Escape') return;
+			ke.preventDefault();
+			finish();
+			engine?.clear_hover();
+			engine?.render();
+		};
+
+		window.addEventListener('pointermove', move);
+		window.addEventListener('pointerup', stop);
+		window.addEventListener('pointercancel', stop);
+		window.addEventListener('keydown', onEsc);
+	}
+
 	function applyTheme() {
 		document.documentElement.dataset.theme = theme;
+		cursorCache.clear();
 		engine?.set_theme(theme);
 		engine?.render();
 	}
@@ -254,7 +351,7 @@
 	<header class="menubar">
 		<img class="brand-mark" src={assetUrl('favicon.svg')} width="22" height="22" alt="" aria-hidden="true" />
 		<strong class="brand">{t.app}</strong>
-		{#each [['file', t.file], ['edit', t.edit], ['view', t.view], ['options', t.options], ['help', t.help]] as [id, label]}
+		{#each [['file', t.file], ['edit', t.edit], ['view', t.view], ['options', t.options], ['help', t.help]] as [id, label] (id)}
 			<div class="menu">
 				<button
 					class="menu-btn"
@@ -332,7 +429,7 @@
 					refresh();
 				}}
 			>
-				{#each layers.layers as l, i}
+				{#each layers.layers as l, i (i)}
 					<option value={i}>{i}: {l.name}</option>
 				{/each}
 			</select>
@@ -377,26 +474,15 @@
 
 		<CanvasHost bind:engine onStatus={refresh} />
 
-		<aside class="libs">
-			<h3>{t.libraries}</h3>
-			<div class="tree">
-				{#each libs as lib}
-					<details open={lib.stem === 'stdlib'}>
-						<summary>{lib.title}</summary>
-						{#each lib.categories as cat}
-							<details>
-								<summary>{cat.name}</summary>
-								{#each cat.macros as [key, name]}
-									<button class="mac" onclick={() => pickMacro(lib.stem, key)}
-										>{key} {name}</button
-									>
-								{/each}
-							</details>
-						{/each}
-					</details>
-				{/each}
-			</div>
-		</aside>
+		<LibraryPanel
+			{engine}
+			{libs}
+			pendingMacro={status.pending_macro}
+			{theme}
+			title={t.libraries}
+			onPick={pickMacro}
+			onArmDrag={armLibraryDrag}
+		/>
 	</div>
 
 	<footer class="status">
@@ -409,9 +495,14 @@
 		<span>{Math.round(status.zoom * 100)}%</span>
 		<span>{status.n} obj</span>
 		{#if status.selected}<span>sel {status.selected}</span>{/if}
+		{#if status.pending_macro}<span>{t.macro}: {status.pending_macro}</span>{/if}
 		<span>snap {status.snap} / grid {status.grid}</span>
 	</footer>
 </div>
+
+{#if libGhost}
+	<MacroGhost {...libGhost} />
+{/if}
 
 {#if menu}
 	<button class="scrim" onclick={() => (menu = null)} aria-label="close menu"></button>
@@ -431,7 +522,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each layers.layers as l, i}
+					{#each layers.layers as l, i (i)}
 						<tr>
 							<td
 								><input
@@ -586,37 +677,6 @@
 	}
 	.chk input[type='number'] {
 		width: 100%;
-	}
-	.libs {
-		width: 260px;
-		border-left: 1px solid var(--border);
-		background: var(--bg-panel);
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-	}
-	.libs h3 {
-		margin: 0;
-		padding: 10px 12px;
-		font-size: 13px;
-		border-bottom: 1px solid var(--border);
-	}
-	.tree {
-		overflow: auto;
-		padding: 8px;
-		font-size: 12px;
-	}
-	.mac {
-		display: block;
-		width: 100%;
-		text-align: left;
-		border: none;
-		background: transparent;
-		padding: 3px 6px;
-		border-radius: 4px;
-	}
-	.mac:hover {
-		background: var(--bg-menu);
 	}
 	.status {
 		display: flex;

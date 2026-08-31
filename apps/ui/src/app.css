@@ -58,6 +58,12 @@ button.active, button[aria-pressed='true'] {
 }
 button:disabled { opacity: 0.45; cursor: default; }
 
+body.lib-dragging,
+body.lib-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 .icon-btn {
   width: 34px;
   height: 34px;

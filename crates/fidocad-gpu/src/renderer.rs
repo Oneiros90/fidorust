@@ -176,13 +176,17 @@ void main() {
 fn compile(gl: &Context, vs: &str, fs: &str) -> Result<glow::Program, String> {
     unsafe {
         let program = gl.create_program().map_err(|e| e.to_string())?;
-        let vs_s = gl.create_shader(glow::VERTEX_SHADER).map_err(|e| e.to_string())?;
+        let vs_s = gl
+            .create_shader(glow::VERTEX_SHADER)
+            .map_err(|e| e.to_string())?;
         gl.shader_source(vs_s, vs);
         gl.compile_shader(vs_s);
         if !gl.get_shader_compile_status(vs_s) {
             return Err(gl.get_shader_info_log(vs_s));
         }
-        let fs_s = gl.create_shader(glow::FRAGMENT_SHADER).map_err(|e| e.to_string())?;
+        let fs_s = gl
+            .create_shader(glow::FRAGMENT_SHADER)
+            .map_err(|e| e.to_string())?;
         gl.shader_source(fs_s, fs);
         gl.compile_shader(fs_s);
         if !gl.get_shader_compile_status(fs_s) {
@@ -235,10 +239,16 @@ impl Renderer {
             let circ_prog = compile(&gl, CIRC_VS, CIRC_FS)?;
             let grid_prog = compile(&gl, GRID_VS, GRID_FS)?;
 
-            let quad_data: [f32; 12] = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0];
+            let quad_data: [f32; 12] = [
+                -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
+            ];
             let quad = gl.create_buffer().map_err(|e| e.to_string())?;
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(quad));
-            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, bytemuck::cast_slice(&quad_data), glow::STATIC_DRAW);
+            gl.buffer_data_u8_slice(
+                glow::ARRAY_BUFFER,
+                bytemuck::cast_slice(&quad_data),
+                glow::STATIC_DRAW,
+            );
 
             let line_inst = gl.create_buffer().map_err(|e| e.to_string())?;
             let fill_buf = gl.create_buffer().map_err(|e| e.to_string())?;

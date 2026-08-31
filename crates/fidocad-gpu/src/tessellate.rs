@@ -575,7 +575,7 @@ pub fn scene_to_svg(scene: &Scene, w: f32, h: f32, zoom: f32, pan: (f32, f32)) -
     s
 }
 
-pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
+fn scene_bounds(scene: &Scene) -> Option<(f32, f32, f32, f32)> {
     let mut minx = f32::MAX;
     let mut miny = f32::MAX;
     let mut maxx = f32::MIN;
@@ -600,10 +600,18 @@ pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
         include(v.x, v.y);
     }
     if empty {
+        None
+    } else {
+        Some((minx, miny, maxx, maxy))
+    }
+}
+
+pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
+    let Some((minx, miny, maxx, maxy)) = scene_bounds(scene) else {
         return format!(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"></svg>"#
         );
-    }
+    };
     let bw = (maxx - minx).max(1.0);
     let bh = (maxy - miny).max(1.0);
     let pad = 0.14 * bw.max(bh);
@@ -616,6 +624,56 @@ pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
     out.push_str(&format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}" fill="none">"#
     ));
+    write_scene_svg(&mut out, scene, tx, s);
+    out.push_str("</svg>");
+    out
+}
+
+/// SVG in world LU, hotspot offset from the viewBox origin (for a cursor-following overlay).
+#[derive(Clone, Debug)]
+pub struct CursorSvg {
+    pub svg: String,
+    pub ox: f32,
+    pub oy: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+pub fn scene_to_cursor_svg(scene: &Scene, origin: Point) -> CursorSvg {
+    let Some((minx, miny, maxx, maxy)) = scene_bounds(scene) else {
+        return CursorSvg {
+            svg: String::new(),
+            ox: 0.0,
+            oy: 0.0,
+            w: 0.0,
+            h: 0.0,
+        };
+    };
+    let pad = 1.5;
+    let x0 = minx - pad;
+    let y0 = miny - pad;
+    let w = (maxx - minx) + 2.0 * pad;
+    let h = (maxy - miny) + 2.0 * pad;
+    let mut out = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0} {y0} {w} {h}" fill="none" overflow="visible">"#
+    );
+    write_scene_svg(&mut out, scene, |x, y| (x, y), 1.0);
+    out.push_str("</svg>");
+    CursorSvg {
+        svg: out,
+        ox: origin.x as f32 - x0,
+        oy: origin.y as f32 - y0,
+        w,
+        h,
+    }
+}
+
+fn write_scene_svg(
+    out: &mut String,
+    scene: &Scene,
+    tx: impl Fn(f32, f32) -> (f32, f32),
+    scale: f32,
+) {
     for tri in scene.fills.chunks(3) {
         if tri.len() != 3 {
             continue;
@@ -638,13 +696,13 @@ pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
             (l.r * 255.0) as u8,
             (l.g * 255.0) as u8,
             (l.b * 255.0) as u8,
-            (l.width * s).max(1.15),
+            (l.width * scale).max(if scale < 1.5 { 0.35 } else { 1.15 }),
         ));
     }
     for c in &scene.circles {
         let (cx, cy) = tx(c.x, c.y);
-        let rx = (c.rx * s).max(0.8);
-        let ry = (c.ry * s).max(0.8);
+        let rx = (c.rx * scale).max(0.4);
+        let ry = (c.ry * scale).max(0.4);
         let stroke = format!(
             "rgb({},{},{})",
             (c.r * 255.0) as u8,
@@ -654,7 +712,7 @@ pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
         if c.stroke > 0.001 {
             out.push_str(&format!(
                 r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" stroke="{stroke}" stroke-width="{:.2}"/>"#,
-                (c.stroke * s).max(1.15),
+                (c.stroke * scale).max(if scale < 1.5 { 0.35 } else { 1.15 }),
             ));
         } else {
             out.push_str(&format!(
@@ -662,6 +720,4 @@ pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
             ));
         }
     }
-    out.push_str("</svg>");
-    out
 }

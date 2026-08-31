@@ -1,7 +1,7 @@
 //! Editing tools, undo, snap.
 
 use crate::document::Document;
-use crate::geom::{snap, Point};
+use crate::geom::{snap, Point, Transform};
 use crate::hit::{hit_test, marquee_select};
 use crate::layers::LayerId;
 use crate::library::LibrarySet;
@@ -261,6 +261,51 @@ impl Editor {
         self.draft.as_ref().map(|d| d.tool)
     }
 
+    pub fn pending_macro_preview(&self) -> Vec<Primitive> {
+        if self.tool != Tool::Macro {
+            return Vec::new();
+        }
+        let Some(name) = self.pending_macro.as_deref() else {
+            return Vec::new();
+        };
+        let Some(pos) = self.hover else {
+            return Vec::new();
+        };
+        let Some((_, def)) = self.libs.lookup(name) else {
+            return Vec::new();
+        };
+        crate::library::expand_macro(
+            def,
+            Transform {
+                origin: pos,
+                rotations: 0,
+                mirrored: false,
+            },
+            &self.libs,
+            0,
+        )
+    }
+
+    pub fn clear_hover(&mut self) {
+        self.hover = None;
+    }
+
+    pub fn insert_pending_macro_at(&mut self, world: Point) {
+        let Some(name) = self.pending_macro.clone() else {
+            return;
+        };
+        self.push_undo();
+        let pt = self.snap_pt(world);
+        let standard = self.libs.is_standard(&name);
+        self.doc.insert(Primitive::Macro {
+            pos: pt,
+            rotations: 0,
+            mirrored: false,
+            name,
+            standard,
+        });
+    }
+
     pub fn pointer_down(&mut self, world: Point, screen: (f32, f32), shift: bool, pan_mod: bool) {
         let pt = self.snap_pt(world);
         if pan_mod || self.tool == Tool::Pan {
@@ -336,16 +381,7 @@ impl Editor {
                 });
             }
             Tool::Macro => {
-                if let Some(name) = self.pending_macro.clone() {
-                    self.push_undo();
-                    self.doc.insert(Primitive::Macro {
-                        pos: pt,
-                        rotations: 0,
-                        mirrored: false,
-                        name,
-                        standard: false,
-                    });
-                }
+                self.insert_pending_macro_at(pt);
             }
             Tool::Zoom => {
                 self.zoom = (self.zoom * 1.3).min(40.0);

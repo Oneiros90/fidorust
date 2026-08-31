@@ -28,6 +28,10 @@ declare module './wasm/fidocad_wasm.js' {
     set_track_width(w: number): void;
     set_split_macros(on: boolean): void;
     set_pending_macro(name: string): void;
+    place_macro_at(name: string, sx: number, sy: number): void;
+    clear_hover(): void;
+    macro_preview_svg(name: string): string;
+    macro_cursor_json(name: string): string;
     set_pending_text(text: string): void;
     undo(): void;
     redo(): void;

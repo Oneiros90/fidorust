@@ -1,7 +1,9 @@
 use fidocad_core::parse::builtin_libraries;
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{Editor, LayerId, SaveOptions, Tool};
-use fidocad_gpu::tessellate::{scene_to_svg, tessellate_editor, tessellate_view};
+use fidocad_gpu::tessellate::{
+    scene_to_svg, scene_to_thumb_svg, tessellate_editor, tessellate_primitives, tessellate_view,
+};
 #[cfg(target_arch = "wasm32")]
 use fidocad_gpu::renderer::Renderer;
 use serde::Serialize;
@@ -38,6 +40,7 @@ struct Status {
     title: String,
     snap: i32,
     grid: i32,
+    pending_macro: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -291,6 +294,64 @@ impl App {
     pub fn set_pending_macro(&mut self, name: &str) {
         self.editor.pending_macro = Some(name.to_string());
         self.editor.tool = Tool::Macro;
+        self.editor.clear_hover();
+    }
+
+    #[wasm_bindgen]
+    pub fn place_macro_at(&mut self, name: &str, sx: f32, sy: f32) {
+        self.editor.pending_macro = Some(name.to_string());
+        self.editor.tool = Tool::Macro;
+        let w = self.editor.screen_to_world(sx, sy);
+        self.editor.insert_pending_macro_at(w);
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_hover(&mut self) {
+        self.editor.clear_hover();
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn macro_preview_svg(&self, name: &str) -> String {
+        let scene = self.macro_scene(name);
+        scene_to_thumb_svg(&scene, 40.0)
+    }
+
+    #[wasm_bindgen]
+    pub fn macro_cursor_json(&self, name: &str) -> String {
+        use fidocad_core::MACRO_ORIGIN;
+        use fidocad_gpu::scene_to_cursor_svg;
+        let scene = self.macro_scene(name);
+        let cur = scene_to_cursor_svg(&scene, MACRO_ORIGIN);
+        serde_json::to_string(&serde_json::json!({
+            "svg": cur.svg,
+            "ox": cur.ox,
+            "oy": cur.oy,
+            "w": cur.w,
+            "h": cur.h,
+        }))
+        .unwrap_or_else(|_| "{}".into())
+    }
+
+    fn macro_scene(&self, name: &str) -> fidocad_gpu::Scene {
+        use fidocad_core::geom::Transform;
+        use fidocad_core::library::expand_macro;
+        use fidocad_core::MACRO_ORIGIN;
+        let Some((_, def)) = self.editor.libs.lookup(name) else {
+            return fidocad_gpu::Scene::default();
+        };
+        let prims = expand_macro(
+            def,
+            Transform {
+                origin: MACRO_ORIGIN,
+                rotations: 0,
+                mirrored: false,
+            },
+            &self.editor.libs,
+            0,
+        );
+        tessellate_primitives(&prims, &self.editor.doc.layers, self.editor.canvas_dark)
     }
 
     #[wasm_bindgen]
@@ -400,6 +461,11 @@ impl App {
             title: self.editor.doc.title.clone(),
             snap: self.editor.doc.snap,
             grid: self.editor.doc.grid,
+            pending_macro: if self.editor.tool == Tool::Macro {
+                self.editor.pending_macro.clone()
+            } else {
+                None
+            },
         };
         serde_json::to_string(&st).unwrap_or_else(|_| "{}".into())
     }

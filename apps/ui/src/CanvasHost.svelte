@@ -84,6 +84,7 @@
 
 <div class="wrap" bind:this={wrap}>
 	<canvas
+		id="draw-canvas"
 		bind:this={canvas}
 		onpointerdown={down}
 		onpointermove={move}

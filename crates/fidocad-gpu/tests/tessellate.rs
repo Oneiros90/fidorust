@@ -94,6 +94,42 @@ fn macro_thumb_svg_has_geometry() {
 }
 
 #[test]
+fn macro_cursor_svg_has_hotspot() {
+    let libs = builtin_libraries();
+    let (_, def) = libs.lookup("080").expect("resistor");
+    let prims = fidocad_gpu::tessellate_primitives(
+        &fidocad_core::library::expand_macro(
+            def,
+            fidocad_core::geom::Transform {
+                origin: fidocad_core::MACRO_ORIGIN,
+                rotations: 0,
+                mirrored: false,
+            },
+            &libs,
+            0,
+        ),
+        &fidocad_core::LayerSet::default(),
+        false,
+    );
+    let cur = fidocad_gpu::scene_to_cursor_svg(&prims, fidocad_core::MACRO_ORIGIN);
+    assert!(cur.w > 1.0 && cur.h > 1.0);
+    assert!(cur.svg.contains("<line") || cur.svg.contains("<ellipse") || cur.svg.contains("<polygon"));
+}
+
+#[test]
+fn pending_macro_ghost_appears_at_hover() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.tool = Tool::Macro;
+    ed.pending_macro = Some("080".into());
+    ed.hover = Some(fidocad_core::Point::new(40, 40));
+    let scene = tessellate_editor(&ed);
+    assert!(
+        !scene.lines.is_empty() || !scene.circles.is_empty() || !scene.fills.is_empty(),
+        "expected ghost geometry for pending macro"
+    );
+}
+
+#[test]
 fn tessellate_text_uses_filled_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives.push(fidocad_core::Primitive::Text {
