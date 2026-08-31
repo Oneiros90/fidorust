@@ -99,6 +99,8 @@ pub struct Editor {
     pub pad_style: PadStyle,
     pub pending_macro: Option<String>,
     pub pending_text: String,
+    /// Primitive index whose glyphs are hidden while the UI overlay edits them.
+    pub editing_text: Option<usize>,
     undo: Vec<Document>,
     redo: Vec<Document>,
     draft: Option<Draft>,
@@ -106,6 +108,19 @@ pub struct Editor {
     pub hover: Option<Point>,
     /// Screen theme only: invert near-black layer colours when drawing. Not saved.
     pub canvas_dark: bool,
+}
+
+/// Layout of a text primitive for an in-scene editor overlay.
+#[derive(Clone, Debug, Serialize)]
+pub struct TextEditSession {
+    pub index: usize,
+    pub text: String,
+    pub wx: i32,
+    pub wy: i32,
+    pub sx: i32,
+    pub sy: i32,
+    pub angle: i32,
+    pub style: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -135,6 +150,7 @@ impl Editor {
             pad_style: PadStyle::Oval,
             pending_macro: None,
             pending_text: "TEXT".into(),
+            editing_text: None,
             undo: Vec::new(),
             redo: Vec::new(),
             draft: None,
@@ -592,7 +608,91 @@ impl Editor {
         )
     }
 
+    pub fn world_to_screen(&self, wx: f32, wy: f32) -> (f32, f32) {
+        (wx * self.zoom + self.pan.0, wy * self.zoom + self.pan.1)
+    }
+
+    pub fn text_edit_session(&self, index: usize) -> Option<TextEditSession> {
+        match self.doc.primitives.get(index)? {
+            Primitive::Text {
+                pos,
+                sy,
+                sx,
+                angle,
+                style,
+                text,
+                ..
+            } => Some(TextEditSession {
+                index,
+                text: text.clone(),
+                wx: pos.x,
+                wy: pos.y,
+                sx: *sx,
+                sy: *sy,
+                angle: *angle,
+                style: *style,
+            }),
+            _ => None,
+        }
+    }
+
+    fn begin_text_edit_index(&mut self, index: usize) -> Option<TextEditSession> {
+        let session = self.text_edit_session(index)?;
+        self.selected = vec![index];
+        self.drag = None;
+        self.editing_text = Some(index);
+        Some(session)
+    }
+
+    /// Double-click handler: finish a polygon draft, or start in-place text edit.
+    pub fn begin_text_edit_at(&mut self, world: Point) -> Option<TextEditSession> {
+        if self.draft.as_ref().is_some_and(|d| d.tool == Tool::Poly) {
+            self.finish_poly();
+            return None;
+        }
+        if self.draft.is_some() {
+            return None;
+        }
+        self.drag = None;
+        let hit = hit_test(
+            &self.doc.primitives,
+            &self.libs,
+            &self.doc.layers,
+            world,
+            self.zoom,
+        )?;
+        self.begin_text_edit_index(hit.index)
+    }
+
+    pub fn begin_text_edit_selected(&mut self) -> Option<TextEditSession> {
+        let index = *self.selected.first()?;
+        self.begin_text_edit_index(index)
+    }
+
+    pub fn commit_text_edit(&mut self, text: String) {
+        let Some(index) = self.editing_text.take() else {
+            return;
+        };
+        if !self.selected.contains(&index) {
+            self.selected = vec![index];
+        }
+        self.replace_selected_text(text);
+    }
+
+    pub fn cancel_text_edit(&mut self) {
+        self.editing_text = None;
+    }
+
     pub fn replace_selected_text(&mut self, text: String) {
+        let changed = self.selected.iter().any(|&i| {
+            matches!(
+                self.doc.primitives.get(i),
+                Some(Primitive::Text { text: t, .. }) if *t != text
+            )
+        });
+        if !changed {
+            return;
+        }
         self.push_undo();
         for &i in &self.selected {
             if let Some(Primitive::Text { text: t, .. }) = self.doc.primitives.get_mut(i) {

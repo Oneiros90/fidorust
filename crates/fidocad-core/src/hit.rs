@@ -84,11 +84,15 @@ fn hit_prim(p: &Primitive, pt: Point, tol2: f64) -> Option<usize> {
             let hy = dy / 2;
             (pt.x - pos.x).abs() <= hx && (pt.y - pos.y).abs() <= hy
         }
-        Primitive::Text { pos, sy, sx, .. } => {
-            let w = (*sx).max(3) * 6;
-            let h = (*sy).max(3);
-            pt.x >= pos.x && pt.x <= pos.x + w && pt.y >= pos.y - h && pt.y <= pos.y + 2
-        }
+        Primitive::Text {
+            pos,
+            sy,
+            sx,
+            angle,
+            style,
+            text,
+            ..
+        } => text_body_hit(*pos, *sx, *sy, *angle, *style, text, pt),
         Primitive::Macro { pos, .. } => pos.dist_sq(pt) as f64 <= 64.0,
     };
     if body {
@@ -96,6 +100,34 @@ fn hit_prim(p: &Primitive, pt: Point, tol2: f64) -> Option<usize> {
     } else {
         None
     }
+}
+
+/// Glyph box used by the GPU tessellator: origin at `pos` (top-left of the em
+/// box), `sx` per character, `sy` tall, then rotated by `angle` and optionally
+/// mirrored (`style & 4`).
+fn text_body_hit(
+    pos: Point,
+    sx: i32,
+    sy: i32,
+    angle: i32,
+    style: u32,
+    text: &str,
+    pt: Point,
+) -> bool {
+    let n = text.chars().count().max(1) as f64;
+    let w = sx.max(1) as f64 * n;
+    let h = sy.max(1) as f64;
+    let dx = (pt.x - pos.x) as f64;
+    let dy = (pt.y - pos.y) as f64;
+    let rad = (angle as f64).to_radians();
+    let (sin, cos) = (rad.sin(), rad.cos());
+    let mut lx = dx * cos + dy * sin;
+    let ly = -dx * sin + dy * cos;
+    if style & 4 != 0 {
+        lx = -lx;
+    }
+    const PAD: f64 = 2.0;
+    lx >= -PAD && lx <= w + PAD && ly >= -PAD && ly <= h + PAD
 }
 
 fn point_in_poly(pt: Point, pts: &[Point]) -> bool {

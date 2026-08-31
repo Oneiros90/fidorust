@@ -153,3 +153,25 @@ fn tessellate_text_uses_filled_glyphs() {
     );
     assert_eq!(scene.fills.len() % 3, 0);
 }
+
+#[test]
+fn editing_text_hides_glyphs() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::Text {
+        pos: Point::new(0, 0),
+        sy: 10,
+        sx: 6,
+        angle: 0,
+        style: 0,
+        layer: fidocad_core::LayerId(0),
+        font: "Courier New".into(),
+        text: "Vcc".into(),
+        simple: false,
+    });
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc = doc;
+    let before = tessellate_editor(&ed).fills.len();
+    assert!(before > 0);
+    ed.editing_text = Some(0);
+    assert!(tessellate_editor(&ed).fills.is_empty());
+}

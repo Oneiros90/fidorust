@@ -368,6 +368,9 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
         [0.72, 0.42, 0.22]
     };
     for (i, p) in ed.doc.primitives.iter().enumerate() {
+        if ed.editing_text == Some(i) {
+            continue;
+        }
         let sel = selected.contains(&i);
         for q in fidocad_core::library::expand_primitive(p, &ed.libs) {
             if let Some(v) = &view {

@@ -1,6 +1,6 @@
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
-use fidocad_core::{Document, Editor, Point, Primitive, SaveOptions, Tool};
+use fidocad_core::{Document, Editor, LayerId, Point, Primitive, SaveOptions, Tool};
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
 MC 65 35 0 0 410
@@ -165,4 +165,63 @@ fn marquee_rect_while_dragging() {
     assert_eq!(b, Point::new(40, 25));
     ed.pointer_up(Point::new(40, 25));
     assert!(ed.marquee_rect().is_none());
+}
+
+fn sample_text(pos: Point, text: &str) -> Primitive {
+    Primitive::Text {
+        pos,
+        sy: 4,
+        sx: 3,
+        angle: 0,
+        style: 0,
+        layer: LayerId(0),
+        font: "Courier New".into(),
+        text: text.into(),
+        simple: false,
+    }
+}
+
+#[test]
+fn text_hit_matches_glyph_box() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.snap = 1;
+    ed.doc.insert(sample_text(Point::new(10, 20), "AB"));
+    assert!(ed.begin_text_edit_at(Point::new(11, 21)).is_some());
+    ed.cancel_text_edit();
+    assert!(ed.begin_text_edit_at(Point::new(13, 14)).is_none());
+    assert!(ed.begin_text_edit_at(Point::new(22, 22)).is_none());
+}
+
+#[test]
+fn text_edit_commit_replaces_content() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.snap = 1;
+    ed.doc.insert(sample_text(Point::new(0, 0), "IN"));
+    let session = ed.begin_text_edit_at(Point::new(1, 1)).expect("hit text");
+    assert_eq!(session.text, "IN");
+    assert_eq!(ed.editing_text, Some(0));
+    ed.commit_text_edit("OUT".into());
+    assert!(ed.editing_text.is_none());
+    match &ed.doc.primitives[0] {
+        Primitive::Text { text, .. } => assert_eq!(text, "OUT"),
+        _ => panic!("expected text"),
+    }
+}
+
+#[test]
+fn dblclick_finishes_poly_instead_of_text_edit() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.tool = Tool::Poly;
+    ed.doc.snap = 1;
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_up(Point::new(0, 0));
+    ed.pointer_down(Point::new(10, 0), (10.0, 0.0), false, false);
+    ed.pointer_up(Point::new(10, 0));
+    assert!(ed.begin_text_edit_at(Point::new(5, 0)).is_none());
+    assert!(
+        ed.doc
+            .primitives
+            .iter()
+            .any(|p| matches!(p, Primitive::Poly { .. }))
+    );
 }

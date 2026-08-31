@@ -373,6 +373,8 @@
 		engine.set_theme(theme);
 		refresh();
 		const onKey = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (target?.closest('input, textarea, select, [contenteditable]')) return;
 			const meta = e.metaKey || e.ctrlKey;
 			if (engine?.key(e.key, meta)) {
 				e.preventDefault();
@@ -386,16 +388,6 @@
 			if (meta && e.key.toLowerCase() === 's') {
 				e.preventDefault();
 				saveFile();
-			}
-			if (e.altKey && e.key === 'Enter') {
-				const props = engine ? JSON.parse(engine.selection_props_json()) : null;
-				if (props?.Text) {
-					const n = prompt(t.textPrompt, props.Text.text);
-					if (n) {
-						engine?.set_pending_text(n);
-						engine?.render();
-					}
-				}
 			}
 			if (meta && e.key.toLowerCase() === 'x') {
 				e.preventDefault();

@@ -10,7 +10,7 @@ pub mod parse;
 pub mod primitive;
 pub mod serialize;
 
-pub use commands::{Command, Editor, Tool};
+pub use commands::{Command, Editor, TextEditSession, Tool};
 pub use document::{Document, SaveOptions};
 pub use geom::{Aabb, Point, Transform};
 pub use layers::{LayerId, LayerSet, LAYER_COUNT, MICRON_PER_LU};

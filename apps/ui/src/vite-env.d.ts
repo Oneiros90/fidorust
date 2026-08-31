@@ -15,7 +15,11 @@ declare module './wasm/fidocad_wasm.js' {
     pointer_down(sx: number, sy: number, shift: boolean, pan: boolean): void;
     pointer_move(sx: number, sy: number): void;
     pointer_up(sx: number, sy: number): void;
-    dblclick(): void;
+    dblclick(sx: number, sy: number): string;
+    begin_selected_text_edit(): string;
+    commit_text_edit(text: string): void;
+    cancel_text_edit(): void;
+    world_to_screen_json(wx: number, wy: number): string;
     wheel(sx: number, sy: number, delta: number): void;
     key(key: string, meta: boolean): boolean;
     set_tool(id: string): void;

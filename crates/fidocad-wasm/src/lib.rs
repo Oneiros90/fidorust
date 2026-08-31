@@ -1,6 +1,6 @@
 use fidocad_core::parse::builtin_libraries;
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
-use fidocad_core::{Editor, LayerId, SaveOptions, Tool};
+use fidocad_core::{Editor, LayerId, SaveOptions, TextEditSession, Tool};
 use fidocad_gpu::tessellate::{
     scene_to_svg, scene_to_thumb_svg, tessellate_editor, tessellate_primitives, tessellate_view,
 };
@@ -185,9 +185,43 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn dblclick(&mut self) {
-        self.editor.finish_poly();
+    pub fn dblclick(&mut self, sx: f32, sy: f32) -> String {
+        let w = self.editor.screen_to_world(sx, sy);
+        if let Some(session) = self.editor.begin_text_edit_at(w) {
+            self.dirty = true;
+            return text_edit_json(&self.editor, session);
+        }
         self.dirty = true;
+        "null".into()
+    }
+
+    #[wasm_bindgen]
+    pub fn begin_selected_text_edit(&mut self) -> String {
+        match self.editor.begin_text_edit_selected() {
+            Some(session) => {
+                self.dirty = true;
+                text_edit_json(&self.editor, session)
+            }
+            None => "null".into(),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn commit_text_edit(&mut self, text: &str) {
+        self.editor.commit_text_edit(text.to_string());
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_text_edit(&mut self) {
+        self.editor.cancel_text_edit();
+        self.dirty = true;
+    }
+
+    #[wasm_bindgen]
+    pub fn world_to_screen_json(&self, wx: f32, wy: f32) -> String {
+        let (x, y) = self.editor.world_to_screen(wx, wy);
+        format!("{{\"x\":{x},\"y\":{y},\"zoom\":{}}}", self.editor.zoom)
     }
 
     #[wasm_bindgen]
@@ -501,4 +535,37 @@ impl App {
             }
         }
     }
+}
+
+#[derive(Serialize)]
+struct TextEditJson {
+    index: usize,
+    text: String,
+    wx: i32,
+    wy: i32,
+    sx: i32,
+    sy: i32,
+    angle: i32,
+    style: u32,
+    screen_x: f32,
+    screen_y: f32,
+    zoom: f32,
+}
+
+fn text_edit_json(ed: &Editor, session: TextEditSession) -> String {
+    let (screen_x, screen_y) = ed.world_to_screen(session.wx as f32, session.wy as f32);
+    serde_json::to_string(&TextEditJson {
+        index: session.index,
+        text: session.text,
+        wx: session.wx,
+        wy: session.wy,
+        sx: session.sx,
+        sy: session.sy,
+        angle: session.angle,
+        style: session.style,
+        screen_x,
+        screen_y,
+        zoom: ed.zoom,
+    })
+    .unwrap_or_else(|_| "null".into())
 }

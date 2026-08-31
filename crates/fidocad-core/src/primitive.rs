@@ -219,10 +219,15 @@ impl Primitive {
                 }
                 bb
             }
-            Self::Text { pos, sy, sx, .. } => Aabb {
-                min: *pos,
-                max: Point::new(pos.x + (*sx).max(1) * 8, pos.y + (*sy).max(1)),
-            },
+            Self::Text {
+                pos, sy, sx, text, ..
+            } => {
+                let n = text.chars().count().max(1) as i32;
+                Aabb {
+                    min: *pos,
+                    max: Point::new(pos.x + (*sx).max(1) * n, pos.y + (*sy).max(1)),
+                }
+            }
             Self::Connection { pos, .. } => Aabb {
                 min: Point::new(pos.x - 2, pos.y - 2),
                 max: Point::new(pos.x + 2, pos.y + 2),
