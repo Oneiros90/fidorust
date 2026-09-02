@@ -196,13 +196,12 @@ fn marquee_rect_while_dragging() {
     ed.tool = Tool::Select;
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(40, 25), (40.0, 25.0));
-    let (a, b) = ed
-        .marquee_rect()
-        .expect("marquee should be live while dragging");
-    assert_eq!(a, Point::new(0, 0));
-    assert_eq!(b, Point::new(40, 25));
+    assert_eq!(
+        ed.marquee_screen_rect(),
+        Some((0.0, 0.0, 40.0, 25.0))
+    );
     ed.pointer_up(Point::new(40, 25));
-    assert!(ed.marquee_rect().is_none());
+    assert!(ed.marquee_screen_rect().is_none());
 }
 
 #[test]

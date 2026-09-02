@@ -132,8 +132,8 @@ enum Drag {
         last: Point,
     },
     Marquee {
-        start: Point,
-        current: Point,
+        start: (f32, f32),
+        current: (f32, f32),
     },
     Handle {
         index: usize,
@@ -387,10 +387,12 @@ impl Editor {
             .unwrap_or(&[])
     }
 
-    /// Live rubber-band while dragging a selection marquee.
-    pub fn marquee_rect(&self) -> Option<(Point, Point)> {
+    /// Live rubber-band in canvas pixels (origin top-left).
+    pub fn marquee_screen_rect(&self) -> Option<(f32, f32, f32, f32)> {
         match &self.drag {
-            Some(Drag::Marquee { start, current }) => Some((*start, *current)),
+            Some(Drag::Marquee { start, current }) => {
+                Some((start.0, start.1, current.0, current.1))
+            }
             _ => None,
         }
     }
@@ -481,8 +483,8 @@ impl Editor {
                         self.selected.clear();
                     }
                     self.drag = Some(Drag::Marquee {
-                        start: world,
-                        current: world,
+                        start: screen,
+                        current: screen,
                     });
                 }
             }
@@ -604,7 +606,7 @@ impl Editor {
             }
             Some(Drag::Marquee { .. }) => {
                 if let Some(Drag::Marquee { current, .. }) = &mut self.drag {
-                    *current = world;
+                    *current = screen;
                 }
             }
             None => {}
@@ -614,7 +616,9 @@ impl Editor {
     pub fn pointer_up(&mut self, world: Point) {
         let pt = self.snap_pt(world);
         if let Some(Drag::Marquee { start, current }) = self.drag.take() {
-            let extra = marquee_select(&self.doc.primitives, &self.libs, start, current);
+            let a = self.screen_to_world(start.0, start.1);
+            let b = self.screen_to_world(current.0, current.1);
+            let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
             for i in extra {
                 if !self.selected.contains(&i) {
                     self.selected.push(i);

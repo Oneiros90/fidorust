@@ -56,6 +56,8 @@ pub struct Scene {
     pub fills: Vec<FillVertexGpu>,
     pub circles: Vec<CircleInstance>,
     pub handles: Vec<CircleInstance>,
+    pub marquee: Option<[f32; 4]>,
+    pub marquee_color: [f32; 3],
 }
 
 fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
@@ -561,8 +563,9 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
         add_prim(&mut scene, &q, layers, false, dark);
     }
     add_draft(&mut scene, ed, preview);
-    if let Some((a, b)) = ed.marquee_rect() {
-        add_marquee(&mut scene, a, b, preview);
+    if let Some((x0, y0, x1, y1)) = ed.marquee_screen_rect() {
+        scene.marquee = Some([x0, y0, x1, y1]);
+        scene.marquee_color = preview;
     }
     scene
 }
@@ -645,60 +648,6 @@ fn add_draft(scene: &mut Scene, ed: &Editor, preview: [f32; 3]) {
                 line(scene, a, b, DEFAULT_STROKE_W, preview, false);
             }
         }
-    }
-}
-
-fn add_marquee(scene: &mut Scene, a: Point, b: Point, rgb: [f32; 3]) {
-    let x0 = a.x.min(b.x);
-    let y0 = a.y.min(b.y);
-    let x1 = a.x.max(b.x);
-    let y1 = a.y.max(b.y);
-    if x0 == x1 && y0 == y1 {
-        return;
-    }
-    let corners = [
-        Point::new(x0, y0),
-        Point::new(x1, y0),
-        Point::new(x1, y1),
-        Point::new(x0, y1),
-    ];
-    for i in 0..4 {
-        dash_line(scene, corners[i], corners[(i + 1) % 4], 0.7, rgb, 6.0, 4.0);
-    }
-}
-
-fn dash_line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], dash: f32, gap: f32) {
-    let dx = (b.x - a.x) as f32;
-    let dy = (b.y - a.y) as f32;
-    let len = (dx * dx + dy * dy).sqrt();
-    if len < 0.5 {
-        return;
-    }
-    let ux = dx / len;
-    let uy = dy / len;
-    let mut t = 0.0;
-    let mut on = true;
-    while t < len {
-        let seg = if on { dash } else { gap };
-        let t1 = (t + seg).min(len);
-        if on {
-            line(
-                scene,
-                Point::new(
-                    (a.x as f32 + ux * t).round() as i32,
-                    (a.y as f32 + uy * t).round() as i32,
-                ),
-                Point::new(
-                    (a.x as f32 + ux * t1).round() as i32,
-                    (a.y as f32 + uy * t1).round() as i32,
-                ),
-                w,
-                rgb,
-                false,
-            );
-        }
-        t = t1;
-        on = !on;
     }
 }
 

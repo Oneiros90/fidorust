@@ -173,6 +173,50 @@ void main() {
 }
 "#;
 
+const MARQUEE_FS: &str = r#"#version 300 es
+precision highp float;
+uniform vec4 u_rect;
+uniform vec2 u_res;
+uniform vec3 u_color;
+out vec4 frag;
+void main() {
+    // Integer canvas pixel (top-left origin), 2 px border.
+    ivec2 ip = ivec2(floor(vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y)));
+    int x0 = int(round(min(u_rect.x, u_rect.z)));
+    int y0 = int(round(min(u_rect.y, u_rect.w)));
+    int x1 = int(round(max(u_rect.x, u_rect.z)));
+    int y1 = int(round(max(u_rect.y, u_rect.w)));
+    if (x0 == x1 && y0 == y1) discard;
+
+    const int border = 2;
+    bool in_x = ip.x >= x0 && ip.x <= x1;
+    bool in_y = ip.y >= y0 && ip.y <= y1;
+    bool on_left = ip.x >= x0 && ip.x < x0 + border && in_y;
+    bool on_right = ip.x <= x1 && ip.x > x1 - border && in_y;
+    bool on_top = ip.y >= y0 && ip.y < y0 + border && in_x;
+    bool on_bottom = ip.y <= y1 && ip.y > y1 - border && in_x;
+    if (!(on_left || on_right || on_top || on_bottom)) discard;
+
+    // Each edge dashes from the top-left anchor: top/bottom left→right, left/right top→down.
+    float t;
+    if (on_top) {
+        t = float(ip.x - x0);
+    } else if (on_left) {
+        t = float(ip.y - y0);
+    } else if (on_right) {
+        t = float(ip.y - y0);
+    } else {
+        t = float(ip.x - x0);
+    }
+
+    const float dash = 6.0;
+    const float gap = 4.0;
+    if (mod(t, dash + gap) >= dash) discard;
+
+    frag = vec4(u_color, 1.0);
+}
+"#;
+
 fn compile(gl: &Context, vs: &str, fs: &str) -> Result<glow::Program, String> {
     unsafe {
         let program = gl.create_program().map_err(|e| e.to_string())?;
@@ -210,6 +254,7 @@ pub struct Renderer {
     fill_prog: glow::Program,
     circ_prog: glow::Program,
     grid_prog: glow::Program,
+    marquee_prog: glow::Program,
     quad: glow::Buffer,
     line_inst: glow::Buffer,
     fill_buf: glow::Buffer,
@@ -218,6 +263,7 @@ pub struct Renderer {
     vao_fill: glow::VertexArray,
     vao_circ: glow::VertexArray,
     vao_grid: glow::VertexArray,
+    vao_marquee: glow::VertexArray,
     bg: [f32; 3],
     grid: [f32; 3],
 }
@@ -238,6 +284,7 @@ impl Renderer {
             let fill_prog = compile(&gl, FILL_VS, FILL_FS)?;
             let circ_prog = compile(&gl, CIRC_VS, CIRC_FS)?;
             let grid_prog = compile(&gl, GRID_VS, GRID_FS)?;
+            let marquee_prog = compile(&gl, GRID_VS, MARQUEE_FS)?;
 
             let quad_data: [f32; 12] = [
                 -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
@@ -306,6 +353,12 @@ impl Renderer {
             gl.enable_vertex_attrib_array(0);
             gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 8, 0);
 
+            let vao_marquee = gl.create_vertex_array().map_err(|e| e.to_string())?;
+            gl.bind_vertex_array(Some(vao_marquee));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(quad));
+            gl.enable_vertex_attrib_array(0);
+            gl.vertex_attrib_pointer_f32(0, 2, glow::FLOAT, false, 8, 0);
+
             gl.bind_vertex_array(None);
 
             Ok(Self {
@@ -314,6 +367,7 @@ impl Renderer {
                 fill_prog,
                 circ_prog,
                 grid_prog,
+                marquee_prog,
                 quad,
                 line_inst,
                 fill_buf,
@@ -322,6 +376,7 @@ impl Renderer {
                 vao_fill,
                 vao_circ,
                 vao_grid,
+                vao_marquee,
                 bg: [0.97, 0.95, 0.92],
                 grid: [0.78, 0.72, 0.66],
             })
@@ -406,6 +461,16 @@ impl Renderer {
                 );
                 gl.draw_arrays_instanced(glow::TRIANGLES, 0, 6, circs.len() as i32);
             }
+
+            if let Some(rect) = scene.marquee {
+                gl.use_program(Some(self.marquee_prog));
+                set4(gl, self.marquee_prog, "u_rect", rect);
+                set2(gl, self.marquee_prog, "u_res", res);
+                set3(gl, self.marquee_prog, "u_color", scene.marquee_color);
+                gl.bind_vertex_array(Some(self.vao_marquee));
+                gl.draw_arrays(glow::TRIANGLES, 0, 6);
+            }
+
             gl.bind_vertex_array(None);
         }
     }
@@ -423,6 +488,10 @@ unsafe fn set3(gl: &Context, prog: glow::Program, name: &str, v: [f32; 3]) {
     let loc = gl.get_uniform_location(prog, name);
     gl.uniform_3_f32(loc.as_ref(), v[0], v[1], v[2]);
 }
+unsafe fn set4(gl: &Context, prog: glow::Program, name: &str, v: [f32; 4]) {
+    let loc = gl.get_uniform_location(prog, name);
+    gl.uniform_4_f32(loc.as_ref(), v[0], v[1], v[2], v[3]);
+}
 
 impl Drop for Renderer {
     fn drop(&mut self) {
@@ -431,6 +500,7 @@ impl Drop for Renderer {
             self.gl.delete_program(self.fill_prog);
             self.gl.delete_program(self.circ_prog);
             self.gl.delete_program(self.grid_prog);
+            self.gl.delete_program(self.marquee_prog);
             self.gl.delete_buffer(self.quad);
             self.gl.delete_buffer(self.line_inst);
             self.gl.delete_buffer(self.fill_buf);
@@ -439,6 +509,7 @@ impl Drop for Renderer {
             self.gl.delete_vertex_array(self.vao_fill);
             self.gl.delete_vertex_array(self.vao_circ);
             self.gl.delete_vertex_array(self.vao_grid);
+            self.gl.delete_vertex_array(self.vao_marquee);
         }
     }
 }
