@@ -17,7 +17,7 @@ rustup target add wasm32-unknown-unknown
 cargo install wasm-pack
 cd apps/ui
 npm install
-npm run dev          # web su http://localhost:1420
+npm run dev          # web su http://localhost:5173
 npm run tauri dev    # desktop
 ```
 
