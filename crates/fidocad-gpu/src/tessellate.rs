@@ -77,12 +77,36 @@ fn display_rgb(c: [u8; 3], dark: bool) -> [f32; 3] {
     ]
 }
 
+const DEFAULT_STROKE_W: f32 = 0.25;
+
 fn line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
+    line_f(
+        scene,
+        a.x as f32,
+        a.y as f32,
+        b.x as f32,
+        b.y as f32,
+        w,
+        rgb,
+        selected,
+    );
+}
+
+fn line_f(
+    scene: &mut Scene,
+    ax: f32,
+    ay: f32,
+    bx: f32,
+    by: f32,
+    w: f32,
+    rgb: [f32; 3],
+    selected: bool,
+) {
     scene.lines.push(LineInstance {
-        ax: a.x as f32,
-        ay: a.y as f32,
-        bx: b.x as f32,
-        by: b.y as f32,
+        ax,
+        ay,
+        bx,
+        by,
         width: w,
         r: rgb[0],
         g: rgb[1],
@@ -210,17 +234,20 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
         }
     }
     let rgb = color(layers, p, selected, dark);
-    let stroke_w = 0.55;
+    let stroke_w = DEFAULT_STROKE_W;
     match p {
         Primitive::Line { a, b, .. } => line(scene, *a, *b, stroke_w, rgb, selected),
         Primitive::Bezier { p0, p1, p2, p3, .. } => {
-            let mut prev = *p0;
-            for i in 1..=24 {
-                let t = i as f32 / 24.0;
+            let (x0, y0) = (p0.x as f32, p0.y as f32);
+            let mut prev_x = x0;
+            let mut prev_y = y0;
+            const SEGMENTS: u32 = 48;
+            for i in 1..=SEGMENTS {
+                let t = i as f32 / SEGMENTS as f32;
                 let (x, y) = bezier_point(*p0, *p1, *p2, *p3, t);
-                let cur = Point::new(x.round() as i32, y.round() as i32);
-                line(scene, prev, cur, stroke_w, rgb, selected);
-                prev = cur;
+                line_f(scene, prev_x, prev_y, x, y, stroke_w, rgb, selected);
+                prev_x = x;
+                prev_y = y;
             }
         }
         Primitive::Rect { a, b, filled, .. } => {
@@ -446,7 +473,7 @@ fn add_draft(scene: &mut Scene, ed: &Editor, preview: [f32; 3]) {
     match ed.draft_tool() {
         Some(Tool::Ellipse) => {
             if a != b {
-                add_ellipse(scene, a, b, ed.filled, 0.55, preview, false);
+                add_ellipse(scene, a, b, ed.filled, DEFAULT_STROKE_W, preview, false);
             }
         }
         Some(Tool::Rect) => {
@@ -466,26 +493,26 @@ fn add_draft(scene: &mut Scene, ed: &Editor, preview: [f32; 3]) {
                     builder.close();
                     tessellate_path(&builder.build(), preview, false, scene);
                 } else {
-                    stroke_poly(scene, &corners, true, 0.55, preview, false);
+                    stroke_poly(scene, &corners, true, DEFAULT_STROKE_W, preview, false);
                 }
             }
         }
         Some(Tool::Poly) | Some(Tool::Bezier) => {
-            stroke_poly(scene, pts, false, 0.55, preview, false);
+            stroke_poly(scene, pts, false, DEFAULT_STROKE_W, preview, false);
             if pts.len() >= 2 {
                 // last point already in pts while dragging two-point tools; poly rubber-bands hover
             }
             if let Some(h) = ed.hover {
                 if let Some(&last) = pts.last() {
                     if last != h {
-                        line(scene, last, h, 0.55, preview, false);
+                        line(scene, last, h, DEFAULT_STROKE_W, preview, false);
                     }
                 }
             }
         }
         _ => {
             if a != b {
-                line(scene, a, b, 0.55, preview, false);
+                line(scene, a, b, DEFAULT_STROKE_W, preview, false);
             }
         }
     }
@@ -702,7 +729,7 @@ fn write_scene_svg(
             (l.r * 255.0) as u8,
             (l.g * 255.0) as u8,
             (l.b * 255.0) as u8,
-            (l.width * scale).max(if scale < 1.5 { 0.35 } else { 1.15 }),
+            (l.width * scale).max(if scale < 1.5 { 0.175 } else { 0.575 }),
         ));
     }
     for c in &scene.circles {
@@ -718,7 +745,7 @@ fn write_scene_svg(
         if c.stroke > 0.001 {
             out.push_str(&format!(
                 r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" stroke="{stroke}" stroke-width="{:.2}"/>"#,
-                (c.stroke * scale).max(if scale < 1.5 { 0.35 } else { 1.15 }),
+                (c.stroke * scale).max(if scale < 1.5 { 0.175 } else { 0.575 }),
             ));
         } else {
             out.push_str(&format!(

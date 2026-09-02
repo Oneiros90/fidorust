@@ -26,7 +26,7 @@ void main() {
     float len = max(length(dir), 0.001);
     dir /= len;
     vec2 n = vec2(-dir.y, dir.x);
-    float w = max(width, 0.35) + 1.2 / u_zoom;
+    float w = max(width, 0.175) + 0.6 / u_zoom;
     vec2 pos = mix(a, b, corner.x * 0.5 + 0.5) + n * corner.y * w * 0.5
              + dir * corner.x * w * 0.0;
     // extend caps
@@ -91,7 +91,7 @@ out vec2 v_radii;
 out float v_inner;
 out float v_stroke;
 void main() {
-    float pad = max(inner_stroke.y, 0.35) * 0.5 + 4.0 / max(u_zoom, 0.01);
+    float pad = max(inner_stroke.y, 0.175) * 0.5 + 4.0 / max(u_zoom, 0.01);
     vec2 ext = max(radii, vec2(0.001)) + vec2(pad);
     vec2 pos = center + corner * ext;
     vec2 screen = pos * u_zoom + u_pan;
@@ -126,7 +126,7 @@ void main() {
     float fw = max(fwidth(dist), 1e-4);
     float a;
     if (v_stroke > 0.001) {
-        float half_w = 0.5 * (max(v_stroke, 0.35) + 1.2 / max(u_zoom, 0.01));
+        float half_w = 0.5 * (max(v_stroke, 0.175) + 0.6 / max(u_zoom, 0.01));
         a = 1.0 - smoothstep(half_w - fw, half_w + fw, abs(dist));
     } else {
         float outer = 1.0 - smoothstep(-fw, fw, dist);

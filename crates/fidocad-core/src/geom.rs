@@ -148,14 +148,29 @@ impl Transform {
     }
 
     pub fn apply(&self, p: Point, macro_origin: Point) -> Point {
-        let mut q = p.add(self.origin.sub(macro_origin));
-        for _ in 0..self.rotations {
-            q = q.rotate90_cw(self.origin);
-        }
-        if self.mirrored {
-            q = q.mirror_vertical(self.origin.x);
-        }
-        q
+        let xc = (p.x - macro_origin.x) as f64;
+        let yc = (p.y - macro_origin.y) as f64;
+        let (vx, vy) = if self.mirrored {
+            match self.rotations {
+                0 => (-xc, yc),
+                1 => (yc, xc),
+                2 => (xc, -yc),
+                3 => (-yc, -xc),
+                _ => (-xc, yc),
+            }
+        } else {
+            match self.rotations {
+                0 => (xc, yc),
+                1 => (-yc, xc),
+                2 => (-xc, -yc),
+                3 => (yc, -xc),
+                _ => (xc, yc),
+            }
+        };
+        Point::new(
+            (self.origin.x as f64 + vx).round() as i32,
+            (self.origin.y as f64 + vy).round() as i32,
+        )
     }
 }
 

@@ -94,6 +94,42 @@ fn builtin_stdlib_has_resistor() {
 }
 
 #[test]
+fn macro_transform_matches_fidocad() {
+    use fidocad_core::geom::{Point, Transform};
+    use fidocad_core::MACRO_ORIGIN;
+
+    let xf = |origin, rotations, mirrored| Transform {
+        origin,
+        rotations,
+        mirrored,
+    };
+
+    // FidoCadJ MapCoordinates: local (110, 100) at MC 105 30 0 0 → (115, 30)
+    assert_eq!(
+        xf(Point::new(105, 30), 0, false).apply(Point::new(110, 100), MACRO_ORIGIN),
+        Point::new(115, 30)
+    );
+
+    // MC 105 30 1 0 210 — diode tip at macro (110, 90)
+    assert_eq!(
+        xf(Point::new(105, 30), 1, false).apply(Point::new(110, 90), MACRO_ORIGIN),
+        Point::new(115, 40)
+    );
+
+    // MC 115 80 3 0 210
+    assert_eq!(
+        xf(Point::new(115, 80), 3, false).apply(Point::new(110, 90), MACRO_ORIGIN),
+        Point::new(105, 70)
+    );
+
+    // Mirrored macro 300 at (195, 100) 0 1
+    assert_eq!(
+        xf(Point::new(195, 100), 0, true).apply(Point::new(110, 100), MACRO_ORIGIN),
+        Point::new(185, 100)
+    );
+}
+
+#[test]
 fn expand_terminal() {
     let libs = builtin_libraries();
     let doc = parse_document("[FIDOCAD]\nMC 10 10 0 0 000\n").unwrap();
