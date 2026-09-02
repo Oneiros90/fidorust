@@ -25,6 +25,7 @@
 		width: 56px;
 		display: flex;
 		flex-direction: column;
+		align-items: center;
 		gap: 4px;
 		padding: 8px 6px;
 		background: var(--bg-panel);

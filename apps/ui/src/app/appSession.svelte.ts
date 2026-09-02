@@ -487,12 +487,12 @@ export class AppSession {
 		this.engine?.set_split_macros(this.splitMacros);
 	};
 
-	toggleLocale = () => {
-		this.locale = this.locale === 'it' ? 'en' : 'it';
+	setLocale = (loc: Locale) => {
+		this.locale = loc;
 	};
 
-	toggleTheme = () => {
-		this.theme = this.theme === 'light' ? 'dark' : 'light';
+	setTheme = (theme: Theme) => {
+		this.theme = theme;
 		this.applyTheme();
 	};
 
