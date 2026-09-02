@@ -47,8 +47,8 @@ in vec2 v_uv;
 out vec4 frag;
 void main() {
     float d = abs(v_uv.y);
-    float a = 1.0 - smoothstep(0.85, 1.0, d);
-    frag = vec4(v_color, a);
+    if (d > 1.0) discard;
+    frag = vec4(v_color, 1.0);
 }
 "#;
 
@@ -126,8 +126,10 @@ void main() {
     float fw = max(fwidth(dist), 1e-4);
     float a;
     if (v_stroke > 0.001) {
+        // Opaque stroke: soft alpha tints thin curves toward the background on sRGB canvases.
         float half_w = 0.5 * (max(v_stroke, 0.175) + 0.6 / max(u_zoom, 0.01));
-        a = 1.0 - smoothstep(half_w - fw, half_w + fw, abs(dist));
+        if (abs(dist) > half_w) discard;
+        a = 1.0;
     } else {
         float outer = 1.0 - smoothstep(-fw, fw, dist);
         float hole = 1.0;
