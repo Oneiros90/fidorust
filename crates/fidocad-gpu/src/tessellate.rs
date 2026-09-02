@@ -1,7 +1,7 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
 use fidocad_core::geom::{bezier_point, Point};
-use fidocad_core::layers::LayerSet;
+use fidocad_core::layers::{LayerSet, LAYER_COUNT};
 use fidocad_core::primitive::{PadStyle, Primitive};
 use fidocad_core::{Editor, Tool};
 use lyon::math::point;
@@ -50,6 +50,15 @@ pub struct CircleInstance {
     pub selected: f32,
 }
 
+/// Drill hole of a PCB pad (world LU). Punched after the pad's layer is drawn.
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PadHole {
+    pub x: f32,
+    pub y: f32,
+    pub r: f32,
+}
+
 #[derive(Default)]
 pub struct Scene {
     pub lines: Vec<LineInstance>,
@@ -58,6 +67,19 @@ pub struct Scene {
     pub handles: Vec<CircleInstance>,
     pub marquee: Option<[f32; 4]>,
     pub marquee_color: [f32; 3],
+    pub pad_holes: Vec<PadHole>,
+    /// Exclusive end of each layer's slice in `fills` / `lines` / `circles` / `pad_holes`.
+    pub layer_fill_end: [u32; LAYER_COUNT],
+    pub layer_line_end: [u32; LAYER_COUNT],
+    pub layer_circ_end: [u32; LAYER_COUNT],
+    pub layer_hole_end: [u32; LAYER_COUNT],
+}
+
+fn mark_layer_end(scene: &mut Scene, i: usize) {
+    scene.layer_fill_end[i] = scene.fills.len() as u32;
+    scene.layer_line_end[i] = scene.lines.len() as u32;
+    scene.layer_circ_end[i] = scene.circles.len() as u32;
+    scene.layer_hole_end[i] = scene.pad_holes.len() as u32;
 }
 
 fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
@@ -336,6 +358,11 @@ fn add_pcb_pad(
     }
     if hole_r > 0.001 {
         path_circle_hole(&mut builder, cx, cy, hole_r);
+        scene.pad_holes.push(PadHole {
+            x: cx,
+            y: cy,
+            r: hole_r,
+        });
     }
     tessellate_path_even_odd(&builder.build(), rgb, selected, scene);
 }
@@ -492,8 +519,13 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
 
 pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet, dark: bool) -> Scene {
     let mut scene = Scene::default();
-    for p in prims {
-        add_prim(&mut scene, p, layers, false, dark);
+    for i in 0..LAYER_COUNT {
+        for p in prims {
+            if p.layer().index() == i {
+                add_prim(&mut scene, p, layers, false, dark);
+            }
+        }
+        mark_layer_end(&mut scene, i);
     }
     scene
 }
@@ -526,43 +558,63 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
     } else {
         [0.72, 0.42, 0.22]
     };
+    let expanded: Vec<(bool, Primitive)> = ed
+        .doc
+        .primitives
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| ed.editing_text != Some(*i))
+        .flat_map(|(i, p)| {
+            let sel = selected.contains(&i);
+            fidocad_core::library::expand_primitive(p, &ed.libs)
+                .into_iter()
+                .filter(|q| {
+                    view.as_ref()
+                        .map(|v| q.aabb().expand(30).intersects(v))
+                        .unwrap_or(true)
+                })
+                .map(move |q| (sel, q))
+        })
+        .collect();
+    let pending = ed.pending_macro_preview();
+    for li in 0..LAYER_COUNT {
+        for (sel, q) in &expanded {
+            if q.layer().index() == li {
+                add_prim(&mut scene, q, layers, *sel, dark);
+            }
+        }
+        for q in &pending {
+            if q.layer().index() == li {
+                add_prim(&mut scene, q, layers, false, dark);
+            }
+        }
+        if ed.layer.index() == li {
+            add_draft(&mut scene, ed, preview);
+        }
+        mark_layer_end(&mut scene, li);
+    }
     for (i, p) in ed.doc.primitives.iter().enumerate() {
-        if ed.editing_text == Some(i) {
+        if !selected.contains(&i) {
             continue;
         }
-        let sel = selected.contains(&i);
-        for q in fidocad_core::library::expand_primitive(p, &ed.libs) {
-            if let Some(v) = &view {
-                if !q.aabb().expand(30).intersects(v) {
-                    continue;
-                }
-            }
-            add_prim(&mut scene, &q, layers, sel, dark);
+        if ed.hide_macro_origin && matches!(p, Primitive::Macro { .. }) {
+            continue;
         }
-        if sel {
-            if ed.hide_macro_origin && matches!(p, Primitive::Macro { .. }) {
-                continue;
-            }
-            for h in p.control_points() {
-                scene.handles.push(CircleInstance {
-                    x: h.x as f32,
-                    y: h.y as f32,
-                    rx: 2.4,
-                    ry: 2.4,
-                    inner: 0.0,
-                    stroke: 0.0,
-                    r: 0.85,
-                    g: 0.42,
-                    b: 0.22,
-                    selected: 1.0,
-                });
-            }
+        for h in p.control_points() {
+            scene.handles.push(CircleInstance {
+                x: h.x as f32,
+                y: h.y as f32,
+                rx: 2.4,
+                ry: 2.4,
+                inner: 0.0,
+                stroke: 0.0,
+                r: 0.85,
+                g: 0.42,
+                b: 0.22,
+                selected: 1.0,
+            });
         }
     }
-    for q in ed.pending_macro_preview() {
-        add_prim(&mut scene, &q, layers, false, dark);
-    }
-    add_draft(&mut scene, ed, preview);
     if let Some((x0, y0, x1, y1)) = ed.marquee_screen_rect() {
         scene.marquee = Some([x0, y0, x1, y1]);
         scene.marquee_color = preview;

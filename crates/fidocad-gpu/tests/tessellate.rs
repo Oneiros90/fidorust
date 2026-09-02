@@ -34,6 +34,7 @@ fn tessellate_rounded_pcb_pad_uses_fills() {
     let scene = tessellate_editor(&ed);
     assert!(scene.fills.len() >= 6);
     assert_eq!(scene.circles.len(), 0);
+    assert_eq!(scene.pad_holes.len(), 1);
 }
 
 #[test]
@@ -52,6 +53,8 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
     let scene = tessellate_editor(&ed);
     assert!(scene.fills.len() >= 6);
     assert_eq!(scene.circles.len(), 0);
+    assert_eq!(scene.pad_holes.len(), 1);
+    assert!((scene.pad_holes[0].r - 12.5).abs() < 0.01);
 }
 
 #[test]
