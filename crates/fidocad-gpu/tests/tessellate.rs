@@ -19,6 +19,65 @@ fn tessellate_alimentatore_has_strokes() {
 }
 
 #[test]
+fn tessellate_rounded_pcb_pad_uses_fills() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::PcbPad {
+        pos: fidocad_core::Point::new(380, 65),
+        dx: 18,
+        dy: 18,
+        hole: 4,
+        style: fidocad_core::primitive::PadStyle::RoundedRect,
+        layer: fidocad_core::LayerId(0),
+    });
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc = doc;
+    let scene = tessellate_editor(&ed);
+    assert!(scene.fills.len() >= 6);
+    assert_eq!(scene.circles.len(), 0);
+}
+
+#[test]
+fn tessellate_oval_pcb_pad_has_circular_hole() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::PcbPad {
+        pos: fidocad_core::Point::new(260, 125),
+        dx: 40,
+        dy: 30,
+        hole: 25,
+        style: fidocad_core::primitive::PadStyle::Oval,
+        layer: fidocad_core::LayerId(0),
+    });
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc = doc;
+    let scene = tessellate_editor(&ed);
+    assert!(scene.fills.len() >= 6);
+    assert_eq!(scene.circles.len(), 0);
+}
+
+#[test]
+fn tessellate_pcb_track_is_filled_capsule() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::PcbTrack {
+        a: fidocad_core::Point::new(80, 140),
+        b: fidocad_core::Point::new(140, 140),
+        width: 16,
+        layer: fidocad_core::LayerId(0),
+    });
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc = doc;
+    let scene = tessellate_editor(&ed);
+    assert!(
+        scene.fills.len() >= 3,
+        "expected filled capsule, got {} fills",
+        scene.fills.len()
+    );
+    assert!(
+        scene.lines.is_empty(),
+        "pcb track must not use the line shader"
+    );
+}
+
+#[test]
 fn tessellate_heavy_grid() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     for x in (0..400).step_by(4) {

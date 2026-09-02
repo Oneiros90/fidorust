@@ -6,7 +6,9 @@ use fidocad_core::primitive::{PadStyle, Primitive};
 use fidocad_core::{Editor, Tool};
 use lyon::math::point;
 use lyon::path::Path;
-use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers};
+use lyon::tessellation::{
+    BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, VertexBuffers,
+};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -78,6 +80,8 @@ fn display_rgb(c: [u8; 3], dark: bool) -> [f32; 3] {
 }
 
 const DEFAULT_STROKE_W: f32 = 0.25;
+const PCB_TRACK_CAP_SEGS: u32 = 24;
+const PCB_PAD_CORNER_SEGS: u32 = 12;
 
 fn line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
     line_f(
@@ -141,11 +145,25 @@ fn circle(
 }
 
 fn tessellate_path(path: &Path, rgb: [f32; 3], selected: bool, scene: &mut Scene) {
+    tessellate_path_rule(path, FillRule::NonZero, rgb, selected, scene);
+}
+
+fn tessellate_path_even_odd(path: &Path, rgb: [f32; 3], selected: bool, scene: &mut Scene) {
+    tessellate_path_rule(path, FillRule::EvenOdd, rgb, selected, scene);
+}
+
+fn tessellate_path_rule(
+    path: &Path,
+    fill_rule: FillRule,
+    rgb: [f32; 3],
+    selected: bool,
+    scene: &mut Scene,
+) {
     let mut buffers: VertexBuffers<FillVertexGpu, u16> = VertexBuffers::new();
     let mut tess = FillTessellator::new();
     let _ = tess.tessellate_path(
         path,
-        &FillOptions::default(),
+        &FillOptions::default().with_fill_rule(fill_rule),
         &mut BuffersBuilder::new(&mut buffers, |v: FillVertex| FillVertexGpu {
             x: v.position().x,
             y: v.position().y,
@@ -164,6 +182,160 @@ fn tessellate_path(path: &Path, rgb: [f32; 3], selected: bool, scene: &mut Scene
             }
         }
     }
+}
+
+fn add_pcb_track(
+    scene: &mut Scene,
+    a: Point,
+    b: Point,
+    width: i32,
+    rgb: [f32; 3],
+    selected: bool,
+) {
+    let ax = a.x as f32;
+    let ay = a.y as f32;
+    let bx = b.x as f32;
+    let by = b.y as f32;
+    let w = width as f32;
+    let dx = bx - ax;
+    let dy = by - ay;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < 0.001 {
+        circle(scene, ax, ay, w * 0.5, w * 0.5, 0.0, 0.0, rgb, selected);
+        return;
+    }
+    let ux = dx / len;
+    let uy = dy / len;
+    let nx = -uy;
+    let ny = ux;
+    let hw = w * 0.5;
+    let mut builder = Path::builder();
+    builder.begin(point(ax + nx * hw, ay + ny * hw));
+    builder.line_to(point(bx + nx * hw, by + ny * hw));
+    for i in 1..=PCB_TRACK_CAP_SEGS {
+        let t = std::f32::consts::PI * i as f32 / PCB_TRACK_CAP_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(
+            bx + nx * hw * ct + ux * hw * st,
+            by + ny * hw * ct + uy * hw * st,
+        ));
+    }
+    builder.line_to(point(ax - nx * hw, ay - ny * hw));
+    for i in 1..=PCB_TRACK_CAP_SEGS {
+        let t = std::f32::consts::PI * i as f32 / PCB_TRACK_CAP_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(
+            ax - nx * hw * ct - ux * hw * st,
+            ay - ny * hw * ct - uy * hw * st,
+        ));
+    }
+    builder.close();
+    tessellate_path(&builder.build(), rgb, selected, scene);
+}
+
+fn path_ellipse(builder: &mut lyon::path::Builder, cx: f32, cy: f32, rx: f32, ry: f32) {
+    const SEGS: u32 = 64;
+    builder.begin(point(cx + rx, cy));
+    for i in 1..=SEGS {
+        let t = std::f32::consts::TAU * i as f32 / SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(cx + rx * ct, cy + ry * st));
+    }
+    builder.close();
+}
+
+fn path_rect(builder: &mut lyon::path::Builder, cx: f32, cy: f32, hx: f32, hy: f32) {
+    builder.begin(point(cx - hx, cy - hy));
+    builder.line_to(point(cx + hx, cy - hy));
+    builder.line_to(point(cx + hx, cy + hy));
+    builder.line_to(point(cx - hx, cy + hy));
+    builder.close();
+}
+
+fn path_rounded_rect(
+    builder: &mut lyon::path::Builder,
+    cx: f32,
+    cy: f32,
+    hx: f32,
+    hy: f32,
+    rx: f32,
+    ry: f32,
+) {
+    let x0 = cx - hx;
+    let x1 = cx + hx;
+    let y0 = cy - hy;
+    let y1 = cy + hy;
+    let rx = rx.min(hx);
+    let ry = ry.min(hy);
+    builder.begin(point(x0 + rx, y0));
+    builder.line_to(point(x1 - rx, y0));
+    for i in 1..=PCB_PAD_CORNER_SEGS {
+        let t = -std::f32::consts::FRAC_PI_2
+            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(x1 - rx + rx * ct, y0 + ry + ry * st));
+    }
+    builder.line_to(point(x1, y1 - ry));
+    for i in 1..=PCB_PAD_CORNER_SEGS {
+        let t = std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(x1 - rx + rx * ct, y1 - ry + ry * st));
+    }
+    builder.line_to(point(x0 + rx, y1));
+    for i in 1..=PCB_PAD_CORNER_SEGS {
+        let t = std::f32::consts::FRAC_PI_2
+            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(x0 + rx + rx * ct, y1 - ry + ry * st));
+    }
+    builder.line_to(point(x0, y0 + ry));
+    for i in 1..=PCB_PAD_CORNER_SEGS {
+        let t = std::f32::consts::PI
+            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(x0 + rx + rx * ct, y0 + ry + ry * st));
+    }
+    builder.close();
+}
+
+fn path_circle_hole(builder: &mut lyon::path::Builder, cx: f32, cy: f32, r: f32) {
+    const SEGS: u32 = 64;
+    builder.begin(point(cx + r, cy));
+    for i in 1..=SEGS {
+        let t = std::f32::consts::TAU - std::f32::consts::TAU * i as f32 / SEGS as f32;
+        let (st, ct) = t.sin_cos();
+        builder.line_to(point(cx + r * ct, cy + r * st));
+    }
+    builder.close();
+}
+
+fn add_pcb_pad(
+    scene: &mut Scene,
+    pos: Point,
+    dx: i32,
+    dy: i32,
+    hole: i32,
+    style: PadStyle,
+    rgb: [f32; 3],
+    selected: bool,
+) {
+    let cx = pos.x as f32;
+    let cy = pos.y as f32;
+    let hx = dx as f32 / 2.0;
+    let hy = dy as f32 / 2.0;
+    let hole_r = hole as f32 / 2.0;
+    let mut builder = Path::builder();
+    match style {
+        PadStyle::Oval => path_ellipse(&mut builder, cx, cy, hx, hy),
+        PadStyle::Rectangular => path_rect(&mut builder, cx, cy, hx, hy),
+        PadStyle::RoundedRect => {
+            path_rounded_rect(&mut builder, cx, cy, hx, hy, hx * 0.5, hy * 0.5)
+        }
+    }
+    if hole_r > 0.001 {
+        path_circle_hole(&mut builder, cx, cy, hole_r);
+    }
+    tessellate_path_even_odd(&builder.build(), rgb, selected, scene);
 }
 
 fn stroke_poly(scene: &mut Scene, pts: &[Point], closed: bool, w: f32, rgb: [f32; 3], sel: bool) {
@@ -299,7 +471,7 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
             );
         }
         Primitive::PcbTrack { a, b, width, .. } => {
-            line(scene, *a, *b, *width as f32, rgb, selected);
+            add_pcb_track(scene, *a, *b, *width, rgb, selected);
         }
         Primitive::PcbPad {
             pos,
@@ -309,49 +481,7 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
             style,
             ..
         } => {
-            let hx = *dx as f32 / 2.0;
-            let hy = *dy as f32 / 2.0;
-            match style {
-                PadStyle::Oval => {
-                    circle(
-                        scene,
-                        pos.x as f32,
-                        pos.y as f32,
-                        hx,
-                        hy,
-                        (*hole as f32 / (*dx).max(1) as f32).clamp(0.0, 0.85),
-                        0.0,
-                        rgb,
-                        selected,
-                    );
-                }
-                PadStyle::Rectangular | PadStyle::RoundedRect => {
-                    let pts = [
-                        Point::new(pos.x - dx / 2, pos.y - dy / 2),
-                        Point::new(pos.x + dx / 2, pos.y - dy / 2),
-                        Point::new(pos.x + dx / 2, pos.y + dy / 2),
-                        Point::new(pos.x - dx / 2, pos.y + dy / 2),
-                    ];
-                    let mut builder = Path::builder();
-                    builder.begin(point(pts[0].x as f32, pts[0].y as f32));
-                    for p in &pts[1..] {
-                        builder.line_to(point(p.x as f32, p.y as f32));
-                    }
-                    builder.close();
-                    tessellate_path(&builder.build(), rgb, selected, scene);
-                    circle(
-                        scene,
-                        pos.x as f32,
-                        pos.y as f32,
-                        *hole as f32 / 2.0,
-                        *hole as f32 / 2.0,
-                        0.0,
-                        0.0,
-                        [1.0, 1.0, 1.0],
-                        false,
-                    );
-                }
-            }
+            add_pcb_pad(scene, *pos, *dx, *dy, *hole, *style, rgb, selected);
         }
         Primitive::Text { .. } => add_text(scene, p, rgb, selected),
         Primitive::Macro { .. } => {}
