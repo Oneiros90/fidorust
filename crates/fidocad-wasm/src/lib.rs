@@ -337,8 +337,21 @@ impl App {
 
     #[wasm_bindgen]
     pub fn set_track_width(&mut self, w: i32) {
-        self.editor.set_track_width_selected(w);
+        self.editor.track_width = w.max(1);
+    }
+
+    #[wasm_bindgen]
+    pub fn selection_props_form_json(&self) -> String {
+        self.editor.selection_props_form_json()
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_selection_props(&mut self, patch_json: &str) -> Result<(), JsValue> {
+        self.editor
+            .apply_selection_props(patch_json)
+            .map_err(|e| JsValue::from_str(&e))?;
         self.dirty = true;
+        Ok(())
     }
 
     #[wasm_bindgen]

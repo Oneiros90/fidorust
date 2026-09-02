@@ -63,6 +63,13 @@
 <hr />
 <MenuItem label={app.t.selectAll} onclick={() => run(app.doSelectAll)} />
 <MenuItem label={app.t.invertSelection} onclick={() => run(app.doInvert)} />
+<hr />
+<MenuItem
+	label={app.t.properties}
+	shortcut="Alt+Enter"
+	disabled={!hasSelection}
+	onclick={() => run(app.openProperties)}
+/>
 
 <style>
 	hr {

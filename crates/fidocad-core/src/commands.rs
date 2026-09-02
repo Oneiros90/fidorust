@@ -6,6 +6,7 @@ use crate::hit::{hit_test, marquee_select};
 use crate::layers::LayerId;
 use crate::library::LibrarySet;
 use crate::primitive::{PadStyle, Primitive};
+use crate::properties::{apply_selection_props, selection_props_form, PropPatch};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -834,6 +835,40 @@ impl Editor {
                 *width = self.track_width;
             }
         }
+    }
+
+    pub fn selection_props_form_json(&self) -> String {
+        let refs: Vec<&Primitive> = self
+            .selected
+            .iter()
+            .filter_map(|&i| self.doc.primitives.get(i))
+            .collect();
+        serde_json::to_string(&selection_props_form(&refs)).unwrap_or_else(|_| "[]".into())
+    }
+
+    pub fn apply_selection_props(&mut self, patch_json: &str) -> Result<(), String> {
+        let patch: PropPatch =
+            serde_json::from_str(patch_json).map_err(|e| e.to_string())?;
+        if self.selected.is_empty() {
+            return Ok(());
+        }
+        let mut targets: Vec<Primitive> = self
+            .selected
+            .iter()
+            .filter_map(|&i| self.doc.primitives.get(i).cloned())
+            .collect();
+        if !apply_selection_props(&mut targets, &patch) {
+            return Ok(());
+        }
+        self.push_undo();
+        for (idx, &i) in self.selected.iter().enumerate() {
+            if let Some(slot) = self.doc.primitives.get_mut(i) {
+                if let Some(updated) = targets.get(idx) {
+                    *slot = updated.clone();
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn load_text(&mut self, text: &str) -> Result<(), crate::parse::ParseError> {

@@ -8,6 +8,7 @@ pub mod layers;
 pub mod library;
 pub mod parse;
 pub mod primitive;
+pub mod properties;
 pub mod serialize;
 
 pub use commands::{Command, Editor, TextEditSession, Tool};

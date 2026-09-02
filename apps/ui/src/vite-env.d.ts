@@ -36,8 +36,6 @@ declare module './wasm/fidocad_wasm.js' {
 		set_snap_enable(on: boolean): void;
 		set_hide_macro_origin(on: boolean): void;
 		set_show_grid(on: boolean): void;
-		set_filled(on: boolean): void;
-		set_track_width(w: number): void;
 		set_split_macros(on: boolean): void;
 		set_pending_macro(name: string): void;
 		place_macro_at(name: string, sx: number, sy: number): void;
@@ -60,7 +58,8 @@ declare module './wasm/fidocad_wasm.js' {
 		status_json(): string;
 		library_json(): string;
 		layers_json(): string;
-		selection_props_json(): string;
+		selection_props_form_json(): string;
+		apply_selection_props(patch_json: string): void;
 	}
 }
 
@@ -99,8 +98,6 @@ declare module '../wasm/fidocad_wasm.js' {
     set_snap_enable(on: boolean): void;
     set_hide_macro_origin(on: boolean): void;
     set_show_grid(on: boolean): void;
-    set_filled(on: boolean): void;
-    set_track_width(w: number): void;
     set_split_macros(on: boolean): void;
     set_pending_macro(name: string): void;
     place_macro_at(name: string, sx: number, sy: number): void;
@@ -123,6 +120,7 @@ declare module '../wasm/fidocad_wasm.js' {
     status_json(): string;
     library_json(): string;
     layers_json(): string;
-    selection_props_json(): string;
+    selection_props_form_json(): string;
+    apply_selection_props(patch_json: string): void;
   }
 }

@@ -5,6 +5,7 @@
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import GridDialog from '../dialogs/GridDialog.svelte';
 	import LayersDialog from '../dialogs/LayersDialog.svelte';
+	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import MacroGhost from '../library/MacroGhost.svelte';
@@ -67,6 +68,16 @@
 		hideMacroOrigin={app.status.hide_macro_origin}
 		onApply={app.applyGrid}
 		onCancel={() => (app.showGridDlg = false)}
+	/>
+{/if}
+
+{#if app.showPropsDlg}
+	<PropertiesDialog
+		t={app.t}
+		fields={app.propsFormFields}
+		layers={app.layers}
+		onApply={app.applyProperties}
+		onCancel={() => (app.showPropsDlg = false)}
 	/>
 {/if}
 

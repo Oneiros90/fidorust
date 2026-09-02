@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
-	import { TOOLS } from '../app/types';
 	import ToolIcon from './ToolIcon.svelte';
+	import { TOOLS } from '../app/types';
 
 	const app = getAppSession();
 </script>
@@ -18,24 +18,6 @@
 			<ToolIcon name={id} />
 		</button>
 	{/each}
-	<label class="chk">
-		<input
-			type="checkbox"
-			checked={app.filled}
-			onchange={(e) => app.setFilled(e.currentTarget.checked)}
-		/>
-		{app.t.filled}
-	</label>
-	<label class="chk">
-		{app.t.trackWidth}
-		<input
-			type="number"
-			min="1"
-			max="100"
-			value="4"
-			onchange={(e) => app.setTrackWidth(Number(e.currentTarget.value))}
-		/>
-	</label>
 </nav>
 
 <style>
@@ -48,16 +30,5 @@
 		background: var(--bg-panel);
 		border-right: 1px solid var(--border);
 		overflow: auto;
-	}
-	.chk {
-		font-size: 10px;
-		color: var(--fg-muted);
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		margin-top: 8px;
-	}
-	.chk input[type='number'] {
-		width: 100%;
 	}
 </style>

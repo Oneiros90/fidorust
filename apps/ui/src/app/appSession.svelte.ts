@@ -5,6 +5,7 @@ import { canvasLocal, cssPerLu, parseMacroCursor, type MacroCursor } from '../li
 import { loadRecents, pushRecent, type RecentEntry } from '../lib/recentFiles';
 import { decodeProject, encodeProject, looksLikeFcd, shareUrl } from '../lib/shareCodec';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
+import { parsePropForm, type PropFormField, type PropPatch } from '../lib/propForm';
 import {
 	defaultStatus,
 	type LayersData,
@@ -37,8 +38,9 @@ export class AppSession {
 	showLayers = $state(false);
 	showAbout = $state(false);
 	showGridDlg = $state(false);
+	showPropsDlg = $state(false);
+	propsFormFields = $state<PropFormField[]>([]);
 	splitMacros = $state(true);
-	filled = $state(false);
 	menu = $state<string | null>(null);
 	error = $state('');
 	fileHandleName = $state('untitled.fcd');
@@ -125,8 +127,14 @@ export class AppSession {
 			e.preventDefault();
 			return;
 		}
+		if (e.key === 'Escape' && this.showPropsDlg) {
+			this.showPropsDlg = false;
+			e.preventDefault();
+			return;
+		}
 		if (
 			this.showGridDlg ||
+			this.showPropsDlg ||
 			this.showAbout ||
 			this.error ||
 			this.showDiscardConfirm ||
@@ -163,6 +171,10 @@ export class AppSession {
 			e.preventDefault();
 			void this.pasteFcd();
 		}
+		if (e.altKey && e.key === 'Enter' && this.status.selected > 0) {
+			e.preventDefault();
+			this.openProperties();
+		}
 	};
 
 	onDragOver = (e: DragEvent) => {
@@ -187,13 +199,21 @@ export class AppSession {
 		this.afterChange();
 	};
 
-	setFilled = (on: boolean) => {
-		this.filled = on;
-		this.engine?.set_filled(on);
+	openProperties = () => {
+		if (!this.engine || this.status.selected === 0) return;
+		this.propsFormFields = parsePropForm(this.engine.selection_props_form_json());
+		this.showPropsDlg = true;
 	};
 
-	setTrackWidth = (w: number) => {
-		this.engine?.set_track_width(w);
+	applyProperties = (patch: PropPatch) => {
+		if (!this.engine) return;
+		try {
+			this.engine.apply_selection_props(JSON.stringify(patch));
+			this.afterChange();
+		} catch (e) {
+			this.error = e instanceof Error ? e.message : String(e);
+		}
+		this.showPropsDlg = false;
 	};
 
 	setLayer = (n: number) => {
