@@ -2,17 +2,22 @@
 /**
  * Single entry point for project version.
  *
+ *   node tools/bump.mjs                    # ask major / minor / patch
  *   node tools/bump.mjs patch              # 0.1.2 → 0.1.3, commit + tag v0.1.3
  *   node tools/bump.mjs minor
  *   node tools/bump.mjs major
  *   node tools/bump.mjs 0.2.0              # set exact version
  *   node tools/bump.mjs 0.2.0 --push       # also git push branch + tag
  *   node tools/bump.mjs 0.2.0 --files-only # only rewrite files (CI)
+ *   npm run bump                           # from apps/ui (same as no-arg)
+ *   npm run bump -- patch --push
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import * as readline from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
 const SEMVER = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 const WORKSPACE_CRATES = ['fidocad-core', 'fidocad-gpu', 'fidocad-tauri', 'fidocad-wasm'];
@@ -29,9 +34,10 @@ const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith('--')));
 const positional = args.filter((a) => !a.startsWith('--'));
 
-if (flags.has('--help') || positional.length !== 1) {
-	console.error(`Usage: node tools/bump.mjs <patch|minor|major|x.y.z> [--push] [--files-only]
+if (flags.has('--help') || positional.length > 1) {
+	console.error(`Usage: node tools/bump.mjs [patch|minor|major|x.y.z] [--push] [--files-only]
 
+With no version argument, interactively asks whether to bump major, minor, or patch.
 Rewrites package.json, tauri.conf.json, Cargo.toml, Cargo.lock, package-lock.json.
 Unless --files-only, also commits those files and creates git tag v<version>.`);
 	process.exit(flags.has('--help') ? 0 : 1);
@@ -76,18 +82,49 @@ function nextVersion(spec) {
 		console.error(`Cannot bump from ${cur}`);
 		process.exit(1);
 	}
-	let [major, minor, patch] = m.slice(1).map(Number);
+	let [major, minor, patchN] = m.slice(1).map(Number);
 	if (spec === 'major') {
 		major += 1;
 		minor = 0;
-		patch = 0;
+		patchN = 0;
 	} else if (spec === 'minor') {
 		minor += 1;
-		patch = 0;
+		patchN = 0;
 	} else {
-		patch += 1;
+		patchN += 1;
 	}
-	return `${major}.${minor}.${patch}`;
+	return `${major}.${minor}.${patchN}`;
+}
+
+async function askBumpKind() {
+	const cur = currentVersion();
+	const choices = [
+		{ key: '1', kind: 'patch', next: nextVersion('patch') },
+		{ key: '2', kind: 'minor', next: nextVersion('minor') },
+		{ key: '3', kind: 'major', next: nextVersion('major') }
+	];
+	console.log(`Current version: ${cur}`);
+	console.log('Bump which part?');
+	for (const c of choices) {
+		console.log(`  ${c.key}) ${c.kind.padEnd(5)} → ${c.next}`);
+	}
+	if (!input.isTTY) {
+		console.error('No TTY: pass patch, minor, major, or x.y.z explicitly.');
+		process.exit(1);
+	}
+	const rl = readline.createInterface({ input, output });
+	try {
+		for (;;) {
+			const answer = (await rl.question('Choose [1/2/3 or patch/minor/major]: ')).trim().toLowerCase();
+			const hit = choices.find(
+				(c) => c.key === answer || c.kind === answer || c.next === answer
+			);
+			if (hit) return hit.kind;
+			console.log('Please enter 1, 2, 3, patch, minor, or major.');
+		}
+	} finally {
+		rl.close();
+	}
 }
 
 function applyVersion(version) {
@@ -143,7 +180,8 @@ function git(gitArgs) {
 	return r;
 }
 
-const version = nextVersion(positional[0]);
+const spec = positional[0] ?? (await askBumpKind());
+const version = nextVersion(spec);
 applyVersion(version);
 console.log(`Set version to ${version}`);
 
