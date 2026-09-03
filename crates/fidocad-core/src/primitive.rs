@@ -220,14 +220,14 @@ impl Primitive {
                 bb
             }
             Self::Text {
-                pos, sy, sx, text, ..
-            } => {
-                let n = text.chars().count().max(1) as i32;
-                Aabb {
-                    min: *pos,
-                    max: Point::new(pos.x + (*sx).max(1) * n, pos.y + (*sy).max(1)),
-                }
-            }
+                pos,
+                sy,
+                sx,
+                angle,
+                style,
+                text,
+                ..
+            } => text_aabb(*pos, *sx, *sy, *angle, *style, text),
             Self::Connection { pos, .. } => Aabb {
                 min: Point::new(pos.x - 2, pos.y - 2),
                 max: Point::new(pos.x + 2, pos.y + 2),
@@ -294,4 +294,27 @@ impl Primitive {
             }
         }
     }
+}
+
+/// World AABB of text glyphs (same transform as the GPU tessellator / hit test).
+fn text_aabb(pos: Point, sx: i32, sy: i32, angle: i32, style: u32, text: &str) -> Aabb {
+    let n = text.chars().count().max(1) as f32;
+    let w = sx.max(1) as f32 * n;
+    let h = sy.max(1) as f32;
+    // Italic shear in the tessellator can stick out a little past `w`.
+    let pad = if style & 2 != 0 { w * 0.22 } else { 0.0 };
+    let (x0, x1) = if style & 4 != 0 {
+        (-w - pad, 0.0)
+    } else {
+        (0.0, w + pad)
+    };
+    let rad = (angle as f32).to_radians();
+    let (sin, cos) = rad.sin_cos();
+    let mut bb = Aabb::empty();
+    for (lx, ly) in [(x0, 0.0), (x1, 0.0), (x0, h), (x1, h)] {
+        let wx = pos.x as f32 + lx * cos - ly * sin;
+        let wy = pos.y as f32 + lx * sin + ly * cos;
+        bb.include(Point::new(wx.round() as i32, wy.round() as i32));
+    }
+    bb
 }

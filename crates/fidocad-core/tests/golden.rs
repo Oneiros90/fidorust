@@ -138,6 +138,25 @@ fn expand_terminal() {
 }
 
 #[test]
+fn mirrored_text_aabb_extends_left_of_origin() {
+    let p = parse_primitive_line("TY 1100 265 30 15 0 5 1 * Propic2 compatible PCB").unwrap();
+    let bb = p.aabb();
+    // style 5 includes mirrored (bit 4): glyphs sit left of pos, not right.
+    assert!(bb.max.x <= 1100, "max.x={} should be ≤ origin", bb.max.x);
+    assert!(bb.min.x < 1100 - 100, "min.x={} should cover the string leftward", bb.min.x);
+    assert!(bb.min.y <= 265);
+    assert!(bb.max.y >= 265 + 30);
+}
+
+#[test]
+fn axis_aligned_text_aabb_extends_right_of_origin() {
+    let p = parse_primitive_line("TY 100 200 20 10 0 0 0 * Hello").unwrap();
+    let bb = p.aabb();
+    assert_eq!(bb.min, Point::new(100, 200));
+    assert_eq!(bb.max, Point::new(100 + 10 * 5, 200 + 20));
+}
+
+#[test]
 fn pcb_pad_and_track() {
     let p = parse_primitive_line("PA 100 100 18 18 8 0 1").unwrap();
     match p {
