@@ -15,12 +15,31 @@
 	} = $props();
 
 	const app = getAppSession();
-	const left = $derived(Math.min(x, Math.max(8, window.innerWidth - 280)));
-	const top = $derived(Math.min(y, Math.max(8, window.innerHeight - 400)));
+	let width = $state(0);
+	let height = $state(0);
+
+	const pad = 8;
+	let left = $derived.by(() => {
+		const maxW = window.innerWidth - pad * 2;
+		const w = Math.min(width, maxW);
+		return Math.min(Math.max(pad, x), window.innerWidth - w - pad);
+	});
+	let top = $derived.by(() => {
+		const maxH = window.innerHeight - pad * 2;
+		const h = Math.min(height, maxH);
+		return Math.min(Math.max(pad, y), window.innerHeight - h - pad);
+	});
 </script>
 
 <button type="button" class="scrim" aria-label={app.t.cancel} onclick={onClose}></button>
-<div class="ctx" style:left="{left}px" style:top="{top}px" role="menu">
+<div
+	class="ctx"
+	bind:offsetWidth={width}
+	bind:offsetHeight={height}
+	style:left="{left}px"
+	style:top="{top}px"
+	role="menu"
+>
 	{@render children()}
 </div>
 
