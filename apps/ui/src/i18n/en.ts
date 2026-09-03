@@ -64,8 +64,11 @@ export const en = {
   dark: 'Dark',
   help: 'Help',
   about: 'About FidoRust',
-  aboutBody:
-    'FidoRust is a FidoCAD 0.96 port in Rust + Tauri. Original .fcd format, GPU canvas, standard libraries included.',
+  aboutContent: `<p><b>FidoRust</b> aims to be the spiritual successor to <a href="https://www.enetsystems.com/~lorenzo/fidocad.asp" target="_blank" rel="noopener noreferrer">FidoCAD</a>: a modern, more capable, and efficient schematic editor available everywhere (desktop and web) without losing the simplicity and directness that made the original program legendary.</p>
+<p>Heartfelt thanks to <b>Lorenzo Lutti</b>, the original author of FidoCAD, for a tool that shaped generations of hobbyists and professionals.</p>
+<p>My heartfelt thanks also to <b>Bruno Valente</b> for his advice, supervision, and testing.</p>
+<p>Developed by <b>Lorenzo Valente</b> (<a href="https://lorenzo.valente.my" target="_blank" rel="noopener noreferrer">lorenzo.valente.my</a>)</p>
+<p><a href="https://github.com/Oneiros90/fidorust" target="_blank" rel="noopener noreferrer">GitHub page</a></p>`,
   tools: 'Tools',
   select: 'Select',
   line: 'Line',
