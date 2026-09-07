@@ -105,7 +105,7 @@
 		padding: 0;
 		border: none;
 		pointer-events: auto;
-		z-index: 4;
+		z-index: calc(var(--z-menubar) + 1);
 	}
 	.collapse-btn {
 		width: 26px;

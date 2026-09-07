@@ -1,38 +1,31 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
-	import DialogHeader from './DialogHeader.svelte';
 	import Modal from './Modal.svelte';
+
+	let { url }: { url: string } = $props();
 
 	const app = getAppSession();
 
 	let copied = $state(false);
 
 	async function copy() {
-		if (!app.shareLinkUrl) return;
-		await navigator.clipboard.writeText(app.shareLinkUrl);
+		if (!url) return;
+		await navigator.clipboard.writeText(url);
 		copied = true;
-	}
-
-	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			app.closeShare();
-		}
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
-
-<Modal labelledBy="share-link-title" maxWidth="560px">
-	<DialogHeader
-		title={app.t.shareLinkTitle}
-		titleId="share-link-title"
-		closeLabel={app.t.close}
-		onClose={app.closeShare}
-	/>
+<Modal
+	title={app.t.shareLinkTitle}
+	titleId="share-link-title"
+	maxWidth="560px"
+	closable
+	closeLabel={app.t.close}
+	onClose={app.closeShare}
+>
 	<div class="row">
-		<input type="text" readonly value={app.shareLinkUrl ?? ''} />
-		<button type="button" class="ok" disabled={!app.shareLinkUrl} onclick={() => void copy()}>
+		<input type="text" readonly value={url} />
+		<button type="button" class="primary" disabled={!url} onclick={() => void copy()}>
 			{copied ? app.t.copied : app.t.copyLink}
 		</button>
 	</div>
@@ -51,10 +44,7 @@
 		font-family: var(--mono);
 		font-size: 12px;
 	}
-	.ok {
+	.primary {
 		flex-shrink: 0;
-		background: var(--accent);
-		color: var(--accent-fg);
-		border-color: var(--accent);
 	}
 </style>

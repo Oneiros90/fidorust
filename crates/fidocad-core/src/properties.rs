@@ -1,12 +1,16 @@
 //! Object properties dialog: common attributes across a multi-selection (FidoCAD 0.96).
 
 use crate::layers::LayerId;
-use crate::primitive::{PadStyle, Primitive};
+use crate::primitive::{
+    Bezier, Connection, Ellipse, Line, MacroRef, PadStyle, PcbPad, PcbTrack, Poly, Primitive, Rect,
+    Text, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED, STYLE_UNDERLINE,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use std::str::FromStr;
 
 /// Editable property identifiers (FidoCAD internal names).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PropField {
     Filled,
@@ -96,26 +100,197 @@ pub struct PropPatch {
     pub underlined: Option<bool>,
 }
 
-const STYLE_BOLD: u32 = 1;
-const STYLE_ITALIC: u32 = 2;
-const STYLE_MIRRORED: u32 = 4;
-const STYLE_UNDERLINE: u32 = 8;
+/// Per-variant property table used by the properties dialog.
+pub trait PropSource {
+    fn fields() -> &'static [PropField];
+    fn read(&self, field: PropField) -> Option<PropFieldValue>;
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool;
+}
 
-fn attrib_order(first: &Primitive) -> Vec<PropField> {
-    match first {
-        Primitive::Rect { .. } | Primitive::Poly { .. } | Primitive::Ellipse { .. } => {
-            vec![PropField::Filled]
+fn read_layer(layer: LayerId, field: PropField) -> Option<PropFieldValue> {
+    match field {
+        PropField::Layer => Some(PropFieldValue::Layer {
+            value: layer.0 as i32,
+        }),
+        _ => None,
+    }
+}
+
+fn apply_layer(layer: &mut LayerId, field: PropField, value: &PropFieldValue) -> bool {
+    match (field, value) {
+        (PropField::Layer, PropFieldValue::Layer { value: v }) if (0..256).contains(v) => {
+            *layer = LayerId(*v as u8);
+            true
         }
-        Primitive::PcbTrack { .. } => vec![PropField::Thickness],
-        Primitive::PcbPad { .. } => {
-            vec![
-                PropField::SizeX,
-                PropField::SizeY,
-                PropField::IntDiam,
-                PropField::PadStyle,
-            ]
+        _ => false,
+    }
+}
+
+fn read_filled(filled: bool, layer: LayerId, field: PropField) -> Option<PropFieldValue> {
+    match field {
+        PropField::Filled => Some(PropFieldValue::Bool { value: filled }),
+        _ => read_layer(layer, field),
+    }
+}
+
+fn apply_filled(
+    filled: &mut bool,
+    layer: &mut LayerId,
+    field: PropField,
+    value: &PropFieldValue,
+) -> bool {
+    match (field, value) {
+        (PropField::Filled, PropFieldValue::Bool { value: v }) => {
+            *filled = *v;
+            true
         }
-        Primitive::Text { .. } => vec![
+        _ => apply_layer(layer, field, value),
+    }
+}
+
+impl PropSource for Line {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_layer(self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
+    }
+}
+
+impl PropSource for Bezier {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_layer(self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
+    }
+}
+
+impl PropSource for Connection {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_layer(self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
+    }
+}
+
+impl PropSource for Rect {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Filled]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_filled(self.filled, self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_filled(&mut self.filled, &mut self.layer, field, value)
+    }
+}
+
+impl PropSource for Poly {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Filled]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_filled(self.filled, self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_filled(&mut self.filled, &mut self.layer, field, value)
+    }
+}
+
+impl PropSource for Ellipse {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Filled]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_filled(self.filled, self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_filled(&mut self.filled, &mut self.layer, field, value)
+    }
+}
+
+impl PropSource for PcbTrack {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Thickness]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::Thickness => Some(PropFieldValue::Int { value: self.width }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::Thickness, PropFieldValue::Int { value: v }) => {
+                self.width = (*v).clamp(1, 100);
+                true
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
+    }
+}
+
+impl PropSource for PcbPad {
+    fn fields() -> &'static [PropField] {
+        &[
+            PropField::SizeX,
+            PropField::SizeY,
+            PropField::IntDiam,
+            PropField::PadStyle,
+        ]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::SizeX => Some(PropFieldValue::Int { value: self.dx }),
+            PropField::SizeY => Some(PropFieldValue::Int { value: self.dy }),
+            PropField::IntDiam => Some(PropFieldValue::Int { value: self.hole }),
+            PropField::PadStyle => Some(PropFieldValue::PadStyle {
+                value: self.style.to_string(),
+            }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::SizeX, PropFieldValue::Int { value: v }) => {
+                self.dx = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::SizeY, PropFieldValue::Int { value: v }) => {
+                self.dy = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::IntDiam, PropFieldValue::Int { value: v }) => {
+                self.hole = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::PadStyle, PropFieldValue::PadStyle { value: v }) => {
+                if let Ok(s) = PadStyle::from_str(v) {
+                    self.style = s;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
+    }
+}
+
+impl PropSource for Text {
+    fn fields() -> &'static [PropField] {
+        &[
             PropField::Text,
             PropField::FontFace,
             PropField::FontHeight,
@@ -125,11 +300,104 @@ fn attrib_order(first: &Primitive) -> Vec<PropField> {
             PropField::Italic,
             PropField::Mirrored,
             PropField::Underlined,
-        ],
-        Primitive::Line { .. }
-        | Primitive::Bezier { .. }
-        | Primitive::Connection { .. }
-        | Primitive::Macro { .. } => vec![],
+        ]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::Text => Some(PropFieldValue::String {
+                value: self.text.clone(),
+            }),
+            PropField::FontFace => Some(PropFieldValue::String {
+                value: self.font.clone(),
+            }),
+            PropField::FontHeight => Some(PropFieldValue::Int { value: self.sy }),
+            PropField::FontWidth => Some(PropFieldValue::Int { value: self.sx }),
+            PropField::RotationAngle => Some(PropFieldValue::Int { value: self.angle }),
+            PropField::Bold => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_BOLD != 0,
+            }),
+            PropField::Italic => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_ITALIC != 0,
+            }),
+            PropField::Mirrored => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_MIRRORED != 0,
+            }),
+            PropField::Underlined => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_UNDERLINE != 0,
+            }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::Text, PropFieldValue::String { value: v }) => {
+                self.text = v.clone();
+                true
+            }
+            (PropField::FontFace, PropFieldValue::String { value: v }) => {
+                self.font = v.clone();
+                true
+            }
+            (PropField::FontHeight, PropFieldValue::Int { value: v }) => {
+                self.sy = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::FontWidth, PropFieldValue::Int { value: v }) => {
+                self.sx = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::RotationAngle, PropFieldValue::Int { value: v }) => {
+                self.angle = (*v).clamp(0, 359);
+                true
+            }
+            (PropField::Bold, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_BOLD, *v);
+                true
+            }
+            (PropField::Italic, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_ITALIC, *v);
+                true
+            }
+            (PropField::Mirrored, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_MIRRORED, *v);
+                true
+            }
+            (PropField::Underlined, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_UNDERLINE, *v);
+                true
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
+    }
+}
+
+impl PropSource for MacroRef {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::Layer => Some(PropFieldValue::Layer { value: 0 }),
+            _ => None,
+        }
+    }
+    fn apply(&mut self, _field: PropField, _value: &PropFieldValue) -> bool {
+        false
+    }
+}
+
+fn attrib_order(first: &Primitive) -> &'static [PropField] {
+    match first {
+        Primitive::Line(_) => Line::fields(),
+        Primitive::Rect(_) => Rect::fields(),
+        Primitive::Poly(_) => Poly::fields(),
+        Primitive::Ellipse(_) => Ellipse::fields(),
+        Primitive::Bezier(_) => Bezier::fields(),
+        Primitive::Text(_) => Text::fields(),
+        Primitive::Connection(_) => Connection::fields(),
+        Primitive::PcbTrack(_) => PcbTrack::fields(),
+        Primitive::PcbPad(_) => PcbPad::fields(),
+        Primitive::Macro(_) => MacroRef::fields(),
     }
 }
 
@@ -153,122 +421,7 @@ fn field_kind(field: PropField) -> PropFieldKind {
 }
 
 fn read_field(p: &Primitive, field: PropField) -> Option<PropFieldValue> {
-    match field {
-        PropField::Filled => match p {
-            Primitive::Rect { filled, .. }
-            | Primitive::Poly { filled, .. }
-            | Primitive::Ellipse { filled, .. } => {
-                Some(PropFieldValue::Bool { value: *filled })
-            }
-            _ => None,
-        },
-        PropField::Layer => match p {
-            Primitive::Macro { .. } => Some(PropFieldValue::Layer { value: 0 }),
-            _ => Some(PropFieldValue::Layer {
-                value: p.layer().0 as i32,
-            }),
-        },
-        PropField::Thickness => match p {
-            Primitive::PcbTrack { width, .. } => Some(PropFieldValue::Int { value: *width }),
-            _ => None,
-        },
-        PropField::SizeX => match p {
-            Primitive::PcbPad { dx, .. } => Some(PropFieldValue::Int { value: *dx }),
-            _ => None,
-        },
-        PropField::SizeY => match p {
-            Primitive::PcbPad { dy, .. } => Some(PropFieldValue::Int { value: *dy }),
-            _ => None,
-        },
-        PropField::IntDiam => match p {
-            Primitive::PcbPad { hole, .. } => Some(PropFieldValue::Int { value: *hole }),
-            _ => None,
-        },
-        PropField::PadStyle => match p {
-            Primitive::PcbPad { style, .. } => Some(PropFieldValue::PadStyle {
-                value: pad_style_name(*style).into(),
-            }),
-            _ => None,
-        },
-        PropField::Text => match p {
-            Primitive::Text { text, .. } => Some(PropFieldValue::String {
-                value: text.clone(),
-            }),
-            _ => None,
-        },
-        PropField::FontFace => match p {
-            Primitive::Text { font, .. } => Some(PropFieldValue::String {
-                value: font.clone(),
-            }),
-            _ => None,
-        },
-        PropField::FontHeight => match p {
-            Primitive::Text { sy, .. } => Some(PropFieldValue::Int { value: *sy }),
-            _ => None,
-        },
-        PropField::FontWidth => match p {
-            Primitive::Text { sx, .. } => Some(PropFieldValue::Int { value: *sx }),
-            _ => None,
-        },
-        PropField::RotationAngle => match p {
-            Primitive::Text { angle, .. } => Some(PropFieldValue::Int { value: *angle }),
-            _ => None,
-        },
-        PropField::Bold => match p {
-            Primitive::Text { style, .. } => Some(PropFieldValue::Bool {
-                value: style & STYLE_BOLD != 0,
-            }),
-            _ => None,
-        },
-        PropField::Italic => match p {
-            Primitive::Text { style, .. } => Some(PropFieldValue::Bool {
-                value: style & STYLE_ITALIC != 0,
-            }),
-            _ => None,
-        },
-        PropField::Mirrored => match p {
-            Primitive::Text { style, .. } => Some(PropFieldValue::Bool {
-                value: style & STYLE_MIRRORED != 0,
-            }),
-            _ => None,
-        },
-        PropField::Underlined => match p {
-            Primitive::Text { style, .. } => Some(PropFieldValue::Bool {
-                value: style & STYLE_UNDERLINE != 0,
-            }),
-            _ => None,
-        },
-    }
-}
-
-fn values_equal(a: &PropFieldValue, b: &PropFieldValue) -> bool {
-    match (a, b) {
-        (PropFieldValue::Bool { value: va }, PropFieldValue::Bool { value: vb }) => va == vb,
-        (PropFieldValue::Int { value: va }, PropFieldValue::Int { value: vb }) => va == vb,
-        (PropFieldValue::String { value: va }, PropFieldValue::String { value: vb }) => va == vb,
-        (PropFieldValue::Layer { value: va }, PropFieldValue::Layer { value: vb }) => va == vb,
-        (PropFieldValue::PadStyle { value: va }, PropFieldValue::PadStyle { value: vb }) => {
-            va == vb
-        }
-        _ => false,
-    }
-}
-
-fn pad_style_name(style: PadStyle) -> &'static str {
-    match style {
-        PadStyle::Oval => "Round",
-        PadStyle::Rectangular => "Square",
-        PadStyle::RoundedRect => "SquareRounded",
-    }
-}
-
-fn parse_pad_style(name: &str) -> Option<PadStyle> {
-    match name {
-        "Square" => Some(PadStyle::Rectangular),
-        "SquareRounded" => Some(PadStyle::RoundedRect),
-        "Round" => Some(PadStyle::Oval),
-        _ => None,
-    }
+    crate::dispatch_primitive!(p, |inner| inner.read(field))
 }
 
 fn set_style_bit(style: &mut u32, mask: u32, on: bool) {
@@ -277,10 +430,6 @@ fn set_style_bit(style: &mut u32, mask: u32, on: bool) {
     } else {
         *style &= !mask;
     }
-}
-
-fn clamp_int(v: i32, min: i32, max: i32) -> i32 {
-    v.clamp(min, max)
 }
 
 /// Build the properties form for the given selection (FidoCAD intersection rules).
@@ -292,7 +441,7 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
     let first = primitives[0];
     let mut fields = Vec::new();
 
-    for field in attrib_order(first) {
+    for &field in attrib_order(first) {
         let Some(first_val) = read_field(first, field) else {
             continue;
         };
@@ -301,7 +450,7 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
         for p in &primitives[1..] {
             match read_field(p, field) {
                 Some(v) => {
-                    if !values_equal(&common, &v) {
+                    if common != v {
                         common = PropFieldValue::Unset;
                     }
                 }
@@ -323,10 +472,12 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
 
     // Layer always appended (FidoCAD).
     let mut layer_val = read_field(first, PropField::Layer).unwrap_or(PropFieldValue::Unset);
-    let all_macro = primitives.iter().all(|p| matches!(p, Primitive::Macro { .. }));
+    let all_macro = primitives
+        .iter()
+        .all(|p| matches!(p, Primitive::Macro(MacroRef { .. })));
     for p in &primitives[1..] {
         if let Some(v) = read_field(p, PropField::Layer) {
-            if !values_equal(&layer_val, &v) {
+            if layer_val != v {
                 layer_val = PropFieldValue::Unset;
             }
         }
@@ -342,135 +493,11 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
 }
 
 fn apply_field(p: &mut Primitive, field: PropField, value: &PropFieldValue) -> bool {
-    match (field, value) {
-        (PropField::Filled, PropFieldValue::Bool { value: v }) => match p {
-            Primitive::Rect { filled, .. }
-            | Primitive::Poly { filled, .. }
-            | Primitive::Ellipse { filled, .. } => {
-                *filled = *v;
-                true
-            }
-            _ => false,
-        },
-        (PropField::Layer, PropFieldValue::Layer { value: v }) => {
-            if matches!(p, Primitive::Macro { .. }) {
-                return false;
-            }
-            if (0..256).contains(v) {
-                p.set_layer(LayerId(*v as u8));
-                true
-            } else {
-                false
-            }
-        }
-        (PropField::Thickness, PropFieldValue::Int { value: v }) => match p {
-            Primitive::PcbTrack { width, .. } => {
-                *width = clamp_int(*v, 1, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::SizeX, PropFieldValue::Int { value: v }) => match p {
-            Primitive::PcbPad { dx, .. } => {
-                *dx = clamp_int(*v, 2, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::SizeY, PropFieldValue::Int { value: v }) => match p {
-            Primitive::PcbPad { dy, .. } => {
-                *dy = clamp_int(*v, 2, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::IntDiam, PropFieldValue::Int { value: v }) => match p {
-            Primitive::PcbPad { hole, .. } => {
-                *hole = clamp_int(*v, 2, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::PadStyle, PropFieldValue::PadStyle { value: v }) => match p {
-            Primitive::PcbPad { style, .. } => {
-                if let Some(s) = parse_pad_style(v) {
-                    *style = s;
-                    true
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        },
-        (PropField::Text, PropFieldValue::String { value: v }) => match p {
-            Primitive::Text { text, .. } => {
-                *text = v.clone();
-                true
-            }
-            _ => false,
-        },
-        (PropField::FontFace, PropFieldValue::String { value: v }) => match p {
-            Primitive::Text { font, .. } => {
-                *font = v.clone();
-                true
-            }
-            _ => false,
-        },
-        (PropField::FontHeight, PropFieldValue::Int { value: v }) => match p {
-            Primitive::Text { sy, .. } => {
-                *sy = clamp_int(*v, 2, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::FontWidth, PropFieldValue::Int { value: v }) => match p {
-            Primitive::Text { sx, .. } => {
-                *sx = clamp_int(*v, 2, 100);
-                true
-            }
-            _ => false,
-        },
-        (PropField::RotationAngle, PropFieldValue::Int { value: v }) => match p {
-            Primitive::Text { angle, .. } => {
-                *angle = clamp_int(*v, 0, 359);
-                true
-            }
-            _ => false,
-        },
-        (PropField::Bold, PropFieldValue::Bool { value: v }) => match p {
-            Primitive::Text { style, .. } => {
-                set_style_bit(style, STYLE_BOLD, *v);
-                true
-            }
-            _ => false,
-        },
-        (PropField::Italic, PropFieldValue::Bool { value: v }) => match p {
-            Primitive::Text { style, .. } => {
-                set_style_bit(style, STYLE_ITALIC, *v);
-                true
-            }
-            _ => false,
-        },
-        (PropField::Mirrored, PropFieldValue::Bool { value: v }) => match p {
-            Primitive::Text { style, .. } => {
-                set_style_bit(style, STYLE_MIRRORED, *v);
-                true
-            }
-            _ => false,
-        },
-        (PropField::Underlined, PropFieldValue::Bool { value: v }) => match p {
-            Primitive::Text { style, .. } => {
-                set_style_bit(style, STYLE_UNDERLINE, *v);
-                true
-            }
-            _ => false,
-        },
-        _ => false,
-    }
+    crate::dispatch_primitive!(p, |inner| inner.apply(field, value))
 }
 
-fn patch_to_fields(patch: &PropPatch) -> HashMap<PropField, PropFieldValue> {
-    let mut m = HashMap::new();
+fn patch_to_fields(patch: &PropPatch) -> BTreeMap<PropField, PropFieldValue> {
+    let mut m = BTreeMap::new();
     if let Some(v) = patch.filled {
         m.insert(PropField::Filled, PropFieldValue::Bool { value: v });
     }
@@ -496,10 +523,7 @@ fn patch_to_fields(patch: &PropPatch) -> HashMap<PropField, PropFieldValue> {
         );
     }
     if let Some(v) = &patch.text {
-        m.insert(
-            PropField::Text,
-            PropFieldValue::String { value: v.clone() },
-        );
+        m.insert(PropField::Text, PropFieldValue::String { value: v.clone() });
     }
     if let Some(v) = &patch.font_face {
         m.insert(
@@ -555,20 +579,20 @@ mod tests {
     use crate::layers::LayerId;
 
     fn rect(filled: bool, layer: u8) -> Primitive {
-        Primitive::Rect {
+        Primitive::Rect(Rect {
             a: Point::new(0, 0),
             b: Point::new(10, 10),
             filled,
             layer: LayerId(layer),
-        }
+        })
     }
 
     fn line(layer: u8) -> Primitive {
-        Primitive::Line {
+        Primitive::Line(Line {
             a: Point::new(0, 0),
             b: Point::new(5, 5),
             layer: LayerId(layer),
-        }
+        })
     }
 
     #[test]
@@ -579,10 +603,7 @@ mod tests {
         let form = selection_props_form(&[&r1, &r2, &r3]);
         assert_eq!(form.len(), 2);
         assert_eq!(form[0].id, PropField::Filled);
-        assert_eq!(
-            form[0].value,
-            PropFieldValue::Bool { value: true }
-        );
+        assert_eq!(form[0].value, PropFieldValue::Bool { value: true });
         assert_eq!(form[1].id, PropField::Layer);
     }
 
@@ -615,17 +636,11 @@ mod tests {
         assert_eq!(prims[1].layer(), LayerId(3));
         assert!(matches!(
             prims[0],
-            Primitive::Rect {
-                filled: true,
-                ..
-            }
+            Primitive::Rect(Rect { filled: true, .. })
         ));
         assert!(matches!(
             prims[1],
-            Primitive::Rect {
-                filled: false,
-                ..
-            }
+            Primitive::Rect(Rect { filled: false, .. })
         ));
     }
 }

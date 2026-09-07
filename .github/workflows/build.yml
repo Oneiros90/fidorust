@@ -52,7 +52,7 @@ jobs:
         run: node tools/bump.mjs "${{ github.ref_name }}" --files-only
 
       - name: Run core tests
-        run: cargo test -p fidocad-core
+        run: cargo test --workspace
 
       - name: Build FidoRust
         working-directory: apps/ui
@@ -103,7 +103,7 @@ jobs:
         run: npm ci
 
       - name: Run core tests
-        run: cargo test -p fidocad-core
+        run: cargo test --workspace
 
       - name: Build web
         working-directory: apps/ui
@@ -123,6 +123,47 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: apps/ui/dist
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/ui
+        run: npm ci
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace
+
+      - name: svelte-check
+        working-directory: apps/ui
+        run: npm run check
+
+      - name: prettier
+        working-directory: apps/ui
+        run: npm run format:check
 
   release:
     needs: [build, wasm]

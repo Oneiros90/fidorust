@@ -1,3 +1,5 @@
+import { RECENTS_MAX } from './constants';
+
 export type RecentEntry = {
 	name: string;
 	fcd: string;
@@ -5,7 +7,6 @@ export type RecentEntry = {
 };
 
 const KEY = 'fidorust.recent';
-const MAX = 10;
 
 export function loadRecents(): RecentEntry[] {
 	try {
@@ -13,7 +14,7 @@ export function loadRecents(): RecentEntry[] {
 		if (!raw) return [];
 		const parsed = JSON.parse(raw) as unknown;
 		if (!Array.isArray(parsed)) return [];
-		return parsed.filter(isRecentEntry).slice(0, MAX);
+		return parsed.filter(isRecentEntry).slice(0, RECENTS_MAX);
 	} catch {
 		return [];
 	}
@@ -22,7 +23,7 @@ export function loadRecents(): RecentEntry[] {
 export function pushRecent(list: RecentEntry[], name: string, fcd: string): RecentEntry[] {
 	const next = [{ name, fcd, at: Date.now() }, ...list.filter((e) => e.name !== name)].slice(
 		0,
-		MAX
+		RECENTS_MAX
 	);
 	try {
 		localStorage.setItem(KEY, JSON.stringify(next));

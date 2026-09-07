@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import { canvasLocal, dpr } from '../lib/canvasCoords';
 	import { parseEdit, textOverlayLayout, type TextEdit } from '../lib/textEdit';
@@ -21,8 +21,10 @@
 		canvas.height = Math.max(1, Math.floor(r.height * scale));
 		canvas.style.width = `${r.width}px`;
 		canvas.style.height = `${r.height}px`;
-		engine.resize(canvas.width, canvas.height);
-		engine.render();
+		engine.query((wasm) => {
+			wasm.resize(canvas!.width, canvas!.height);
+			wasm.render();
+		});
 	}
 
 	function local(e: { clientX: number; clientY: number }) {
@@ -34,7 +36,9 @@
 		const current = untrack(() => textEdit);
 		if (!current || !engine) return;
 		try {
-			const p = JSON.parse(engine.world_to_screen_json(current.wx, current.wy)) as {
+			const p = JSON.parse(
+				engine.query((wasm) => wasm.world_to_screen_json(current.wx, current.wy))
+			) as {
 				x: number;
 				y: number;
 				zoom: number;
@@ -54,18 +58,20 @@
 
 	function commitEdit(value: string) {
 		if (!engine) return;
-		engine.commit_text_edit(value);
+		engine.query((wasm) => {
+			wasm.commit_text_edit(value);
+		});
 		textEdit = null;
-		engine.render();
-		app.refresh();
+		engine.mutate(() => {});
 	}
 
 	function cancelEdit() {
 		if (!engine) return;
-		engine.cancel_text_edit();
+		engine.query((wasm) => {
+			wasm.cancel_text_edit();
+		});
 		textEdit = null;
-		engine.render();
-		app.refresh();
+		engine.mutate(() => {});
 	}
 
 	function down(e: PointerEvent) {
@@ -76,46 +82,57 @@
 		if (!engine || !canvas || textEdit) return;
 		canvas.setPointerCapture(e.pointerId);
 		const p = local(e);
-		engine.pointer_down(p.x, p.y, e.shiftKey, space || e.button === 1);
-		if (e.detail >= 2) {
-			engine.pointer_up(p.x, p.y);
-		}
-		app.refresh();
-		engine.render();
+		engine.mutate(
+			(wasm) => {
+				wasm.pointer_down(p.x, p.y, e.shiftKey, space || e.button === 1);
+				if (e.detail >= 2) {
+					wasm.pointer_up(p.x, p.y);
+				}
+			},
+			{ refreshFirst: true }
+		);
 	}
 
 	function move(e: PointerEvent) {
 		if (!engine || textEdit) return;
 		const p = local(e);
-		engine.pointer_move(p.x, p.y);
-		app.refresh();
-		engine.render();
+		engine.mutate(
+			(wasm) => {
+				wasm.pointer_move(p.x, p.y);
+			},
+			{ refreshFirst: true }
+		);
 	}
 
 	function up(e: PointerEvent) {
 		if (e.button === 2 || !engine || textEdit) return;
 		const p = local(e);
-		engine.pointer_up(p.x, p.y);
-		app.refresh();
-		engine.render();
+		engine.mutate(
+			(wasm) => {
+				wasm.pointer_up(p.x, p.y);
+			},
+			{ refreshFirst: true }
+		);
 	}
 
 	function wheel(e: WheelEvent) {
 		if (!engine || !canvas) return;
 		e.preventDefault();
 		const p = canvasLocal(canvas, e.clientX, e.clientY);
-		engine.wheel(p.x, p.y, e.deltaY);
-		engine.render();
+		engine.query((wasm) => {
+			wasm.wheel(p.x, p.y, e.deltaY);
+			wasm.render();
+		});
 		syncEditPos();
-		app.refresh();
+		engine.refresh();
 	}
 
 	function dblclick(e: MouseEvent) {
 		if (!engine || textEdit) return;
 		const p = local(e);
-		openEdit(engine.dblclick(p.x, p.y));
-		engine.render();
-		app.refresh();
+		engine.mutate((wasm) => {
+			openEdit(wasm.dblclick(p.x, p.y));
+		});
 	}
 
 	function onCtx(e: MouseEvent) {
@@ -123,33 +140,40 @@
 		e.stopPropagation();
 		if (!engine || textEdit) return;
 		const p = local(e);
-		if (engine.pointer_right(p.x, p.y)) {
-			engine.render();
-			app.refresh();
+		if (engine.query((wasm) => wasm.pointer_right(p.x, p.y))) {
+			engine.mutate(() => {});
 			return;
 		}
-		engine.prepare_context_menu(p.x, p.y);
-		engine.render();
-		app.refresh();
+		engine.mutate((wasm) => {
+			wasm.prepare_context_menu(p.x, p.y);
+		});
 		app.openContextMenu(e.clientX, e.clientY);
 	}
 
-	onMount(() => {
-		if (!wrap) return;
+	function attachWrap(node: HTMLDivElement) {
+		wrap = node;
 		const ro = new ResizeObserver(() => {
 			resizeCanvas();
 			syncEditPos();
 		});
-		ro.observe(wrap);
-		return () => ro.disconnect();
-	});
+		ro.observe(node);
+		return () => {
+			ro.disconnect();
+			if (wrap === node) wrap = undefined;
+		};
+	}
 
-	$effect(() => {
+	const attachCanvas = $derived.by(() => {
 		const eng = engine;
-		const el = canvas;
-		if (!eng || !el) return;
-		eng.attach_canvas(el);
-		untrack(() => resizeCanvas());
+		return (node: HTMLCanvasElement) => {
+			canvas = node;
+			const cleanup = eng?.attachCanvas(node);
+			untrack(() => resizeCanvas());
+			return () => {
+				cleanup?.();
+				if (canvas === node) canvas = undefined;
+			};
+		};
 	});
 
 	const overlay = $derived.by(() => (textEdit ? textOverlayLayout(textEdit, dpr()) : null));
@@ -161,9 +185,9 @@
 		if (e.code === 'Space') space = true;
 		if (e.altKey && e.key === 'Enter' && engine) {
 			e.preventDefault();
-			openEdit(engine.begin_selected_text_edit());
-			engine.render();
-			app.refresh();
+			engine.mutate((wasm) => {
+				openEdit(wasm.begin_selected_text_edit());
+			});
 		}
 	}}
 	onkeyup={(e) => {
@@ -171,10 +195,9 @@
 	}}
 />
 
-<div class="wrap" bind:this={wrap}>
+<div class="wrap" {@attach attachWrap}>
 	<canvas
-		id="draw-canvas"
-		bind:this={canvas}
+		{@attach attachCanvas}
 		onpointerdown={down}
 		onpointermove={move}
 		onpointerup={up}

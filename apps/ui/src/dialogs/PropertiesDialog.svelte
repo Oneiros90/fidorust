@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Dict } from '../i18n';
-	import type { LayersData } from '../app/types';
+	import type { LayersData } from '../app/engineTypes';
+	import { rgbToHex } from '../lib/color';
+	import { clampInt } from '../lib/num';
 	import {
 		editStateToPatch,
-		initEditState,
-		type PropEditState,
+		fieldLabels,
 		type PropFieldId,
+		type PropFieldKind,
+		type PropFieldValue,
 		type PropFormField
 	} from '../lib/propForm';
 	import Modal from './Modal.svelte';
@@ -25,134 +28,58 @@
 		onCancel: () => void;
 	} = $props();
 
-	let edit = $state<PropEditState>(untrack(() => initEditState(fields)));
-
-	const fieldLabels: Record<PropFieldId, keyof Dict> = {
-		filled: 'propFilled',
-		layer: 'layer',
-		thickness: 'propThickness',
-		sizeX: 'propSizeX',
-		sizeY: 'propSizeY',
-		intDiam: 'propIntDiam',
-		padStyle: 'propPadStyle',
-		text: 'propText',
-		fontFace: 'propFontFace',
-		fontHeight: 'propFontHeight',
-		fontWidth: 'propFontWidth',
-		rotationAngle: 'propRotationAngle',
-		bold: 'propBold',
-		italic: 'propItalic',
-		mirrored: 'propMirrored',
-		underlined: 'propUnderlined'
-	};
+	let edit = $state<Partial<Record<PropFieldId, PropFieldValue>>>(
+		untrack(() => Object.fromEntries(fields.map((f) => [f.id, f.value])))
+	);
 
 	function layerColor(i: number): string {
 		const l = layers.layers[i];
 		if (!l) return '#888';
-		return (
-			'#' +
-			l.color.map((c) => c.toString(16).padStart(2, '0')).join('')
-		);
-	}
-
-	function clamp(n: number, min: number, max: number) {
-		const v = Math.round(Number(n));
-		if (!Number.isFinite(v)) return min;
-		return Math.min(max, Math.max(min, v));
+		return rgbToHex(l.color);
 	}
 
 	function apply() {
 		for (const f of fields) {
 			if (f.kind.kind !== 'int') continue;
 			const st = edit[f.id];
-			if (st?.mode === 'int') {
+			if (st?.state === 'int') {
 				edit[f.id] = {
-					mode: 'int',
-					value: clamp(st.value, f.kind.min, f.kind.max)
+					state: 'int',
+					value: clampInt(st.value, f.kind.min, f.kind.max)
 				};
 			}
 		}
 		onApply(editStateToPatch(edit));
 	}
 
-	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			onCancel();
+	function getValue(id: PropFieldId): string {
+		const st = edit[id];
+		if (!st || st.state === 'unset') return '';
+		if (st.state === 'bool') return st.value ? 'true' : 'false';
+		if (st.state === 'int' || st.state === 'layer') return String(st.value);
+		return st.value;
+	}
+
+	function setValue(id: PropFieldId, kind: PropFieldKind['kind'], raw: string) {
+		if (raw === '') {
+			edit[id] = { state: 'unset' };
 			return;
 		}
-		if (e.key === 'Enter') {
-			if (e.target instanceof HTMLButtonElement) return;
-			e.preventDefault();
-			apply();
-		}
-	}
-
-	function setBool(id: PropFieldId, raw: string) {
-		if (raw === '') edit[id] = { mode: 'unset' };
-		else edit[id] = { mode: 'bool', value: raw === 'true' };
-	}
-
-	function setInt(id: PropFieldId, raw: string) {
-		if (raw === '') edit[id] = { mode: 'unset' };
-		else edit[id] = { mode: 'int', value: Number(raw) };
-	}
-
-	function setString(id: PropFieldId, raw: string) {
-		if (raw === '') edit[id] = { mode: 'unset' };
-		else edit[id] = { mode: 'string', value: raw };
-	}
-
-	function setLayer(raw: string) {
-		if (raw === '') edit.layer = { mode: 'unset' };
-		else edit.layer = { mode: 'layer', value: Number(raw) };
-	}
-
-	function setPadStyle(raw: string) {
-		if (raw === '') edit.padStyle = { mode: 'unset' };
-		else edit.padStyle = { mode: 'padStyle', value: raw };
-	}
-
-	function boolSelectValue(id: PropFieldId): string {
-		const st = edit[id];
-		if (!st || st.mode === 'unset') return '';
-		if (st.mode === 'bool') return st.value ? 'true' : 'false';
-		return '';
-	}
-
-	function intInputValue(id: PropFieldId): string {
-		const st = edit[id];
-		if (!st || st.mode === 'unset') return '';
-		if (st.mode === 'int') return String(st.value);
-		return '';
-	}
-
-	function stringInputValue(id: PropFieldId): string {
-		const st = edit[id];
-		if (!st || st.mode === 'unset') return '';
-		if (st.mode === 'string') return st.value;
-		return '';
-	}
-
-	function layerSelectValue(): string {
-		const st = edit.layer;
-		if (!st || st.mode === 'unset') return '';
-		if (st.mode === 'layer') return String(st.value);
-		return '';
-	}
-
-	function padStyleSelectValue(): string {
-		const st = edit.padStyle;
-		if (!st || st.mode === 'unset') return '';
-		if (st.mode === 'padStyle') return st.value;
-		return '';
+		if (kind === 'bool') edit[id] = { state: 'bool', value: raw === 'true' };
+		else if (kind === 'int') edit[id] = { state: 'int', value: Number(raw) };
+		else if (kind === 'string') edit[id] = { state: 'string', value: raw };
+		else if (kind === 'layer') edit[id] = { state: 'layer', value: Number(raw) };
+		else edit[id] = { state: 'padStyle', value: raw };
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
-
-<Modal labelledBy="props-dlg-title" maxWidth="480px">
-	<h2 id="props-dlg-title">{t.propTitle}</h2>
+<Modal
+	title={t.propTitle}
+	titleId="props-dlg-title"
+	maxWidth="480px"
+	onClose={onCancel}
+	onSubmit={apply}
+>
 	<div class="form">
 		{#each fields as field (field.id)}
 			<label class={field.id === 'text' ? 'full' : ''}>
@@ -160,8 +87,8 @@
 				{#if field.kind.kind === 'bool'}
 					<select
 						disabled={field.readOnly}
-						value={boolSelectValue(field.id)}
-						onchange={(e) => setBool(field.id, e.currentTarget.value)}
+						value={getValue(field.id)}
+						onchange={(e) => setValue(field.id, 'bool', e.currentTarget.value)}
 					>
 						<option value="">{t.indeterminate}</option>
 						<option value="true">{t.yes}</option>
@@ -175,21 +102,21 @@
 						step="1"
 						placeholder={t.indeterminate}
 						disabled={field.readOnly}
-						value={intInputValue(field.id)}
-						oninput={(e) => setInt(field.id, e.currentTarget.value)}
+						value={getValue(field.id)}
+						oninput={(e) => setValue(field.id, 'int', e.currentTarget.value)}
 					/>
 				{:else if field.kind.kind === 'string'}
 					<input
 						type="text"
 						disabled={field.readOnly}
-						value={stringInputValue(field.id)}
-						oninput={(e) => setString(field.id, e.currentTarget.value)}
+						value={getValue(field.id)}
+						oninput={(e) => setValue(field.id, 'string', e.currentTarget.value)}
 					/>
 				{:else if field.kind.kind === 'layer'}
 					<select
 						disabled={field.readOnly}
-						value={layerSelectValue()}
-						onchange={(e) => setLayer(e.currentTarget.value)}
+						value={getValue(field.id)}
+						onchange={(e) => setValue(field.id, 'layer', e.currentTarget.value)}
 					>
 						<option value="">{t.indeterminate}</option>
 						{#each layers.layers as l, i (i)}
@@ -198,18 +125,18 @@
 							</option>
 						{/each}
 					</select>
-					{#if layerSelectValue() !== ''}
+					{#if getValue(field.id) !== ''}
 						<span
 							class="swatch"
-							style:background={layerColor(Number(layerSelectValue()))}
+							style:background={layerColor(Number(getValue(field.id)))}
 							aria-hidden="true"
 						></span>
 					{/if}
 				{:else if field.kind.kind === 'padStyle'}
 					<select
 						disabled={field.readOnly}
-						value={padStyleSelectValue()}
-						onchange={(e) => setPadStyle(e.currentTarget.value)}
+						value={getValue(field.id)}
+						onchange={(e) => setValue(field.id, 'padStyle', e.currentTarget.value)}
 					>
 						<option value="">{t.indeterminate}</option>
 						<option value="Round">{t.padRound}</option>
@@ -219,19 +146,14 @@
 				{/if}
 			</label>
 		{/each}
-		<div class="actions">
-			<button type="button" class="ok" onclick={apply}>{t.ok}</button>
+		<div class="dialog-actions">
+			<button type="button" class="primary" onclick={apply}>{t.ok}</button>
 			<button type="button" onclick={onCancel}>{t.cancel}</button>
 		</div>
 	</div>
 </Modal>
 
 <style>
-	h2 {
-		margin: 0 0 12px;
-		font-size: 15px;
-		font-weight: 600;
-	}
 	.form {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -263,16 +185,8 @@
 		border-radius: 2px;
 		pointer-events: none;
 	}
-	.actions {
+	.dialog-actions {
 		grid-column: 1 / -1;
-		display: flex;
-		justify-content: flex-end;
-		gap: 8px;
 		margin-top: 8px;
-	}
-	.ok {
-		background: var(--accent);
-		color: var(--accent-fg);
-		border-color: var(--accent);
 	}
 </style>

@@ -1,221 +1,152 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
 use fidocad_core::geom::{bezier_point, Point};
-use fidocad_core::layers::LayerSet;
-use fidocad_core::primitive::{PadStyle, Primitive};
-use fidocad_core::{Editor, Tool};
+use fidocad_core::layers::{LayerId, LayerSet};
+use fidocad_core::library::LibrarySet;
+use fidocad_core::primitive::{
+    Bezier, Connection, Ellipse, Line, MacroRef, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
+};
+use fidocad_core::Editor;
 use lyon::math::point;
 use lyon::path::Path;
-use lyon::tessellation::{
-    BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex, VertexBuffers,
-};
+use lyon::tessellation::FillRule;
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct LineInstance {
-    pub ax: f32,
-    pub ay: f32,
-    pub bx: f32,
-    pub by: f32,
-    pub width: f32,
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub selected: f32,
-}
+use crate::draft::{add_draft, DraftParams};
+use crate::scene::DEFAULT_STROKE_W;
+use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
+use crate::theme::Rgb;
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct FillVertexGpu {
-    pub x: f32,
-    pub y: f32,
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub selected: f32,
-}
+pub use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
+pub use crate::svg::{scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg};
 
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CircleInstance {
-    pub x: f32,
-    pub y: f32,
-    pub rx: f32,
-    pub ry: f32,
-    pub inner: f32,
-    pub stroke: f32,
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub selected: f32,
-}
-
-/// Drill hole of a PCB pad (world LU). Punched after the pad's layer is drawn.
-#[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct PadHole {
-    pub x: f32,
-    pub y: f32,
-    pub r: f32,
-}
-
-#[derive(Default)]
-pub struct Scene {
-    pub lines: Vec<LineInstance>,
-    pub fills: Vec<FillVertexGpu>,
-    pub circles: Vec<CircleInstance>,
-    pub handles: Vec<CircleInstance>,
-    pub marquee: Option<[f32; 4]>,
-    pub marquee_color: [f32; 3],
-    pub pad_holes: Vec<PadHole>,
-    /// Exclusive end of each layer's slice in `fills` / `lines` / `circles` / `pad_holes`.
-    pub layer_fill_end: Vec<u32>,
-    pub layer_line_end: Vec<u32>,
-    pub layer_circ_end: Vec<u32>,
-    pub layer_hole_end: Vec<u32>,
-}
-
-fn mark_layer_end(scene: &mut Scene) {
-    scene.layer_fill_end.push(scene.fills.len() as u32);
-    scene.layer_line_end.push(scene.lines.len() as u32);
-    scene.layer_circ_end.push(scene.circles.len() as u32);
-    scene.layer_hole_end.push(scene.pad_holes.len() as u32);
-}
-
-fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
-    if selected {
-        return [0.85, 0.42, 0.22];
-    }
-    display_rgb(layers.color(p.layer()), dark)
-}
-
-fn display_rgb(c: [u8; 3], dark: bool) -> [f32; 3] {
-    if dark {
-        let lum = 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
-        if lum < 48.0 {
-            return [1.0, 1.0, 1.0];
-        }
-    }
-    [
-        c[0] as f32 / 255.0,
-        c[1] as f32 / 255.0,
-        c[2] as f32 / 255.0,
-    ]
-}
-
-const DEFAULT_STROKE_W: f32 = 0.25;
 const PCB_TRACK_CAP_SEGS: u32 = 24;
-const PCB_PAD_CORNER_SEGS: u32 = 12;
 
-fn line(scene: &mut Scene, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
-    line_f(
-        scene,
-        a.x as f32,
-        a.y as f32,
-        b.x as f32,
-        b.y as f32,
-        w,
-        rgb,
-        selected,
-    );
+trait Tessellate {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool);
 }
 
-fn line_f(
-    scene: &mut Scene,
-    ax: f32,
-    ay: f32,
-    bx: f32,
-    by: f32,
-    w: f32,
-    rgb: [f32; 3],
-    selected: bool,
-) {
-    scene.lines.push(LineInstance {
-        ax,
-        ay,
-        bx,
-        by,
-        width: w,
-        r: rgb[0],
-        g: rgb[1],
-        b: rgb[2],
-        selected: if selected { 1.0 } else { 0.0 },
-    });
+impl Tessellate for Line {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        scene.push_line(self.a, self.b, DEFAULT_STROKE_W, rgb, selected);
+    }
 }
 
-fn circle(
-    scene: &mut Scene,
-    x: f32,
-    y: f32,
-    rx: f32,
-    ry: f32,
-    inner: f32,
-    stroke: f32,
-    rgb: [f32; 3],
-    selected: bool,
-) {
-    scene.circles.push(CircleInstance {
-        x,
-        y,
-        rx,
-        ry,
-        inner,
-        stroke,
-        r: rgb[0],
-        g: rgb[1],
-        b: rgb[2],
-        selected: if selected { 1.0 } else { 0.0 },
-    });
-}
-
-fn tessellate_path(path: &Path, rgb: [f32; 3], selected: bool, scene: &mut Scene) {
-    tessellate_path_rule(path, FillRule::NonZero, rgb, selected, scene);
-}
-
-fn tessellate_path_even_odd(path: &Path, rgb: [f32; 3], selected: bool, scene: &mut Scene) {
-    tessellate_path_rule(path, FillRule::EvenOdd, rgb, selected, scene);
-}
-
-fn tessellate_path_rule(
-    path: &Path,
-    fill_rule: FillRule,
-    rgb: [f32; 3],
-    selected: bool,
-    scene: &mut Scene,
-) {
-    let mut buffers: VertexBuffers<FillVertexGpu, u16> = VertexBuffers::new();
-    let mut tess = FillTessellator::new();
-    let _ = tess.tessellate_path(
-        path,
-        &FillOptions::default().with_fill_rule(fill_rule),
-        &mut BuffersBuilder::new(&mut buffers, |v: FillVertex| FillVertexGpu {
-            x: v.position().x,
-            y: v.position().y,
-            r: rgb[0],
-            g: rgb[1],
-            b: rgb[2],
-            selected: if selected { 1.0 } else { 0.0 },
-        }),
-    );
-    for tri in buffers.indices.chunks(3) {
-        if tri.len() == 3 {
-            for &i in tri {
-                if let Some(v) = buffers.vertices.get(i as usize) {
-                    scene.fills.push(*v);
-                }
-            }
+impl Tessellate for Bezier {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        let (x0, y0) = (self.p0.x as f32, self.p0.y as f32);
+        let mut prev_x = x0;
+        let mut prev_y = y0;
+        for i in 1..=BEZIER_SEGMENTS_DRAW {
+            let t = i as f32 / BEZIER_SEGMENTS_DRAW as f32;
+            let (x, y) = bezier_point(self.p0, self.p1, self.p2, self.p3, t);
+            scene.push_line_f(prev_x, prev_y, x, y, DEFAULT_STROKE_W, rgb, selected);
+            prev_x = x;
+            prev_y = y;
         }
     }
 }
 
-fn add_pcb_track(
-    scene: &mut Scene,
-    a: Point,
-    b: Point,
-    width: i32,
-    rgb: [f32; 3],
-    selected: bool,
-) {
+impl Tessellate for Rect {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        let pts = rect_corners(self.a, self.b);
+        if self.filled {
+            scene.fill_polygon(&pts, rgb, selected);
+        } else {
+            scene.stroke_poly(&pts, true, DEFAULT_STROKE_W, rgb, selected);
+        }
+    }
+}
+
+impl Tessellate for Poly {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        if self.filled && self.pts.len() >= 3 {
+            scene.fill_polygon(&self.pts, rgb, selected);
+        } else {
+            scene.stroke_poly(&self.pts, true, DEFAULT_STROKE_W, rgb, selected);
+        }
+    }
+}
+
+impl Tessellate for Ellipse {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        scene.push_ellipse(self.a, self.b, self.filled, DEFAULT_STROKE_W, rgb, selected);
+    }
+}
+
+impl Tessellate for Connection {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        scene.push_circle(
+            self.pos.x as f32,
+            self.pos.y as f32,
+            1.3,
+            1.3,
+            0.0,
+            0.0,
+            rgb,
+            selected,
+        );
+    }
+}
+
+impl Tessellate for PcbTrack {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        add_pcb_track(scene, self.a, self.b, self.width, rgb, selected);
+    }
+}
+
+impl Tessellate for PcbPad {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        add_pcb_pad(
+            scene, self.pos, self.dx, self.dy, self.hole, self.style, rgb, selected,
+        );
+    }
+}
+
+impl Tessellate for Text {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+        let h = (self.sy as f32).max(2.0);
+        let wch = (self.sx as f32).max(1.5);
+        let mirrored = self.style & STYLE_MIRRORED != 0;
+        let italic = self.style & STYLE_ITALIC != 0;
+        let rad = (self.angle as f32).to_radians();
+        let (sin, cos) = rad.sin_cos();
+        let mut x_off = 0.0f32;
+        let sel_f = Scene::flag(selected);
+        for ch in self.text.chars() {
+            for v in crate::font::glyph_triangles(ch) {
+                let mut ax = v[0] * wch + x_off;
+                let ay = v[1] * h;
+                if italic {
+                    ax += (1.0 - v[1]) * wch * ITALIC_SHEAR;
+                }
+                if mirrored {
+                    ax = -ax;
+                }
+                let ra = rot(ax, ay, cos, sin);
+                scene.fills.push(FillVertexGpu {
+                    x: self.pos.x as f32 + ra.0,
+                    y: self.pos.y as f32 + ra.1,
+                    r: rgb[0],
+                    g: rgb[1],
+                    b: rgb[2],
+                    selected: sel_f,
+                });
+            }
+            x_off += wch;
+        }
+    }
+}
+
+impl Tessellate for MacroRef {
+    fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 3], _selected: bool) {}
+}
+
+fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
+    (x * cos - y * sin, x * sin + y * cos)
+}
+
+fn add_pcb_track(scene: &mut Scene, a: Point, b: Point, width: i32, rgb: [f32; 3], selected: bool) {
     let ax = a.x as f32;
     let ay = a.y as f32;
     let bx = b.x as f32;
@@ -225,7 +156,7 @@ fn add_pcb_track(
     let dy = by - ay;
     let len = (dx * dx + dy * dy).sqrt();
     if len < 0.001 {
-        circle(scene, ax, ay, w * 0.5, w * 0.5, 0.0, 0.0, rgb, selected);
+        scene.push_circle(ax, ay, w * 0.5, w * 0.5, 0.0, 0.0, rgb, selected);
         return;
     }
     let ux = dx / len;
@@ -254,92 +185,17 @@ fn add_pcb_track(
         ));
     }
     builder.close();
-    tessellate_path(&builder.build(), rgb, selected, scene);
+    scene.fill_path(&builder.build(), FillRule::NonZero, rgb, selected);
 }
 
-fn path_ellipse(builder: &mut lyon::path::Builder, cx: f32, cy: f32, rx: f32, ry: f32) {
-    const SEGS: u32 = 64;
-    builder.begin(point(cx + rx, cy));
-    for i in 1..=SEGS {
-        let t = std::f32::consts::TAU * i as f32 / SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(cx + rx * ct, cy + ry * st));
-    }
-    builder.close();
-}
-
-fn path_rect(builder: &mut lyon::path::Builder, cx: f32, cy: f32, hx: f32, hy: f32) {
-    builder.begin(point(cx - hx, cy - hy));
-    builder.line_to(point(cx + hx, cy - hy));
-    builder.line_to(point(cx + hx, cy + hy));
-    builder.line_to(point(cx - hx, cy + hy));
-    builder.close();
-}
-
-fn path_rounded_rect(
-    builder: &mut lyon::path::Builder,
-    cx: f32,
-    cy: f32,
-    hx: f32,
-    hy: f32,
-    rx: f32,
-    ry: f32,
-) {
-    let x0 = cx - hx;
-    let x1 = cx + hx;
-    let y0 = cy - hy;
-    let y1 = cy + hy;
-    let rx = rx.min(hx);
-    let ry = ry.min(hy);
-    builder.begin(point(x0 + rx, y0));
-    builder.line_to(point(x1 - rx, y0));
-    for i in 1..=PCB_PAD_CORNER_SEGS {
-        let t = -std::f32::consts::FRAC_PI_2
-            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(x1 - rx + rx * ct, y0 + ry + ry * st));
-    }
-    builder.line_to(point(x1, y1 - ry));
-    for i in 1..=PCB_PAD_CORNER_SEGS {
-        let t = std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(x1 - rx + rx * ct, y1 - ry + ry * st));
-    }
-    builder.line_to(point(x0 + rx, y1));
-    for i in 1..=PCB_PAD_CORNER_SEGS {
-        let t = std::f32::consts::FRAC_PI_2
-            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(x0 + rx + rx * ct, y1 - ry + ry * st));
-    }
-    builder.line_to(point(x0, y0 + ry));
-    for i in 1..=PCB_PAD_CORNER_SEGS {
-        let t = std::f32::consts::PI
-            + std::f32::consts::FRAC_PI_2 * i as f32 / PCB_PAD_CORNER_SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(x0 + rx + rx * ct, y0 + ry + ry * st));
-    }
-    builder.close();
-}
-
-fn path_circle_hole(builder: &mut lyon::path::Builder, cx: f32, cy: f32, r: f32) {
-    const SEGS: u32 = 64;
-    builder.begin(point(cx + r, cy));
-    for i in 1..=SEGS {
-        let t = std::f32::consts::TAU - std::f32::consts::TAU * i as f32 / SEGS as f32;
-        let (st, ct) = t.sin_cos();
-        builder.line_to(point(cx + r * ct, cy + r * st));
-    }
-    builder.close();
-}
-
+#[allow(clippy::too_many_arguments)]
 fn add_pcb_pad(
     scene: &mut Scene,
     pos: Point,
     dx: i32,
     dy: i32,
     hole: i32,
-    style: PadStyle,
+    style: fidocad_core::PadStyle,
     rgb: [f32; 3],
     selected: bool,
 ) {
@@ -350,223 +206,139 @@ fn add_pcb_pad(
     let hole_r = hole as f32 / 2.0;
     let mut builder = Path::builder();
     match style {
-        PadStyle::Oval => path_ellipse(&mut builder, cx, cy, hx, hy),
-        PadStyle::Rectangular => path_rect(&mut builder, cx, cy, hx, hy),
-        PadStyle::RoundedRect => {
+        fidocad_core::PadStyle::Oval => path_ellipse(&mut builder, cx, cy, hx, hy, 1.0),
+        fidocad_core::PadStyle::Rectangular => path_rect(&mut builder, cx, cy, hx, hy),
+        fidocad_core::PadStyle::RoundedRect => {
             path_rounded_rect(&mut builder, cx, cy, hx, hy, hx * 0.5, hy * 0.5)
         }
     }
     if hole_r > 0.001 {
-        path_circle_hole(&mut builder, cx, cy, hole_r);
+        path_ellipse(&mut builder, cx, cy, hole_r, hole_r, -1.0);
         scene.pad_holes.push(PadHole {
             x: cx,
             y: cy,
             r: hole_r,
         });
     }
-    tessellate_path_even_odd(&builder.build(), rgb, selected, scene);
+    scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
 }
 
-fn stroke_poly(scene: &mut Scene, pts: &[Point], closed: bool, w: f32, rgb: [f32; 3], sel: bool) {
-    for wdw in pts.windows(2) {
-        line(scene, wdw[0], wdw[1], w, rgb, sel);
+fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
+    if selected {
+        return Rgb::SELECTION.0;
     }
-    if closed && pts.len() > 2 {
-        line(scene, *pts.last().unwrap(), pts[0], w, rgb, sel);
-    }
-}
-
-fn add_text(scene: &mut Scene, p: &Primitive, rgb: [f32; 3], sel: bool) {
-    let Primitive::Text {
-        pos,
-        sy,
-        sx,
-        angle,
-        style,
-        text,
-        ..
-    } = p
-    else {
-        return;
-    };
-    let h = (*sy as f32).max(2.0);
-    let wch = (*sx as f32).max(1.5);
-    let mirrored = style & 4 != 0;
-    let italic = style & 2 != 0;
-    let rad = (*angle as f32).to_radians();
-    let (sin, cos) = rad.sin_cos();
-    let mut x_off = 0.0f32;
-    let sel_f = if sel { 1.0 } else { 0.0 };
-    for ch in text.chars() {
-        for v in crate::font::glyph_triangles(ch) {
-            let mut ax = v[0] * wch + x_off;
-            let ay = v[1] * h;
-            if italic {
-                ax += (1.0 - v[1]) * wch * 0.22;
-            }
-            if mirrored {
-                ax = -ax;
-            }
-            let ra = rot(ax, ay, cos, sin);
-            scene.fills.push(FillVertexGpu {
-                x: pos.x as f32 + ra.0,
-                y: pos.y as f32 + ra.1,
-                r: rgb[0],
-                g: rgb[1],
-                b: rgb[2],
-                selected: sel_f,
-            });
-        }
-        x_off += wch;
-    }
-}
-
-fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
-    (x * cos - y * sin, x * sin + y * cos)
+    Rgb::display_layer(layers.color(p.layer()), dark).0
 }
 
 fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, dark: bool) {
-    if !layers.visible(p.layer()) && !matches!(p, Primitive::Macro { .. }) {
-        if !matches!(p, Primitive::Text { .. }) {
-            return;
-        }
-        if !layers.visible(p.layer()) {
-            return;
-        }
+    if !layers.visible(p.layer()) && !p.is_macro() {
+        return;
     }
     let rgb = color(layers, p, selected, dark);
-    let stroke_w = DEFAULT_STROKE_W;
-    match p {
-        Primitive::Line { a, b, .. } => line(scene, *a, *b, stroke_w, rgb, selected),
-        Primitive::Bezier { p0, p1, p2, p3, .. } => {
-            let (x0, y0) = (p0.x as f32, p0.y as f32);
-            let mut prev_x = x0;
-            let mut prev_y = y0;
-            const SEGMENTS: u32 = 48;
-            for i in 1..=SEGMENTS {
-                let t = i as f32 / SEGMENTS as f32;
-                let (x, y) = bezier_point(*p0, *p1, *p2, *p3, t);
-                line_f(scene, prev_x, prev_y, x, y, stroke_w, rgb, selected);
-                prev_x = x;
-                prev_y = y;
-            }
+    fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected));
+}
+
+fn group_by_layer<T>(
+    n: usize,
+    items: impl IntoIterator<Item = T>,
+    layer_of: impl Fn(&T) -> usize,
+) -> Vec<Vec<T>> {
+    let mut by_layer: Vec<Vec<T>> = (0..n).map(|_| Vec::new()).collect();
+    for item in items {
+        let i = layer_of(&item);
+        if i < n {
+            by_layer[i].push(item);
         }
-        Primitive::Rect { a, b, filled, .. } => {
-            let pts = [
-                Point::new(a.x, a.y),
-                Point::new(b.x, a.y),
-                Point::new(b.x, b.y),
-                Point::new(a.x, b.y),
-            ];
-            if *filled {
-                let mut builder = Path::builder();
-                builder.begin(point(pts[0].x as f32, pts[0].y as f32));
-                for p in &pts[1..] {
-                    builder.line_to(point(p.x as f32, p.y as f32));
-                }
-                builder.close();
-                tessellate_path(&builder.build(), rgb, selected, scene);
-            } else {
-                stroke_poly(scene, &pts, true, stroke_w, rgb, selected);
-            }
-        }
-        Primitive::Poly { pts, filled, .. } => {
-            if *filled && pts.len() >= 3 {
-                let mut builder = Path::builder();
-                builder.begin(point(pts[0].x as f32, pts[0].y as f32));
-                for p in &pts[1..] {
-                    builder.line_to(point(p.x as f32, p.y as f32));
-                }
-                builder.close();
-                tessellate_path(&builder.build(), rgb, selected, scene);
-            } else {
-                stroke_poly(scene, pts, true, stroke_w, rgb, selected);
-            }
-        }
-        Primitive::Ellipse { a, b, filled, .. } => {
-            add_ellipse(scene, *a, *b, *filled, stroke_w, rgb, selected);
-        }
-        Primitive::Connection { pos, .. } => {
-            circle(
-                scene,
-                pos.x as f32,
-                pos.y as f32,
-                1.3,
-                1.3,
-                0.0,
-                0.0,
-                rgb,
-                selected,
-            );
-        }
-        Primitive::PcbTrack { a, b, width, .. } => {
-            add_pcb_track(scene, *a, *b, *width, rgb, selected);
-        }
-        Primitive::PcbPad {
-            pos,
-            dx,
-            dy,
-            hole,
-            style,
-            ..
-        } => {
-            add_pcb_pad(scene, *pos, *dx, *dy, *hole, *style, rgb, selected);
-        }
-        Primitive::Text { .. } => add_text(scene, p, rgb, selected),
-        Primitive::Macro { .. } => {}
     }
+    by_layer
 }
 
 pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet, dark: bool) -> Scene {
     let mut scene = Scene::default();
-    for i in 0..layers.len() {
-        for p in prims {
-            if p.layer().index() == i {
-                add_prim(&mut scene, p, layers, false, dark);
-            }
+    let n = layers.len();
+    let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
+    for bucket in by_layer {
+        for p in bucket {
+            add_prim(&mut scene, p, layers, false, dark);
         }
-        mark_layer_end(&mut scene);
+        scene.mark_layer_end();
     }
     scene
 }
 
+struct TessellateInput<'a> {
+    primitives: &'a [Primitive],
+    layers: &'a LayerSet,
+    libs: &'a LibrarySet,
+    selected: &'a [usize],
+    editing_text: Option<usize>,
+    hide_macro_origin: bool,
+    zoom: f32,
+    pan: (f32, f32),
+    layer: LayerId,
+    viewport: Option<(f32, f32)>,
+    dark: bool,
+    pending: Vec<Primitive>,
+    marquee: Option<(f32, f32, f32, f32)>,
+}
+
+impl<'a> TessellateInput<'a> {
+    fn from_editor(ed: &'a Editor, viewport: Option<(f32, f32)>, dark: bool) -> Self {
+        Self {
+            primitives: &ed.doc().primitives,
+            layers: &ed.doc().layers,
+            libs: ed.libs(),
+            selected: ed.selected(),
+            editing_text: ed.editing_text(),
+            hide_macro_origin: ed.hide_macro_origin(),
+            zoom: ed.zoom(),
+            pan: ed.pan(),
+            layer: ed.layer(),
+            viewport,
+            dark,
+            pending: ed.pending_macro_preview(),
+            marquee: ed.marquee_screen_rect(),
+        }
+    }
+}
+
 pub fn tessellate_editor(ed: &Editor) -> Scene {
-    tessellate_impl(ed, None, false)
+    tessellate_impl(
+        TessellateInput::from_editor(ed, None, false),
+        &DraftParams::from_editor(ed),
+    )
 }
 
 pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {
-    tessellate_impl(ed, viewport, ed.canvas_dark)
+    tessellate_impl(
+        TessellateInput::from_editor(ed, viewport, ed.canvas_dark()),
+        &DraftParams::from_editor(ed),
+    )
 }
 
-fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Scene {
-    let view = viewport.map(|(w, h)| {
-        let z = ed.zoom.max(0.01);
-        let x0 = ((0.0 - ed.pan.0) / z).floor() as i32 - 50;
-        let y0 = ((0.0 - ed.pan.1) / z).floor() as i32 - 50;
-        let x1 = ((w - ed.pan.0) / z).ceil() as i32 + 50;
-        let y1 = ((h - ed.pan.1) / z).ceil() as i32 + 50;
+fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene {
+    let view = input.viewport.map(|(w, h)| {
+        let z = input.zoom.max(0.01);
+        let x0 = ((0.0 - input.pan.0) / z).floor() as i32 - 50;
+        let y0 = ((0.0 - input.pan.1) / z).floor() as i32 - 50;
+        let x1 = ((w - input.pan.0) / z).ceil() as i32 + 50;
+        let y1 = ((h - input.pan.1) / z).ceil() as i32 + 50;
         fidocad_core::geom::Aabb {
             min: Point::new(x0, y0),
             max: Point::new(x1, y1),
         }
     });
     let mut scene = Scene::default();
-    let selected = &ed.selected;
-    let layers = &ed.doc.layers;
-    let preview = if dark {
-        [0.85, 0.55, 0.32]
-    } else {
-        [0.72, 0.42, 0.22]
-    };
-    let expanded: Vec<(bool, Primitive)> = ed
-        .doc
+    let layers = input.layers;
+    let preview = Rgb::preview(input.dark).0;
+    let expanded: Vec<(bool, Primitive)> = input
         .primitives
         .iter()
         .enumerate()
-        .filter(|(i, _)| ed.editing_text != Some(*i))
+        .filter(|(i, _)| input.editing_text != Some(*i))
         .flat_map(|(i, p)| {
-            let sel = selected.contains(&i);
-            fidocad_core::library::expand_primitive(p, &ed.libs)
+            let sel = input.selected.contains(&i);
+            fidocad_core::library::expand_primitive(p, input.libs)
                 .into_iter()
                 .filter(|q| {
                     view.as_ref()
@@ -576,31 +348,31 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
                 .map(move |q| (sel, q))
         })
         .collect();
-    let pending = ed.pending_macro_preview();
     let n = layers.len();
-    for li in 0..n {
-        for (sel, q) in &expanded {
-            if q.layer().index() == li {
-                add_prim(&mut scene, q, layers, *sel, dark);
-            }
+    let mut by_layer = group_by_layer(n, expanded, |(_, q)| q.layer().index());
+    for q in input.pending {
+        let i = q.layer().index();
+        if i < n {
+            by_layer[i].push((false, q));
         }
-        for q in &pending {
-            if q.layer().index() == li {
-                add_prim(&mut scene, q, layers, false, dark);
-            }
-        }
-        if ed.layer.index() == li {
-            add_draft(&mut scene, ed, preview);
-        }
-        mark_layer_end(&mut scene);
     }
-    for (i, p) in ed.doc.primitives.iter().enumerate() {
-        if !selected.contains(&i) {
+    for (li, bucket) in by_layer.into_iter().enumerate() {
+        for (sel, q) in &bucket {
+            add_prim(&mut scene, q, layers, *sel, input.dark);
+        }
+        if input.layer.index() == li {
+            add_draft(&mut scene, draft, preview);
+        }
+        scene.mark_layer_end();
+    }
+    for (i, p) in input.primitives.iter().enumerate() {
+        if !input.selected.contains(&i) {
             continue;
         }
-        if ed.hide_macro_origin && matches!(p, Primitive::Macro { .. }) {
+        if input.hide_macro_origin && p.is_macro() {
             continue;
         }
+        let sel = Rgb::SELECTION.0;
         for h in p.control_points() {
             scene.handles.push(CircleInstance {
                 x: h.x as f32,
@@ -609,280 +381,16 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
                 ry: 2.4,
                 inner: 0.0,
                 stroke: 0.0,
-                r: 0.85,
-                g: 0.42,
-                b: 0.22,
-                selected: 1.0,
+                r: sel[0],
+                g: sel[1],
+                b: sel[2],
+                selected: Scene::flag(true),
             });
         }
     }
-    if let Some((x0, y0, x1, y1)) = ed.marquee_screen_rect() {
+    if let Some((x0, y0, x1, y1)) = input.marquee {
         scene.marquee = Some([x0, y0, x1, y1]);
         scene.marquee_color = preview;
     }
     scene
-}
-
-fn add_ellipse(
-    scene: &mut Scene,
-    a: Point,
-    b: Point,
-    filled: bool,
-    stroke_w: f32,
-    rgb: [f32; 3],
-    selected: bool,
-) {
-    let cx = (a.x + b.x) as f32 / 2.0;
-    let cy = (a.y + b.y) as f32 / 2.0;
-    let rx = ((a.x - b.x).abs() as f32 / 2.0).max(0.5);
-    let ry = ((a.y - b.y).abs() as f32 / 2.0).max(0.5);
-    if filled {
-        circle(scene, cx, cy, rx, ry, 0.0, 0.0, rgb, selected);
-    } else {
-        circle(scene, cx, cy, rx, ry, 0.0, stroke_w, rgb, selected);
-    }
-}
-
-fn add_draft(scene: &mut Scene, ed: &Editor, preview: [f32; 3]) {
-    let pts = ed.draft_points();
-    if pts.is_empty() {
-        return;
-    }
-    let a = pts[0];
-    let b = if pts.len() >= 2 {
-        pts[pts.len() - 1]
-    } else if let Some(h) = ed.hover {
-        h
-    } else {
-        return;
-    };
-    match ed.draft_tool() {
-        Some(Tool::Ellipse) => {
-            if a != b {
-                add_ellipse(scene, a, b, ed.filled, DEFAULT_STROKE_W, preview, false);
-            }
-        }
-        Some(Tool::Rect) => {
-            if a != b {
-                let corners = [
-                    Point::new(a.x, a.y),
-                    Point::new(b.x, a.y),
-                    Point::new(b.x, b.y),
-                    Point::new(a.x, b.y),
-                ];
-                if ed.filled {
-                    let mut builder = Path::builder();
-                    builder.begin(point(corners[0].x as f32, corners[0].y as f32));
-                    for p in &corners[1..] {
-                        builder.line_to(point(p.x as f32, p.y as f32));
-                    }
-                    builder.close();
-                    tessellate_path(&builder.build(), preview, false, scene);
-                } else {
-                    stroke_poly(scene, &corners, true, DEFAULT_STROKE_W, preview, false);
-                }
-            }
-        }
-        Some(Tool::Poly) | Some(Tool::Bezier) => {
-            stroke_poly(scene, pts, false, DEFAULT_STROKE_W, preview, false);
-            if pts.len() >= 2 {
-                // last point already in pts while dragging two-point tools; poly rubber-bands hover
-            }
-            if let Some(h) = ed.hover {
-                if let Some(&last) = pts.last() {
-                    if last != h {
-                        line(scene, last, h, DEFAULT_STROKE_W, preview, false);
-                    }
-                }
-            }
-        }
-        _ => {
-            if a != b {
-                line(scene, a, b, DEFAULT_STROKE_W, preview, false);
-            }
-        }
-    }
-}
-
-pub fn scene_to_svg(scene: &Scene, w: f32, h: f32, zoom: f32, pan: (f32, f32)) -> String {
-    let mut s = String::new();
-    s.push_str(&format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">"#
-    ));
-    s.push_str(r#"<rect width="100%" height="100%" fill="white"/>"#);
-    let tx = |x: f32, y: f32| (x * zoom + pan.0, y * zoom + pan.1);
-    for tri in scene.fills.chunks(3) {
-        if tri.len() != 3 {
-            continue;
-        }
-        let (x1, y1) = tx(tri[0].x, tri[0].y);
-        let (x2, y2) = tx(tri[1].x, tri[1].y);
-        let (x3, y3) = tx(tri[2].x, tri[2].y);
-        s.push_str(&format!(
-            r#"<polygon points="{x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="rgb({},{},{})"/>"#,
-            (tri[0].r * 255.0) as u8,
-            (tri[0].g * 255.0) as u8,
-            (tri[0].b * 255.0) as u8,
-        ));
-    }
-    for l in &scene.lines {
-        let (x1, y1) = tx(l.ax, l.ay);
-        let (x2, y2) = tx(l.bx, l.by);
-        s.push_str(&format!(
-            r#"<line x1="{x1:.2}" y1="{y1:.2}" x2="{x2:.2}" y2="{y2:.2}" stroke="rgb({},{},{})" stroke-width="{}" stroke-linecap="round"/>"#,
-            (l.r * 255.0) as u8,
-            (l.g * 255.0) as u8,
-            (l.b * 255.0) as u8,
-            (l.width * zoom).max(0.6),
-        ));
-    }
-    s.push_str("</svg>");
-    s
-}
-
-fn scene_bounds(scene: &Scene) -> Option<(f32, f32, f32, f32)> {
-    let mut minx = f32::MAX;
-    let mut miny = f32::MAX;
-    let mut maxx = f32::MIN;
-    let mut maxy = f32::MIN;
-    let mut empty = true;
-    let mut include = |x: f32, y: f32| {
-        empty = false;
-        minx = minx.min(x);
-        miny = miny.min(y);
-        maxx = maxx.max(x);
-        maxy = maxy.max(y);
-    };
-    for l in &scene.lines {
-        include(l.ax, l.ay);
-        include(l.bx, l.by);
-    }
-    for c in &scene.circles {
-        include(c.x - c.rx, c.y - c.ry);
-        include(c.x + c.rx, c.y + c.ry);
-    }
-    for v in &scene.fills {
-        include(v.x, v.y);
-    }
-    if empty {
-        None
-    } else {
-        Some((minx, miny, maxx, maxy))
-    }
-}
-
-pub fn scene_to_thumb_svg(scene: &Scene, size: f32) -> String {
-    let Some((minx, miny, maxx, maxy)) = scene_bounds(scene) else {
-        return format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}"></svg>"#
-        );
-    };
-    let bw = (maxx - minx).max(1.0);
-    let bh = (maxy - miny).max(1.0);
-    let pad = 0.14 * bw.max(bh);
-    let span = bw.max(bh) + 2.0 * pad;
-    let ox = minx - (span - bw) * 0.5;
-    let oy = miny - (span - bh) * 0.5;
-    let s = size / span;
-    let tx = |x: f32, y: f32| ((x - ox) * s, (y - oy) * s);
-    let mut out = String::new();
-    out.push_str(&format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 {size} {size}" fill="none">"#
-    ));
-    write_scene_svg(&mut out, scene, tx, s);
-    out.push_str("</svg>");
-    out
-}
-
-/// SVG in world LU, hotspot offset from the viewBox origin (for a cursor-following overlay).
-#[derive(Clone, Debug)]
-pub struct CursorSvg {
-    pub svg: String,
-    pub ox: f32,
-    pub oy: f32,
-    pub w: f32,
-    pub h: f32,
-}
-
-pub fn scene_to_cursor_svg(scene: &Scene, origin: Point) -> CursorSvg {
-    let Some((minx, miny, maxx, maxy)) = scene_bounds(scene) else {
-        return CursorSvg {
-            svg: String::new(),
-            ox: 0.0,
-            oy: 0.0,
-            w: 0.0,
-            h: 0.0,
-        };
-    };
-    let pad = 1.5;
-    let x0 = minx - pad;
-    let y0 = miny - pad;
-    let w = (maxx - minx) + 2.0 * pad;
-    let h = (maxy - miny) + 2.0 * pad;
-    let mut out = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{x0} {y0} {w} {h}" fill="none" overflow="visible">"#
-    );
-    write_scene_svg(&mut out, scene, |x, y| (x, y), 1.0);
-    out.push_str("</svg>");
-    CursorSvg {
-        svg: out,
-        ox: origin.x as f32 - x0,
-        oy: origin.y as f32 - y0,
-        w,
-        h,
-    }
-}
-
-fn write_scene_svg(
-    out: &mut String,
-    scene: &Scene,
-    tx: impl Fn(f32, f32) -> (f32, f32),
-    scale: f32,
-) {
-    for tri in scene.fills.chunks(3) {
-        if tri.len() != 3 {
-            continue;
-        }
-        let (x1, y1) = tx(tri[0].x, tri[0].y);
-        let (x2, y2) = tx(tri[1].x, tri[1].y);
-        let (x3, y3) = tx(tri[2].x, tri[2].y);
-        out.push_str(&format!(
-            r#"<polygon points="{x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="rgb({},{},{})"/>"#,
-            (tri[0].r * 255.0) as u8,
-            (tri[0].g * 255.0) as u8,
-            (tri[0].b * 255.0) as u8,
-        ));
-    }
-    for l in &scene.lines {
-        let (x1, y1) = tx(l.ax, l.ay);
-        let (x2, y2) = tx(l.bx, l.by);
-        out.push_str(&format!(
-            r#"<line x1="{x1:.2}" y1="{y1:.2}" x2="{x2:.2}" y2="{y2:.2}" stroke="rgb({},{},{})" stroke-width="{:.2}" stroke-linecap="round"/>"#,
-            (l.r * 255.0) as u8,
-            (l.g * 255.0) as u8,
-            (l.b * 255.0) as u8,
-            (l.width * scale).max(if scale < 1.5 { 0.175 } else { 0.575 }),
-        ));
-    }
-    for c in &scene.circles {
-        let (cx, cy) = tx(c.x, c.y);
-        let rx = (c.rx * scale).max(0.4);
-        let ry = (c.ry * scale).max(0.4);
-        let stroke = format!(
-            "rgb({},{},{})",
-            (c.r * 255.0) as u8,
-            (c.g * 255.0) as u8,
-            (c.b * 255.0) as u8
-        );
-        if c.stroke > 0.001 {
-            out.push_str(&format!(
-                r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" stroke="{stroke}" stroke-width="{:.2}"/>"#,
-                (c.stroke * scale).max(if scale < 1.5 { 0.175 } else { 0.575 }),
-            ));
-        } else {
-            out.push_str(&format!(
-                r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="{stroke}"/>"#
-            ));
-        }
-    }
 }

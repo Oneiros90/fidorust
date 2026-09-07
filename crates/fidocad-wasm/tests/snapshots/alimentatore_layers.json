@@ -1,0 +1,40 @@
+{
+  "layers": [
+    {
+      "color": [
+        0,
+        0,
+        0
+      ],
+      "name": "Schema",
+      "show": true
+    },
+    {
+      "color": [
+        0,
+        0,
+        192
+      ],
+      "name": "PCB lato rame",
+      "show": true
+    },
+    {
+      "color": [
+        0,
+        192,
+        0
+      ],
+      "name": "PCB lato componenti",
+      "show": true
+    },
+    {
+      "color": [
+        0,
+        150,
+        150
+      ],
+      "name": "Serigrafie",
+      "show": true
+    }
+  ]
+}

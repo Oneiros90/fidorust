@@ -1,5 +1,7 @@
 /** Property form field from WASM `selection_props_form_json()`. */
 
+import type { Dict } from '../i18n';
+
 export type PropFieldId =
 	| 'filled'
 	| 'layer'
@@ -59,6 +61,47 @@ export type PropPatch = Partial<{
 	underlined: boolean;
 }>;
 
+export const fieldLabels: Record<PropFieldId, keyof Dict> = {
+	filled: 'propFilled',
+	layer: 'layer',
+	thickness: 'propThickness',
+	sizeX: 'propSizeX',
+	sizeY: 'propSizeY',
+	intDiam: 'propIntDiam',
+	padStyle: 'propPadStyle',
+	text: 'propText',
+	fontFace: 'propFontFace',
+	fontHeight: 'propFontHeight',
+	fontWidth: 'propFontWidth',
+	rotationAngle: 'propRotationAngle',
+	bold: 'propBold',
+	italic: 'propItalic',
+	mirrored: 'propMirrored',
+	underlined: 'propUnderlined'
+};
+
+const BOOL_IDS = ['filled', 'bold', 'italic', 'mirrored', 'underlined'] as const;
+const INT_IDS = [
+	'thickness',
+	'sizeX',
+	'sizeY',
+	'intDiam',
+	'fontHeight',
+	'fontWidth',
+	'rotationAngle'
+] as const;
+const STRING_IDS = ['text', 'fontFace'] as const;
+
+function isBoolId(id: PropFieldId): id is (typeof BOOL_IDS)[number] {
+	return (BOOL_IDS as readonly string[]).includes(id);
+}
+function isIntId(id: PropFieldId): id is (typeof INT_IDS)[number] {
+	return (INT_IDS as readonly string[]).includes(id);
+}
+function isStringId(id: PropFieldId): id is (typeof STRING_IDS)[number] {
+	return (STRING_IDS as readonly string[]).includes(id);
+}
+
 export function parsePropForm(raw: string): PropFormField[] {
 	if (!raw || raw === '[]') return [];
 	try {
@@ -69,46 +112,16 @@ export function parsePropForm(raw: string): PropFormField[] {
 	}
 }
 
-/** Local edit state: null = indeterminate / unchanged on apply. */
-export type PropEditState = Record<
-	PropFieldId,
-	| { mode: 'unset' }
-	| { mode: 'bool'; value: boolean }
-	| { mode: 'int'; value: number }
-	| { mode: 'string'; value: string }
-	| { mode: 'layer'; value: number }
-	| { mode: 'padStyle'; value: string }
->;
-
-export function initEditState(fields: PropFormField[]): PropEditState {
-	const s = {} as PropEditState;
-	for (const f of fields) {
-		if (f.value.state === 'unset') {
-			s[f.id] = { mode: 'unset' };
-		} else if (f.value.state === 'bool') {
-			s[f.id] = { mode: 'bool', value: f.value.value };
-		} else if (f.value.state === 'int') {
-			s[f.id] = { mode: 'int', value: f.value.value };
-		} else if (f.value.state === 'string') {
-			s[f.id] = { mode: 'string', value: f.value.value };
-		} else if (f.value.state === 'layer') {
-			s[f.id] = { mode: 'layer', value: f.value.value };
-		} else if (f.value.state === 'padStyle') {
-			s[f.id] = { mode: 'padStyle', value: f.value.value };
-		}
-	}
-	return s;
-}
-
-export function editStateToPatch(state: PropEditState): PropPatch {
+export function editStateToPatch(state: Partial<Record<PropFieldId, PropFieldValue>>): PropPatch {
 	const patch: PropPatch = {};
-	for (const [id, v] of Object.entries(state) as [PropFieldId, PropEditState[PropFieldId]][]) {
-		if (v.mode === 'unset') continue;
-		if (v.mode === 'bool') (patch as Record<string, unknown>)[id] = v.value;
-		else if (v.mode === 'int') (patch as Record<string, unknown>)[id] = v.value;
-		else if (v.mode === 'string') (patch as Record<string, unknown>)[id] = v.value;
-		else if (v.mode === 'layer') patch.layer = v.value;
-		else if (v.mode === 'padStyle') patch.padStyle = v.value;
+	for (const id of Object.keys(state) as PropFieldId[]) {
+		const v = state[id];
+		if (!v || v.state === 'unset') continue;
+		if (v.state === 'bool' && isBoolId(id)) patch[id] = v.value;
+		else if (v.state === 'int' && isIntId(id)) patch[id] = v.value;
+		else if (v.state === 'string' && isStringId(id)) patch[id] = v.value;
+		else if (v.state === 'layer') patch.layer = v.value;
+		else if (v.state === 'padStyle') patch.padStyle = v.value;
 	}
 	return patch;
 }

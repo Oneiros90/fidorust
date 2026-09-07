@@ -1,3 +1,5 @@
+import { PDF_MAX_PT } from './constants';
+
 function concat(parts: Uint8Array[]): Uint8Array {
 	let len = 0;
 	for (const p of parts) len += p.length;
@@ -23,7 +25,8 @@ function parseSvgSize(svg: string): { w: number; h: number } {
 	if (!m) throw new Error('Invalid SVG');
 	const w = Number(m[1]);
 	const h = Number(m[2]);
-	if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) throw new Error('Invalid SVG size');
+	if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0)
+		throw new Error('Invalid SVG size');
 	return { w, h };
 }
 
@@ -34,10 +37,13 @@ function svgToContentStream(svg: string, pageW: number, pageH: number, scale: nu
 
 	const polyRe = /<polygon points="([^"]+)" fill="rgb\((\d+),(\d+),(\d+)\)"\/>/g;
 	for (const m of svg.matchAll(polyRe)) {
-		const pts = m[1].trim().split(/\s+/).map((p) => {
-			const [x, y] = p.split(',').map(Number);
-			return [px(x), py(y)] as const;
-		});
+		const pts = m[1]
+			.trim()
+			.split(/\s+/)
+			.map((p) => {
+				const [x, y] = p.split(',').map(Number);
+				return [px(x), py(y)] as const;
+			});
 		if (pts.length < 3) continue;
 		parts.push(`${rgb(+m[2], +m[3], +m[4])} rg`);
 		parts.push(`${n(pts[0][0])} ${n(pts[0][1])} m`);
@@ -97,7 +103,7 @@ function wrapPdf(pageW: number, pageH: number, content: Uint8Array): Uint8Array 
 
 export function svgToPdfBlob(svg: string): Blob {
 	const { w, h } = parseSvgSize(svg);
-	const maxPt = 720;
+	const maxPt = PDF_MAX_PT;
 	const scale = Math.min(1, maxPt / Math.max(w, h, 1));
 	const pageW = Math.max(1, w * scale);
 	const pageH = Math.max(1, h * scale);

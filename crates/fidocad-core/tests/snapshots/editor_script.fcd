@@ -1,0 +1,36 @@
+[FIDOCAD]
+LD 0 0 192 0 Renamed
+LD 9 8 7 1 Schema
+LD 0 192 0 1 PCB lato componenti
+LD 0 150 150 1 Serigrafie
+LD 192 0 0 1 Layer 5
+LI 78 78 78 68
+RP 68 78 58 70 1
+EV 78 58 68 48 1
+SA 73 73 1
+PL 48 78 48 58 4 1
+PA 38 38 18 18 8 0 1
+TY 78 28 4 3 0 0 1 * HI
+PV 78 18 78 18 78 8 78 8 68 8 68 8 1
+BE 78 -2 78 -2 73 -7 73 -7 1
+BE 73 -12 73 -12 78 -17 78 -17 1
+LI 58 -22 58 -20 1
+LI 58 -14 58 -12 1
+RV 56 -20 60 -14 1
+
+---clipboard---
+[FIDOCAD]
+LI 0 0 10 0
+RP 0 10 8 20
+EV 20 0 30 10
+SA 5 5
+PL 0 30 20 30 4
+PA 40 40 18 18 8 0
+TY 50 0 4 3 0 0 0 * HI
+PV 60 0 60 0 70 0 70 0 70 10 70 10
+BE 80 0 80 0 85 5 85 5
+BE 90 5 90 5 95 0 95 0
+MC 100 20 0 0 080
+
+---meta---
+undo=true redo=false sel=[0] layer=4

@@ -1,0 +1,5 @@
+lines=1665 fills=4698 circles=42 handles=0 holes=0 marquee=None
+fill_end=[4698, 4698, 4698, 4698]
+line_end=[1665, 1665, 1665, 1665]
+circ_end=[42, 42, 42, 42]
+hole_end=[0, 0, 0, 0]

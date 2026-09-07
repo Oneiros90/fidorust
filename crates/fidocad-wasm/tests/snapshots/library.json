@@ -1,0 +1,1703 @@
+[
+  {
+    "categories": [
+      {
+        "macros": [
+          [
+            "000",
+            "Terminale"
+          ],
+          [
+            "010",
+            "Terminale +"
+          ],
+          [
+            "020",
+            "Terminale -"
+          ],
+          [
+            "030",
+            "Ponticello"
+          ],
+          [
+            "040",
+            "Terra"
+          ],
+          [
+            "045",
+            "Massa elettrica"
+          ],
+          [
+            "050",
+            "Coppia coassiale"
+          ],
+          [
+            "060",
+            "Corrente continua"
+          ],
+          [
+            "070",
+            "Corrente alternata"
+          ],
+          [
+            "071",
+            "Ingresso triggerato"
+          ],
+          [
+            "072",
+            "Uscita negata"
+          ],
+          [
+            "073",
+            "Iniezione di segnale"
+          ],
+          [
+            "074",
+            "Freccia"
+          ],
+          [
+            "075",
+            "Simbolo del fronte"
+          ]
+        ],
+        "name": "Simbologia di base"
+      },
+      {
+        "macros": [
+          [
+            "080",
+            "Resistore"
+          ],
+          [
+            "090",
+            "Resistenza variabile"
+          ],
+          [
+            "100",
+            "Potenziometro"
+          ],
+          [
+            "110",
+            "Fotoresistenza"
+          ],
+          [
+            "111",
+            "Termistore"
+          ],
+          [
+            "112",
+            "Varistore"
+          ],
+          [
+            "113",
+            "VDR"
+          ],
+          [
+            "114",
+            "Trimmer"
+          ],
+          [
+            "115",
+            "Resistore"
+          ],
+          [
+            "116",
+            "Resistenza variabile"
+          ],
+          [
+            "120",
+            "Induttanza"
+          ],
+          [
+            "130",
+            "Induttanza con nucleo"
+          ],
+          [
+            "170",
+            "Condensatore"
+          ],
+          [
+            "180",
+            "Condensatore elettrolitico"
+          ],
+          [
+            "190",
+            "Condensatore regolabile"
+          ]
+        ],
+        "name": "Componenti discreti"
+      },
+      {
+        "macros": [
+          [
+            "200",
+            "Diodo"
+          ],
+          [
+            "210",
+            "Diodo a 45 gradi"
+          ],
+          [
+            "220",
+            "Diodo LED"
+          ],
+          [
+            "230",
+            "Diodo Zener"
+          ],
+          [
+            "240",
+            "Fotodiodo"
+          ],
+          [
+            "250",
+            "Diodo Tunnel"
+          ],
+          [
+            "255",
+            "Diodo Varicap"
+          ],
+          [
+            "260",
+            "DIAC"
+          ],
+          [
+            "270",
+            "TRIAC"
+          ],
+          [
+            "280",
+            "NPN senza schermo"
+          ],
+          [
+            "290",
+            "PNP senza schermo"
+          ],
+          [
+            "300",
+            "NPN"
+          ],
+          [
+            "310",
+            "PNP"
+          ],
+          [
+            "320",
+            "Fototransistor NPN"
+          ],
+          [
+            "330",
+            "Fototransistor PNP"
+          ],
+          [
+            "340",
+            "Fotoaccoppiatore NPN"
+          ],
+          [
+            "350",
+            "Fotoaccoppiatore PNP"
+          ],
+          [
+            "360",
+            "Darlington NPN"
+          ],
+          [
+            "370",
+            "Darlington PNP"
+          ],
+          [
+            "380",
+            "SCR"
+          ],
+          [
+            "390",
+            "NJFET"
+          ],
+          [
+            "400",
+            "PJFET"
+          ],
+          [
+            "410",
+            "NMOS"
+          ],
+          [
+            "420",
+            "PMOS"
+          ],
+          [
+            "430",
+            "UJT canale N"
+          ],
+          [
+            "440",
+            "UJT canale P"
+          ],
+          [
+            "445",
+            "MOSpower canale N"
+          ]
+        ],
+        "name": "Diodi e transistor"
+      },
+      {
+        "macros": [
+          [
+            "450",
+            "Batteria 1 elemento"
+          ],
+          [
+            "460",
+            "Batteria 2 elementi"
+          ],
+          [
+            "470",
+            "Generatore Vcc"
+          ],
+          [
+            "480",
+            "Generatore Vac"
+          ],
+          [
+            "490",
+            "Generatore Idc"
+          ]
+        ],
+        "name": "Batterie e generatori"
+      },
+      {
+        "macros": [
+          [
+            "500",
+            "Trasformatore 1 secondario"
+          ],
+          [
+            "510",
+            "Trasformatore 2 secondari"
+          ],
+          [
+            "520",
+            "Trasformatore, simbolo unifilare"
+          ],
+          [
+            "530",
+            "Autotrasformatore"
+          ],
+          [
+            "540",
+            "Motore CC"
+          ],
+          [
+            "550",
+            "Motore monofase"
+          ],
+          [
+            "560",
+            "Motore trifase"
+          ]
+        ],
+        "name": "Macchine elettriche"
+      },
+      {
+        "macros": [
+          [
+            "670",
+            "Buffer"
+          ],
+          [
+            "675",
+            "Buffer 3-state"
+          ],
+          [
+            "680",
+            "NOT"
+          ],
+          [
+            "685",
+            "NOT 3-state"
+          ],
+          [
+            "690",
+            "AND a 2 gates"
+          ],
+          [
+            "700",
+            "NAND a 2 gates"
+          ],
+          [
+            "710",
+            "OR a 2 gates"
+          ],
+          [
+            "720",
+            "NOR a 2 gates"
+          ],
+          [
+            "730",
+            "EXOR a 2 gates"
+          ],
+          [
+            "740",
+            "EXNOR a 2 gates"
+          ],
+          [
+            "741",
+            "Buffer Schmitt-trigger"
+          ],
+          [
+            "745",
+            "Inverter Schmitt-trigger"
+          ],
+          [
+            "746",
+            "NAND a 2 gates Schmitt-trigger"
+          ]
+        ],
+        "name": "IC digitali"
+      },
+      {
+        "macros": [
+          [
+            "580",
+            "Ampli operazionale"
+          ]
+        ],
+        "name": "IC analogici"
+      },
+      {
+        "macros": [
+          [
+            "590",
+            "DIL 6 terminali"
+          ],
+          [
+            "600",
+            "DIL 8 terminali"
+          ],
+          [
+            "610",
+            "DIL 10 terminali"
+          ],
+          [
+            "620",
+            "DIL 12 terminali"
+          ],
+          [
+            "630",
+            "DIL 14 terminali"
+          ],
+          [
+            "640",
+            "DIL 16 terminali"
+          ],
+          [
+            "650",
+            "DIL 18 terminali"
+          ],
+          [
+            "660",
+            "DIL 20 terminali"
+          ]
+        ],
+        "name": "Shapes DIL"
+      },
+      {
+        "macros": [
+          [
+            "750",
+            "Interruttore NA"
+          ],
+          [
+            "760",
+            "Interruttore NA di potenza"
+          ],
+          [
+            "770",
+            "Interruttore NA automatico"
+          ],
+          [
+            "780",
+            "Interruttore NC"
+          ],
+          [
+            "790",
+            "Interruttore NC di potenza"
+          ],
+          [
+            "800",
+            "Interruttore NC automatico"
+          ],
+          [
+            "810",
+            "Intervento termico"
+          ],
+          [
+            "820",
+            "Intervento elettromagnetico"
+          ],
+          [
+            "830",
+            "Rele'"
+          ],
+          [
+            "840",
+            "Rele' con ritardo alla ricaduta"
+          ],
+          [
+            "850",
+            "Rele' con ritardo all'attrazione"
+          ],
+          [
+            "860",
+            "Pulsante NA"
+          ],
+          [
+            "870",
+            "Pulsante NC"
+          ],
+          [
+            "880",
+            "Deviatore"
+          ],
+          [
+            "890",
+            "Fusibile"
+          ],
+          [
+            "900",
+            "Lampada"
+          ]
+        ],
+        "name": "Impiantistica civile"
+      },
+      {
+        "macros": [
+          [
+            "140",
+            "Quarzo"
+          ],
+          [
+            "960",
+            "Microfono"
+          ],
+          [
+            "970",
+            "Altoparlante"
+          ],
+          [
+            "980",
+            "Quarzo, simbolo alternativo"
+          ],
+          [
+            "570",
+            "Antenna"
+          ],
+          [
+            "571",
+            "Buzzer piezo"
+          ],
+          [
+            "572",
+            "Selettore decimale"
+          ],
+          [
+            "574",
+            "Filtro ceramico 2 pin"
+          ],
+          [
+            "575",
+            "Filtro ceramico 3 pin"
+          ],
+          [
+            "576",
+            "Interruttore elettronico"
+          ],
+          [
+            "577",
+            "Jack"
+          ],
+          [
+            "578",
+            "Lampada flash"
+          ],
+          [
+            "579",
+            "Lampadina al NEON"
+          ],
+          [
+            "601",
+            "Sensore di gas"
+          ],
+          [
+            "602",
+            "Spina-presa coassiale"
+          ],
+          [
+            "603",
+            "Trasduttore ultrasonico"
+          ],
+          [
+            "604",
+            "Tubo fluorescente"
+          ]
+        ],
+        "name": "Varie"
+      },
+      {
+        "macros": [
+          [
+            "150",
+            "DIL 6 pin"
+          ],
+          [
+            "151",
+            "DIL 8 pin"
+          ],
+          [
+            "152",
+            "DIL 10 pin"
+          ],
+          [
+            "153",
+            "DIL 12 pin"
+          ],
+          [
+            "154",
+            "DIL 14 pin"
+          ],
+          [
+            "155",
+            "DIL 16 pin"
+          ],
+          [
+            "156",
+            "DIL 18 pin"
+          ],
+          [
+            "157",
+            "DIL 20 pin"
+          ],
+          [
+            "158",
+            "Connettore a vaschetta 40 pin (IDE)"
+          ]
+        ],
+        "name": "hidden"
+      }
+    ],
+    "standard": true,
+    "stem": "stdlib",
+    "title": "Libreria standard"
+  },
+  {
+    "categories": [
+      {
+        "macros": [
+          [
+            "MECH0",
+            "Scheda   50 x 100 mm"
+          ],
+          [
+            "MECH1",
+            "Scheda 100 x 100 mm"
+          ],
+          [
+            "MECH2",
+            "Scheda 100 x 160 mm"
+          ],
+          [
+            "MECH3",
+            "Scheda 160 x 233 mm"
+          ],
+          [
+            "MECH4",
+            "Foro per vite 3MA"
+          ]
+        ],
+        "name": "Schede & Co."
+      },
+      {
+        "macros": [
+          [
+            "R00",
+            "Resistore 1/8W 0,3i"
+          ],
+          [
+            "R01",
+            "Resistore 1/4 W 0,4i"
+          ],
+          [
+            "R02",
+            "Resistore 1/2 W 0,5i"
+          ],
+          [
+            "R03",
+            "Resistore 1 W 0,7i"
+          ],
+          [
+            "R04",
+            "Resistore 2 W 0,9i"
+          ],
+          [
+            "R05",
+            "Resistore 6 W 1i"
+          ],
+          [
+            "R06",
+            "Res. 1/8-1/4W verticale"
+          ],
+          [
+            "R07",
+            "Res. 1/4-1/2W verticale"
+          ],
+          [
+            "R08",
+            "Trimmer orizzontale"
+          ],
+          [
+            "R09",
+            "Trimmer verticale"
+          ],
+          [
+            "R10",
+            "Trimmer 1 giro orizz."
+          ],
+          [
+            "R11",
+            "Trimmer 1 giro vert. in linea"
+          ],
+          [
+            "R12",
+            "Trimmer 1 giro vert. sfalsati"
+          ]
+        ],
+        "name": "Resistori"
+      },
+      {
+        "macros": [
+          [
+            "CC0",
+            "Disco passo 2,5mm"
+          ],
+          [
+            "CC1",
+            "Disco passo 5mm"
+          ],
+          [
+            "CC2",
+            "Disco passo 6,4mm"
+          ],
+          [
+            "CC3",
+            "Disco passo 7,5mm"
+          ],
+          [
+            "CC4",
+            "Disco passo 10mm"
+          ]
+        ],
+        "name": "Condensatori ceramici"
+      },
+      {
+        "macros": [
+          [
+            "CP00",
+            "Box 3 mm passo 2,5"
+          ],
+          [
+            "CP01",
+            "Box 5 mm passo 2,5"
+          ],
+          [
+            "CP02",
+            "Box 2,5 mm passo 5"
+          ],
+          [
+            "CP03",
+            "Box 3,5 mm passo 5"
+          ],
+          [
+            "CP04",
+            "Box 5 mm passo 5"
+          ],
+          [
+            "CP05",
+            "Box 7,2 mm passo 5"
+          ],
+          [
+            "CP06",
+            "Box 6 mm passo 7,5"
+          ],
+          [
+            "CP07",
+            "Box 5 mm passo 10"
+          ],
+          [
+            "CP08",
+            "Box 5 mm passo 15"
+          ],
+          [
+            "CP09",
+            "Box 6 mm passo 15"
+          ],
+          [
+            "CP10",
+            "Box 7,5 mm passo 15"
+          ],
+          [
+            "CP11",
+            "Box 8,5 mm passo 15"
+          ]
+        ],
+        "name": "Condensatori poliestere"
+      },
+      {
+        "macros": [
+          [
+            "CE00",
+            "Vert. Ø  5 passo 2,5"
+          ],
+          [
+            "CE01",
+            "Vert. Ø6,5 passo 2,5"
+          ],
+          [
+            "CE02",
+            "Vert. Ø  8 passo 3,5"
+          ],
+          [
+            "CE03",
+            "Vert. Ø 10 passo 3,5"
+          ],
+          [
+            "CE04",
+            "Vert. Ø 12 passo 3,5"
+          ],
+          [
+            "CE05",
+            "Vert. Ø  5 passo 5"
+          ],
+          [
+            "CE06",
+            "Vert. Ø6,5 passo 5"
+          ],
+          [
+            "CE07",
+            "Vert. Ø  8 passo 5"
+          ],
+          [
+            "CE08",
+            "Vert. Ø 10 passo 5"
+          ],
+          [
+            "CE09",
+            "Vert. Ø 13 passo 5"
+          ],
+          [
+            "CE10",
+            "Vert. Ø 10 passo 6,3"
+          ],
+          [
+            "CE11",
+            "Vert. Ø 16 passo 7,5"
+          ],
+          [
+            "CE12",
+            "Vert. Ø 18 passo 7,5"
+          ],
+          [
+            "CE13",
+            "Oriz. Ø 4,5 passo 12,5"
+          ],
+          [
+            "CE14",
+            "Oriz. Ø 6,3 passo 12,5"
+          ],
+          [
+            "CE15",
+            "Oriz. Ø  6 passo 15"
+          ],
+          [
+            "CE16",
+            "Oriz. Ø 8,5 passo 15"
+          ],
+          [
+            "CE17",
+            "Oriz. Ø 6 passo 17,5"
+          ],
+          [
+            "CE18",
+            "Oriz. Ø 8,5 passo 17,5"
+          ],
+          [
+            "CE19",
+            "Oriz. Ø 8 passo 20"
+          ],
+          [
+            "CE20",
+            "Oriz. Ø 10 passo 20"
+          ],
+          [
+            "CE21",
+            "Oriz. Ø12,5 passo 25"
+          ],
+          [
+            "CE22",
+            "Oriz. Ø 16 passo 25"
+          ]
+        ],
+        "name": "Condensatori elettrolitici"
+      },
+      {
+        "macros": [
+          [
+            "D00",
+            "DO35 (1N4148, zener1/2W)"
+          ],
+          [
+            "D01",
+            "DO35 largo"
+          ],
+          [
+            "D02",
+            "DO41 (1N400x, zener 1W)"
+          ],
+          [
+            "D03",
+            "DO41 largo"
+          ],
+          [
+            "D04",
+            "CB417 (zener 5W)"
+          ],
+          [
+            "D05",
+            "DO27/DO201 (1N540x)"
+          ],
+          [
+            "D06",
+            "AG (P600K)"
+          ],
+          [
+            "D07",
+            "Fotodiodo (BPW34)"
+          ],
+          [
+            "D08",
+            "LED Ø 3mm"
+          ],
+          [
+            "D09",
+            "LED Ø 5mm"
+          ],
+          [
+            "D10",
+            "LED Ø 8mm"
+          ],
+          [
+            "D11",
+            "LED Ø10mm"
+          ],
+          [
+            "D12",
+            "LED Ø 3mm bicolore"
+          ],
+          [
+            "D13",
+            "LED Ø 5mm bicolore"
+          ],
+          [
+            "D14",
+            "LED Ø 8mm bicolore"
+          ],
+          [
+            "D15",
+            "LED Ø10mm bicolore"
+          ],
+          [
+            "D16",
+            "LED rettangolare"
+          ],
+          [
+            "D17",
+            "LED quadrato"
+          ],
+          [
+            "D18",
+            "TO220"
+          ],
+          [
+            "D19",
+            "TO220 vert."
+          ],
+          [
+            "D20",
+            "TO218 - SOD93"
+          ],
+          [
+            "D21",
+            "TO218 - SOD93 vert."
+          ],
+          [
+            "D22",
+            "DO247"
+          ],
+          [
+            "D23",
+            "D0247 vert."
+          ],
+          [
+            "D24",
+            "DOP3"
+          ],
+          [
+            "D25",
+            "DOP3 vert."
+          ],
+          [
+            "D26",
+            "Ponte 0,8÷1,5A (RB1L)"
+          ],
+          [
+            "D27",
+            "Ponte 0,9÷1,5A (WOG)"
+          ],
+          [
+            "D28",
+            "Ponte 1A (DFM)"
+          ],
+          [
+            "D29",
+            "Ponte 1A (PDIP)"
+          ],
+          [
+            "D30",
+            "Ponte 1,5÷2A (FB2F)"
+          ],
+          [
+            "D31",
+            "Ponte 2A (KBPM)"
+          ],
+          [
+            "D32",
+            "Ponte 4A (KBU)"
+          ],
+          [
+            "D33",
+            "Ponte 3,7÷5A (FB4F)"
+          ],
+          [
+            "D34",
+            "Ponte 4÷8A (FB1L)"
+          ],
+          [
+            "D35",
+            "Ponte 6÷8A (GBU)"
+          ],
+          [
+            "D36",
+            "Ponte 6A quadro (BPC6)"
+          ],
+          [
+            "D37",
+            "Ponte 12A quadro (GBPC)"
+          ],
+          [
+            "D38",
+            "Ponte 15A quadro (SKB25)"
+          ]
+        ],
+        "name": "Diodi e ponti"
+      },
+      {
+        "macros": [
+          [
+            "SEMI00",
+            "TO3"
+          ],
+          [
+            "SEMI01",
+            "TO3 /45°"
+          ],
+          [
+            "SEMI02",
+            "TO5 - TO39"
+          ],
+          [
+            "SEMI03",
+            "TO18"
+          ],
+          [
+            "SEMI04",
+            "TO18 /45°"
+          ],
+          [
+            "SEMI05",
+            "TO66"
+          ],
+          [
+            "SEMI06",
+            "TO66 /45°"
+          ],
+          [
+            "SEMI07",
+            "TO72"
+          ],
+          [
+            "SEMI08",
+            "TO72 /45°"
+          ],
+          [
+            "SEMI09",
+            "TO92"
+          ],
+          [
+            "SEMI10",
+            "TO92 /45°"
+          ],
+          [
+            "SEMI11",
+            "TO92 large"
+          ],
+          [
+            "SEMI12",
+            "TO92 linea"
+          ],
+          [
+            "SEMI13",
+            "TO126"
+          ],
+          [
+            "SEMI14",
+            "TO126 vert."
+          ],
+          [
+            "SEMI15",
+            "TO202"
+          ],
+          [
+            "SEMI16",
+            "TO202 vert."
+          ],
+          [
+            "SEMI17",
+            "TO218 - SOT93"
+          ],
+          [
+            "SEMI18",
+            "TO218 vert."
+          ],
+          [
+            "SEMI19",
+            "TO220"
+          ],
+          [
+            "SEMI20",
+            "TO220 vert."
+          ],
+          [
+            "SEMI21",
+            "TOP3"
+          ],
+          [
+            "SEMI22",
+            "TOP3 vert."
+          ],
+          [
+            "SEMI23",
+            "TO247"
+          ],
+          [
+            "SEMI24",
+            "SOT32"
+          ],
+          [
+            "SEMI25",
+            "SOT82"
+          ]
+        ],
+        "name": "Semicond. 3 terminali"
+      },
+      {
+        "macros": [
+          [
+            "NDIL00",
+            "DIL 4 pin"
+          ],
+          [
+            "NDIL0603",
+            "DIL 6 pin"
+          ],
+          [
+            "NDIL0803",
+            "DIL 8 pin"
+          ],
+          [
+            "NDIL1403",
+            "DIL 14 pin"
+          ],
+          [
+            "NDIL1603",
+            "DIL 16 pin"
+          ],
+          [
+            "NDIL1803",
+            "DIL 18 pin"
+          ],
+          [
+            "NDIL2003",
+            "DIL 20 pin"
+          ],
+          [
+            "NDIL2203",
+            "DIL 22 pin"
+          ],
+          [
+            "NDIL2204",
+            "DIL 22 pin 0,4i"
+          ],
+          [
+            "NDIL2403",
+            "DIL 24 pin"
+          ],
+          [
+            "NDIL2404",
+            "DIL 24 pin 0,4i"
+          ],
+          [
+            "NDIL2406",
+            "DIL 24 pin 0,6i"
+          ],
+          [
+            "NDIL2803",
+            "DIL 28 pin"
+          ],
+          [
+            "NDIL2804",
+            "DIL 28 pin 0,4i"
+          ],
+          [
+            "NDIL2806",
+            "DIL 28 pin 0,6i"
+          ],
+          [
+            "NDIL3204",
+            "DIL 32 pin 0,4i"
+          ],
+          [
+            "NDIL3206",
+            "DIL 32 pin 0,6i"
+          ],
+          [
+            "NDIL4006",
+            "DIL 40 pin 0,6i"
+          ],
+          [
+            "NDIL4806",
+            "DIL 48 pin 0,6i"
+          ],
+          [
+            "NDIL5206",
+            "DIL 52 pin 0,6i"
+          ],
+          [
+            "NDIL6406",
+            "DIL 64 pin 0,6i"
+          ],
+          [
+            "NDIL6409",
+            "DIL 64 pin 0,9i"
+          ]
+        ],
+        "name": "IC DIL narrow pads"
+      },
+      {
+        "macros": [
+          [
+            "WDIL0403",
+            "DIL 4 pin"
+          ],
+          [
+            "WDIL0603",
+            "DIL 6 pin"
+          ],
+          [
+            "WDIL0803",
+            "DIL 8 pin"
+          ],
+          [
+            "WDIL1403",
+            "DIL 14 pin"
+          ],
+          [
+            "WDIL1603",
+            "DIL 16 pin"
+          ],
+          [
+            "WDIL1803",
+            "DIL 18 pin"
+          ],
+          [
+            "WDIL2003",
+            "DIL 20 pin"
+          ],
+          [
+            "WDIL2203",
+            "DIL 22 pin"
+          ],
+          [
+            "WDIL2204",
+            "DIL 22 pin 0,4i"
+          ],
+          [
+            "WDIL2403",
+            "DIL 24 pin"
+          ],
+          [
+            "WDIL2404",
+            "DIL 24 pin 0,4i"
+          ],
+          [
+            "WDIL2406",
+            "DIL 24 pin 0,6i"
+          ],
+          [
+            "WDIL2803",
+            "DIL 28 pin"
+          ],
+          [
+            "WDIL2804",
+            "DIL 28 pin 0,4i"
+          ],
+          [
+            "WDIL2806",
+            "DIL 28 pin 0,6i"
+          ],
+          [
+            "WDIL3204",
+            "DIL 32 pin 0,4i"
+          ],
+          [
+            "WDIL3206",
+            "DIL 32 pin 0,6i"
+          ],
+          [
+            "WDIL4006",
+            "DIL 40 pin 0,6i"
+          ],
+          [
+            "WDIL4806",
+            "DIL 48 pin 0,6i"
+          ],
+          [
+            "WDIL5206",
+            "DIL 52 pin 0,6i"
+          ],
+          [
+            "WDIL6406",
+            "DIL 64 pin 0,6i"
+          ],
+          [
+            "WDIL6409",
+            "DIL 64 pin 0,9i"
+          ]
+        ],
+        "name": "IC DIL wide pads"
+      },
+      {
+        "macros": [
+          [
+            "SOIC0815",
+            "SOIC 8 pin"
+          ],
+          [
+            "SOIC1415",
+            "SOIC 14 pin"
+          ],
+          [
+            "SOIC1430",
+            "SOIC 14 pin 0,3i"
+          ],
+          [
+            "SOIC1615",
+            "SOIC 16 pin"
+          ],
+          [
+            "SOIC1630",
+            "SOIC 16 pin 0,3i"
+          ],
+          [
+            "SOIC1830",
+            "SOIC 18 pin (0,3i)"
+          ],
+          [
+            "SOIC2030",
+            "SOIC 20 pin (0,3i)"
+          ],
+          [
+            "SOIC2430",
+            "SOIC 24 pin (0,3i)"
+          ]
+        ],
+        "name": "IC SMD SOIC"
+      },
+      {
+        "macros": [
+          [
+            "SSOP1620",
+            "SSOP 16 pin"
+          ],
+          [
+            "SSOP2020",
+            "SSOP 20 pin"
+          ],
+          [
+            "SSOP2420",
+            "SSOP 24 pin"
+          ],
+          [
+            "SSOP4830",
+            "SSOP 48 pin"
+          ],
+          [
+            "SSOP5630",
+            "SSOP 56 pin"
+          ]
+        ],
+        "name": "IC SMD SSOP"
+      },
+      {
+        "macros": [
+          [
+            "LCC16",
+            "LCC 16 pin"
+          ],
+          [
+            "LCC20",
+            "LCC 20 pin"
+          ],
+          [
+            "LCC24",
+            "LCC 24 pin"
+          ],
+          [
+            "LCC28",
+            "LCC 28 pin"
+          ],
+          [
+            "LCC44",
+            "LCC 44 pin"
+          ],
+          [
+            "LCC68",
+            "LCC 68 pin"
+          ],
+          [
+            "LCC84",
+            "LCC 84 pin"
+          ]
+        ],
+        "name": "IC SMD LCC"
+      },
+      {
+        "macros": [
+          [
+            "ICPO00",
+            "TO220-5"
+          ],
+          [
+            "ICPO01",
+            "TO220-5 In-Line"
+          ],
+          [
+            "ICPO02",
+            "TO220-7"
+          ],
+          [
+            "ICPO03",
+            "TO220-7 In-Line"
+          ],
+          [
+            "ICPO04",
+            "Pentawatt ©"
+          ],
+          [
+            "ICPO05",
+            "Pentawatt © V"
+          ],
+          [
+            "ICPO06",
+            "Pentawatt © HV"
+          ],
+          [
+            "ICPO07",
+            "Heptawatt © H"
+          ],
+          [
+            "ICPO08",
+            "Heptawatt © V"
+          ],
+          [
+            "ICPO09",
+            "Multiwatt8 ©"
+          ],
+          [
+            "ICPO10",
+            "Clipwatt8 ©"
+          ],
+          [
+            "ICPO11",
+            "SIP9"
+          ],
+          [
+            "ICPO12",
+            "SIP10"
+          ],
+          [
+            "ICPO13",
+            "Multiwatt11 © V"
+          ],
+          [
+            "ICPO14",
+            "Multiwatt11 © In-Line"
+          ],
+          [
+            "ICPO15",
+            "Multiwatt11 © H"
+          ],
+          [
+            "ICPO16",
+            "Clipwatt11 ©"
+          ],
+          [
+            "ICPO17",
+            "Multiwatt15 © V"
+          ],
+          [
+            "ICPO18",
+            "Multiwatt15 © In-Line"
+          ],
+          [
+            "ICPO19",
+            "Multiwatt15 © H"
+          ],
+          [
+            "ICPO20",
+            "Clipwatt15 ©"
+          ]
+        ],
+        "name": "IC potenza"
+      },
+      {
+        "macros": [
+          [
+            "TO78",
+            "TO78"
+          ],
+          [
+            "TO99",
+            "TO99"
+          ],
+          [
+            "TO100",
+            "TO100"
+          ]
+        ],
+        "name": "IC Vari"
+      },
+      {
+        "macros": [
+          [
+            "CONDB9",
+            "DB9"
+          ],
+          [
+            "CONDB15",
+            "DB15"
+          ],
+          [
+            "CONDB25",
+            "DB25"
+          ],
+          [
+            "CONDB37",
+            "DB37"
+          ],
+          [
+            "CONDB9R",
+            "DB9 90°"
+          ],
+          [
+            "CONDB15R",
+            "DB15 90°"
+          ],
+          [
+            "CONDB25R",
+            "DB25 90°"
+          ],
+          [
+            "CONDB37R",
+            "DB37 90°"
+          ],
+          [
+            "CONSCART",
+            "SCART"
+          ],
+          [
+            "CONRCA",
+            "PIN RCA"
+          ],
+          [
+            "CONRCAR",
+            "PIN RCA 90°"
+          ]
+        ],
+        "name": "Connettori"
+      },
+      {
+        "macros": [
+          [
+            "DSMD00",
+            "MELF"
+          ],
+          [
+            "DSMD01",
+            "MINIMELF"
+          ],
+          [
+            "DSMD02",
+            "SMA"
+          ],
+          [
+            "DSMD03",
+            "SMB"
+          ],
+          [
+            "DSMD04",
+            "SMC"
+          ],
+          [
+            "DSMD05",
+            "SOT-23"
+          ],
+          [
+            "DSMD06",
+            "SOT-23-5"
+          ],
+          [
+            "DSMD07",
+            "SOT-23-6"
+          ],
+          [
+            "DSMD08",
+            "SOT-143"
+          ],
+          [
+            "DSMD09",
+            "SOT-194"
+          ],
+          [
+            "DSMD10",
+            "SOT-223"
+          ],
+          [
+            "DSMD11",
+            "SC70-3"
+          ],
+          [
+            "DSMD12",
+            "SC70-5"
+          ],
+          [
+            "DSMD13",
+            "SC70-6"
+          ],
+          [
+            "DSMD14",
+            "DPAK"
+          ],
+          [
+            "DSMD15",
+            "D2PAK"
+          ],
+          [
+            "DSMD16",
+            "PPAK-5L"
+          ],
+          [
+            "8-µMAX",
+            "8-µMAX"
+          ],
+          [
+            "10-µMAX",
+            "10-µMAX"
+          ],
+          [
+            "10-µMAXP",
+            "10-µMAX EP"
+          ],
+          [
+            "DSMD17",
+            "PowerSO-10 ®"
+          ]
+        ],
+        "name": "SMD Vari"
+      }
+    ],
+    "standard": true,
+    "stem": "PCB",
+    "title": "PCB Footprints 050800 modif"
+  },
+  {
+    "categories": [
+      {
+        "macros": [
+          [
+            "M01",
+            "Connettore coassiale"
+          ],
+          [
+            "M02",
+            "Spina-presa coassiale"
+          ],
+          [
+            "M03",
+            "Induttanza"
+          ],
+          [
+            "M04",
+            "Rele` DPST"
+          ],
+          [
+            "M05",
+            "Rele` SPDT"
+          ],
+          [
+            "M07",
+            "Rele` SPST"
+          ],
+          [
+            "M08",
+            "Rele` DPDT"
+          ],
+          [
+            "M09",
+            "Interruttore doppio"
+          ],
+          [
+            "M10",
+            "Deviatore"
+          ],
+          [
+            "M11",
+            "Doppio deviatore"
+          ]
+        ],
+        "name": "Libreria di esempio"
+      }
+    ],
+    "standard": false,
+    "stem": "lib1",
+    "title": "Libreria di esempio"
+  }
+]

@@ -27,9 +27,9 @@ export async function decodeProject(data: string): Promise<string> {
 	const raw = base64ToBytes(data);
 	const bytes = new Uint8Array(raw.byteLength);
 	bytes.set(raw);
-	const stream = new Blob([bytes.buffer]).stream().pipeThrough(
-		new DecompressionStream('deflate-raw')
-	);
+	const stream = new Blob([bytes.buffer])
+		.stream()
+		.pipeThrough(new DecompressionStream('deflate-raw'));
 	return new TextDecoder().decode(await streamToBytes(stream));
 }
 

@@ -1,7 +1,8 @@
 <script lang="ts">
+	import type { Engine } from '../app/engine.svelte';
 	import { parseSvgElement } from '../lib/attachSvg';
+	import { PREVIEW_ROOT_MARGIN, THUMB_SIZE } from '../lib/constants';
 	import { macroFullName } from '../lib/libraryDrag';
-	import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 
 	let {
 		engine,
@@ -13,7 +14,7 @@
 		onPick,
 		onArmDrag
 	}: {
-		engine: WasmApp | null;
+		engine: Engine | null;
 		stem: string;
 		macroKey: string;
 		label: string;
@@ -35,12 +36,12 @@
 			const io = new IntersectionObserver(
 				(entries) => {
 					if (!entries.some((e) => e.isIntersecting)) return;
-					const raw = eng.macro_preview_svg(n);
+					const raw = eng.query((app) => app.macro_preview_svg(n));
 					const el = raw ? parseSvgElement(raw) : null;
 					if (el) node.replaceChildren(el);
 					io.disconnect();
 				},
-				{ rootMargin: '160px' }
+				{ rootMargin: PREVIEW_ROOT_MARGIN }
 			);
 			io.observe(node);
 			return () => io.disconnect();
@@ -74,6 +75,7 @@
 	onclick={pick}
 	onkeydown={onKey}
 	onpointerdown={onPointerDown}
+	style:--thumb-size="{THUMB_SIZE}px"
 >
 	<div class="thumb" {@attach attachPreview}></div>
 	<span class="meta">
@@ -116,8 +118,8 @@
 		cursor: grabbing;
 	}
 	.thumb {
-		width: 40px;
-		height: 40px;
+		width: var(--thumb-size);
+		height: var(--thumb-size);
 		flex-shrink: 0;
 		border-radius: 4px;
 		background: var(--canvas-bg);
@@ -129,8 +131,8 @@
 	}
 	.thumb :global(svg) {
 		display: block;
-		width: 40px;
-		height: 40px;
+		width: var(--thumb-size);
+		height: var(--thumb-size);
 	}
 	.meta {
 		min-width: 0;

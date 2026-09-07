@@ -13,11 +13,6 @@ pub const MAX_LAYERS: usize = 256;
 pub struct LayerId(pub u8);
 
 impl LayerId {
-    pub const SCHEMATIC: Self = Self(0);
-    pub const PCB_COPPER: Self = Self(1);
-    pub const PCB_COMPONENTS: Self = Self(2);
-    pub const SILK: Self = Self(3);
-
     pub fn from_i32(v: i32) -> Self {
         if (0..=u8::MAX as i32).contains(&v) {
             Self(v as u8)
@@ -28,6 +23,14 @@ impl LayerId {
 
     pub fn index(self) -> usize {
         self.0 as usize
+    }
+
+    pub fn remap_after_remove(self, removed: u8) -> Self {
+        Self(remap_after_remove(self.0, removed))
+    }
+
+    pub fn remap_after_reorder(self, from: u8, to: u8) -> Self {
+        Self(remap_after_reorder(self.0, from, to))
     }
 }
 
@@ -78,7 +81,7 @@ pub fn fidocad_fallback() -> Vec<LayerInfo> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LayerSet {
-    pub layers: Vec<LayerInfo>,
+    layers: Vec<LayerInfo>,
 }
 
 impl Default for LayerSet {
@@ -90,8 +93,43 @@ impl Default for LayerSet {
 }
 
 impl LayerSet {
+    pub fn from_vec(layers: Vec<LayerInfo>) -> Self {
+        Self { layers }
+    }
+
     pub fn len(&self) -> usize {
         self.layers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.layers.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &LayerInfo> {
+        self.layers.iter()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&LayerInfo> {
+        self.layers.get(index)
+    }
+
+    pub fn remove(&mut self, index: usize) -> LayerInfo {
+        self.layers.remove(index)
+    }
+
+    pub fn move_item(&mut self, from: usize, to: usize) {
+        let item = self.layers.remove(from);
+        self.layers.insert(to, item);
+    }
+
+    pub fn update(&mut self, index: usize, f: impl FnOnce(&mut LayerInfo)) -> bool {
+        match self.layers.get_mut(index) {
+            Some(layer) => {
+                f(layer);
+                true
+            }
+            None => false,
+        }
     }
 
     pub fn visible(&self, id: LayerId) -> bool {
@@ -106,7 +144,7 @@ impl LayerSet {
     }
 
     pub fn ensure_len(&mut self, n: usize) {
-        let n = n.min(MAX_LAYERS).max(1);
+        let n = n.clamp(1, MAX_LAYERS);
         while self.layers.len() < n {
             let i = self.layers.len();
             self.layers.push(LayerInfo::generic(i));
@@ -164,7 +202,7 @@ pub fn remap_after_reorder(id: u8, from: u8, to: u8) -> u8 {
 
 pub fn remap_primitive_layers(prims: &mut [Primitive], f: impl Fn(LayerId) -> LayerId) {
     for p in prims {
-        if matches!(p, Primitive::Macro { .. }) {
+        if p.is_macro() {
             continue;
         }
         let next = f(p.layer());
@@ -177,7 +215,7 @@ pub fn remap_primitive_layers(prims: &mut [Primitive], f: impl Fn(LayerId) -> La
 pub fn count_on_layer(prims: &[Primitive], id: LayerId) -> usize {
     prims
         .iter()
-        .filter(|p| !matches!(p, Primitive::Macro { .. }) && p.layer() == id)
+        .filter(|p| !p.is_macro() && p.layer() == id)
         .count()
 }
 

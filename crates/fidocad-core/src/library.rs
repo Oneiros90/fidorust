@@ -1,6 +1,7 @@
 //! FidoCAD library (.fcl) model and macro expansion.
 
-use crate::geom::Transform;
+use crate::consts::MACRO_MAX_DEPTH;
+use crate::geom::{Aabb, Transform};
 use crate::primitive::Primitive;
 use crate::MACRO_ORIGIN;
 use serde::{Deserialize, Serialize};
@@ -114,79 +115,54 @@ pub struct LibCategory {
 }
 
 pub fn expand_macro(def: &MacroDef, xf: Transform, libs: &LibrarySet, depth: u8) -> Vec<Primitive> {
-    if depth > 8 {
+    if depth > MACRO_MAX_DEPTH {
         return Vec::new();
     }
     let mut out = Vec::new();
     for p in &def.primitives {
-        match p {
-            Primitive::Macro { name, .. } => {
-                if let Some((_, nested)) = libs.lookup(name) {
-                    let mut nested_xf = xf;
-                    if let Primitive::Macro {
-                        pos,
-                        rotations,
-                        mirrored,
-                        ..
-                    } = p
-                    {
-                        nested_xf.origin = xf.apply(*pos, MACRO_ORIGIN);
-                        nested_xf.rotations = (xf.rotations + rotations) % 4;
-                        nested_xf.mirrored = xf.mirrored ^ mirrored;
-                    }
-                    out.extend(expand_macro(nested, nested_xf, libs, depth + 1));
-                }
+        if let Primitive::Macro(m) = p {
+            if let Some((_, nested)) = libs.lookup(&m.name) {
+                let mut nested_xf = xf;
+                nested_xf.origin = xf.apply(m.pos, MACRO_ORIGIN);
+                nested_xf.rotations = (xf.rotations + m.rotations) % 4;
+                nested_xf.mirrored = xf.mirrored ^ m.mirrored;
+                out.extend(expand_macro(nested, nested_xf, libs, depth + 1));
             }
-            other => {
-                let mut q = other.clone();
-                q.apply_transform(xf);
-                out.push(q);
-            }
+        } else {
+            let mut q = p.clone();
+            q.apply_transform(xf);
+            out.push(q);
         }
     }
     out
 }
 
 pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
-    match p {
-        Primitive::Macro {
-            pos,
-            rotations,
-            mirrored,
-            name,
-            ..
-        } => {
-            if let Some((_, def)) = libs.lookup(name) {
-                expand_macro(
-                    def,
-                    Transform {
-                        origin: *pos,
-                        rotations: *rotations,
-                        mirrored: *mirrored,
-                    },
-                    libs,
-                    0,
-                )
-            } else {
-                vec![p.clone()]
-            }
+    if let Primitive::Macro(m) = p {
+        if let Some((_, def)) = libs.lookup(&m.name) {
+            expand_macro(
+                def,
+                Transform {
+                    origin: m.pos,
+                    rotations: m.rotations,
+                    mirrored: m.mirrored,
+                },
+                libs,
+                0,
+            )
+        } else {
+            vec![p.clone()]
         }
-        _ => vec![p.clone()],
+    } else {
+        vec![p.clone()]
     }
 }
 
-/// Flatten every macro in a document (for drawing / hit-test).
-pub fn flatten(prims: &[Primitive], libs: &LibrarySet) -> Vec<(usize, Primitive)> {
-    let mut out = Vec::new();
-    for (i, p) in prims.iter().enumerate() {
-        match p {
-            Primitive::Macro { .. } => {
-                for q in expand_primitive(p, libs) {
-                    out.push((i, q));
-                }
-            }
-            _ => out.push((i, p.clone())),
-        }
+/// World AABB of a primitive after expanding nested macros.
+pub fn expanded_aabb(p: &Primitive, libs: &LibrarySet) -> Aabb {
+    let mut bb = Aabb::empty();
+    for q in expand_primitive(p, libs) {
+        bb.include_aabb(&q.aabb());
     }
-    out
+    bb
 }

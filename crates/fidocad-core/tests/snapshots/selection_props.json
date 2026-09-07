@@ -1,0 +1,220 @@
+{
+  "homogeneous_rects": [
+    {
+      "id": "filled",
+      "kind": {
+        "kind": "bool"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "bool",
+        "value": true
+      }
+    },
+    {
+      "id": "layer",
+      "kind": {
+        "kind": "layer"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "layer",
+        "value": 1
+      }
+    }
+  ],
+  "mixed_line_rect": [
+    {
+      "id": "layer",
+      "kind": {
+        "kind": "layer"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "layer",
+        "value": 1
+      }
+    }
+  ],
+  "pad": [
+    {
+      "id": "sizeX",
+      "kind": {
+        "kind": "int",
+        "max": 100,
+        "min": 2
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 18
+      }
+    },
+    {
+      "id": "sizeY",
+      "kind": {
+        "kind": "int",
+        "max": 100,
+        "min": 2
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 18
+      }
+    },
+    {
+      "id": "intDiam",
+      "kind": {
+        "kind": "int",
+        "max": 100,
+        "min": 2
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 8
+      }
+    },
+    {
+      "id": "padStyle",
+      "kind": {
+        "kind": "padStyle"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "padStyle",
+        "value": "Round"
+      }
+    },
+    {
+      "id": "layer",
+      "kind": {
+        "kind": "layer"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "layer",
+        "value": 2
+      }
+    }
+  ],
+  "text": [
+    {
+      "id": "text",
+      "kind": {
+        "kind": "string"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "string",
+        "value": "AB"
+      }
+    },
+    {
+      "id": "fontFace",
+      "kind": {
+        "kind": "string"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "string",
+        "value": "Courier New"
+      }
+    },
+    {
+      "id": "fontHeight",
+      "kind": {
+        "kind": "int",
+        "max": 100,
+        "min": 2
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 4
+      }
+    },
+    {
+      "id": "fontWidth",
+      "kind": {
+        "kind": "int",
+        "max": 100,
+        "min": 2
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 3
+      }
+    },
+    {
+      "id": "rotationAngle",
+      "kind": {
+        "kind": "int",
+        "max": 359,
+        "min": 0
+      },
+      "readOnly": false,
+      "value": {
+        "state": "int",
+        "value": 0
+      }
+    },
+    {
+      "id": "bold",
+      "kind": {
+        "kind": "bool"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "bool",
+        "value": false
+      }
+    },
+    {
+      "id": "italic",
+      "kind": {
+        "kind": "bool"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "bool",
+        "value": false
+      }
+    },
+    {
+      "id": "mirrored",
+      "kind": {
+        "kind": "bool"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "bool",
+        "value": false
+      }
+    },
+    {
+      "id": "underlined",
+      "kind": {
+        "kind": "bool"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "bool",
+        "value": false
+      }
+    },
+    {
+      "id": "layer",
+      "kind": {
+        "kind": "layer"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "layer",
+        "value": 0
+      }
+    }
+  ]
+}

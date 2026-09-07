@@ -78,7 +78,7 @@
 <style>
 	.scene-text {
 		position: absolute;
-		z-index: 6;
+		z-index: var(--z-flyout);
 		margin: 0;
 		padding: 0 2px;
 		border: 1px dashed var(--accent);

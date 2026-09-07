@@ -41,7 +41,7 @@
 	.ghost {
 		position: fixed;
 		pointer-events: none;
-		z-index: 40;
+		z-index: var(--z-ghost);
 		overflow: visible;
 		opacity: 0.92;
 	}

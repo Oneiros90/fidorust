@@ -11,7 +11,7 @@
 		<img src={app.assetUrl('favicon.svg')} width="56" height="56" alt="" />
 		<h2>FidoRust {displayVersion(appVersion)}</h2>
 		{@html app.t.aboutContent}
-		<button type="button" onclick={() => (app.showAbout = false)}>{app.t.close}</button>
+		<button type="button" onclick={() => app.dialogs.close()}>{app.t.close}</button>
 	</div>
 </Modal>
 

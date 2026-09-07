@@ -8,5 +8,5 @@ export { it } from './it';
 export type Locale = 'it' | 'en';
 
 export function dict(locale: Locale): typeof en {
-  return locale === 'en' ? en : it;
+	return locale === 'en' ? en : it;
 }

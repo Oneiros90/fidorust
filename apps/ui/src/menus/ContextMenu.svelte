@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { getAppSession } from '../app/appContext';
+	import Scrim from '../chrome/Scrim.svelte';
+	import { setCloseMenu } from './menuContext';
 
 	let {
 		x,
@@ -15,6 +17,7 @@
 	} = $props();
 
 	const app = getAppSession();
+	setCloseMenu(() => onClose());
 	let width = $state(0);
 	let height = $state(0);
 
@@ -31,7 +34,7 @@
 	});
 </script>
 
-<button type="button" class="scrim" aria-label={app.t.cancel} onclick={onClose}></button>
+<Scrim z="var(--z-context)" label={app.t.cancel} onclick={onClose} />
 <div
 	class="ctx"
 	bind:offsetWidth={width}
@@ -44,16 +47,9 @@
 </div>
 
 <style>
-	.scrim {
-		position: fixed;
-		inset: 0;
-		background: transparent;
-		border: none;
-		z-index: 20;
-	}
 	.ctx {
 		position: fixed;
-		z-index: 21;
+		z-index: calc(var(--z-context) + 1);
 		min-width: 260px;
 		background: var(--bg-menu);
 		border: 1px solid var(--border);

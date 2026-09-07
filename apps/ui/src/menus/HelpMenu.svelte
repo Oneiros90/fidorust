@@ -5,10 +5,4 @@
 	const app = getAppSession();
 </script>
 
-<MenuItem
-	label={app.t.about}
-	onclick={() => {
-		app.showAbout = true;
-		app.closeMenu();
-	}}
-/>
+<MenuItem label={app.t.about} onclick={app.openAbout} />

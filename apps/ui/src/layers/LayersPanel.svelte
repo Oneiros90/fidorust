@@ -1,23 +1,12 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
+	import { hexToRgb, rgbToHex } from '../lib/color';
 
 	const app = getAppSession();
 
 	let dragging = $state<number | null>(null);
 	let over = $state<number | null>(null);
 	let skipRenameCommit = false;
-
-	function hex(color: number[]) {
-		return '#' + color.map((c) => c.toString(16).padStart(2, '0')).join('');
-	}
-
-	function parseHex(value: string): [number, number, number] {
-		return [
-			parseInt(value.slice(1, 3), 16),
-			parseInt(value.slice(3, 5), 16),
-			parseInt(value.slice(5, 7), 16)
-		];
-	}
 
 	function focusAndSelect(node: HTMLInputElement) {
 		queueMicrotask(() => {
@@ -109,12 +98,12 @@
 				</button>
 				<input
 					type="color"
-					value={hex(l.color)}
+					value={rgbToHex(l.color)}
 					title={app.t.layer}
 					aria-label={app.t.layer}
 					onclick={() => app.setLayer(i)}
 					onchange={(e) => {
-						const [r, g, b] = parseHex(e.currentTarget.value);
+						const [r, g, b] = hexToRgb(e.currentTarget.value);
 						app.setLayerColor(i, r, g, b);
 					}}
 				/>

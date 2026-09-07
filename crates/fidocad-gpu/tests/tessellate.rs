@@ -1,5 +1,5 @@
 use fidocad_core::parse::{builtin_libraries, parse_document};
-use fidocad_core::{Editor, Point, Tool};
+use fidocad_core::{Editor, Ellipse, Line, PcbPad, PcbTrack, Point, Text, Tool};
 use fidocad_gpu::tessellate_editor;
 
 #[test]
@@ -21,16 +21,16 @@ fn tessellate_alimentatore_has_strokes() {
 #[test]
 fn tessellate_rounded_pcb_pad_uses_fills() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::PcbPad {
+    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
         pos: fidocad_core::Point::new(380, 65),
         dx: 18,
         dy: 18,
         hole: 4,
         style: fidocad_core::primitive::PadStyle::RoundedRect,
         layer: fidocad_core::LayerId(0),
-    });
+    }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert!(scene.fills.len() >= 6);
     assert_eq!(scene.circles.len(), 0);
@@ -40,16 +40,16 @@ fn tessellate_rounded_pcb_pad_uses_fills() {
 #[test]
 fn tessellate_oval_pcb_pad_has_circular_hole() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::PcbPad {
+    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
         pos: fidocad_core::Point::new(260, 125),
         dx: 40,
         dy: 30,
         hole: 25,
         style: fidocad_core::primitive::PadStyle::Oval,
         layer: fidocad_core::LayerId(0),
-    });
+    }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert!(scene.fills.len() >= 6);
     assert_eq!(scene.circles.len(), 0);
@@ -60,14 +60,15 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
 #[test]
 fn tessellate_pcb_track_is_filled_capsule() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::PcbTrack {
-        a: fidocad_core::Point::new(80, 140),
-        b: fidocad_core::Point::new(140, 140),
-        width: 16,
-        layer: fidocad_core::LayerId(0),
-    });
+    doc.primitives
+        .push(fidocad_core::Primitive::PcbTrack(PcbTrack {
+            a: fidocad_core::Point::new(80, 140),
+            b: fidocad_core::Point::new(140, 140),
+            width: 16,
+            layer: fidocad_core::LayerId(0),
+        }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert!(
         scene.fills.len() >= 3,
@@ -84,14 +85,14 @@ fn tessellate_pcb_track_is_filled_capsule() {
 fn tessellate_heavy_grid() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     for x in (0..400).step_by(4) {
-        doc.primitives.push(fidocad_core::Primitive::Line {
+        doc.primitives.push(fidocad_core::Primitive::Line(Line {
             a: fidocad_core::Point::new(x, 0),
             b: fidocad_core::Point::new(x, 400),
             layer: fidocad_core::LayerId(0),
-        });
+        }));
     }
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.lines.len(), 100);
 }
@@ -99,14 +100,15 @@ fn tessellate_heavy_grid() {
 #[test]
 fn tessellate_ellipse_is_stroked_not_annulus() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Ellipse {
-        a: fidocad_core::Point::new(0, 0),
-        b: fidocad_core::Point::new(40, 20),
-        filled: false,
-        layer: fidocad_core::LayerId(0),
-    });
+    doc.primitives
+        .push(fidocad_core::Primitive::Ellipse(Ellipse {
+            a: fidocad_core::Point::new(0, 0),
+            b: fidocad_core::Point::new(40, 20),
+            filled: false,
+            layer: fidocad_core::LayerId(0),
+        }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.circles.len(), 1);
     assert!(scene.circles[0].stroke > 0.0);
@@ -116,8 +118,8 @@ fn tessellate_ellipse_is_stroked_not_annulus() {
 #[test]
 fn draft_ellipse_previews_as_ellipse_not_line() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Ellipse;
-    ed.doc.snap = 1;
+    ed.set_tool(Tool::Ellipse);
+    ed.doc_mut().snap = 1;
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(80, 10), (80.0, 10.0));
     let scene = tessellate_editor(&ed);
@@ -175,15 +177,17 @@ fn macro_cursor_svg_has_hotspot() {
     );
     let cur = fidocad_gpu::scene_to_cursor_svg(&prims, fidocad_core::MACRO_ORIGIN);
     assert!(cur.w > 1.0 && cur.h > 1.0);
-    assert!(cur.svg.contains("<line") || cur.svg.contains("<ellipse") || cur.svg.contains("<polygon"));
+    assert!(
+        cur.svg.contains("<line") || cur.svg.contains("<ellipse") || cur.svg.contains("<polygon")
+    );
 }
 
 #[test]
 fn pending_macro_ghost_appears_at_hover() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Macro;
-    ed.pending_macro = Some("080".into());
-    ed.hover = Some(fidocad_core::Point::new(40, 40));
+    ed.set_tool(Tool::Macro);
+    ed.set_pending_macro(Some("080".into()));
+    ed.set_hover(Some(fidocad_core::Point::new(40, 40)));
     let scene = tessellate_editor(&ed);
     assert!(
         !scene.lines.is_empty() || !scene.circles.is_empty() || !scene.fills.is_empty(),
@@ -194,7 +198,7 @@ fn pending_macro_ghost_appears_at_hover() {
 #[test]
 fn tessellate_text_uses_filled_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Text {
+    doc.primitives.push(fidocad_core::Primitive::Text(Text {
         pos: fidocad_core::Point::new(0, 0),
         sy: 10,
         sx: 6,
@@ -204,9 +208,9 @@ fn tessellate_text_uses_filled_glyphs() {
         font: "Courier New".into(),
         text: "Vcc".into(),
         simple: false,
-    });
+    }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
     assert!(
         scene.fills.len() >= 27,
@@ -219,7 +223,7 @@ fn tessellate_text_uses_filled_glyphs() {
 #[test]
 fn editing_text_hides_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Text {
+    doc.primitives.push(fidocad_core::Primitive::Text(Text {
         pos: Point::new(0, 0),
         sy: 10,
         sx: 6,
@@ -229,11 +233,11 @@ fn editing_text_hides_glyphs() {
         font: "Courier New".into(),
         text: "Vcc".into(),
         simple: false,
-    });
+    }));
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc = doc;
+    ed.set_doc(doc);
     let before = tessellate_editor(&ed).fills.len();
     assert!(before > 0);
-    ed.editing_text = Some(0);
+    ed.set_editing_text(Some(0));
     assert!(tessellate_editor(&ed).fills.is_empty());
 }

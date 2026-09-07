@@ -1,41 +1,36 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
-	import DialogHeader from './DialogHeader.svelte';
 	import Modal from './Modal.svelte';
+
+	let { text }: { text: string } = $props();
 
 	const app = getAppSession();
 
 	let copied = $state(false);
 
 	async function copy() {
-		if (!app.shareFcdText) return;
-		await navigator.clipboard.writeText(app.shareFcdText);
+		if (!text) return;
+		await navigator.clipboard.writeText(text);
 		copied = true;
-	}
-
-	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			app.closeShare();
-		}
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
-
-<Modal labelledBy="share-fcd-title" maxWidth="640px">
-	<DialogHeader
-		title={app.t.shareFcdTitle}
-		titleId="share-fcd-title"
-		closeLabel={app.t.close}
-		onClose={app.closeShare}
-	/>
-	<textarea readonly value={app.shareFcdText ?? ''} rows="16"></textarea>
-	<div class="actions">
-		<button type="button" class="ok" onclick={() => void copy()}>
-			{copied ? app.t.copied : app.t.copyLink}
-		</button>
-	</div>
+<Modal
+	title={app.t.shareFcdTitle}
+	titleId="share-fcd-title"
+	maxWidth="640px"
+	closable
+	closeLabel={app.t.close}
+	onClose={app.closeShare}
+>
+	<textarea readonly value={text} rows="16"></textarea>
+	{#snippet actions()}
+		<div class="dialog-actions">
+			<button type="button" class="primary" onclick={() => void copy()}>
+				{copied ? app.t.copied : app.t.copyLink}
+			</button>
+		</div>
+	{/snippet}
 </Modal>
 
 <style>
@@ -52,14 +47,7 @@
 		border: 1px solid var(--border);
 		border-radius: 6px;
 	}
-	.actions {
-		display: flex;
-		justify-content: flex-end;
+	.dialog-actions {
 		margin-top: 8px;
-	}
-	.ok {
-		background: var(--accent);
-		color: var(--accent-fg);
-		border-color: var(--accent);
 	}
 </style>

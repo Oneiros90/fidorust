@@ -22,7 +22,7 @@
 	<strong class="brand">{app.t.app}</strong>
 	<MenuDropdown id="file" label={app.t.file}><FileMenu /></MenuDropdown>
 	<MenuDropdown id="edit" label={app.t.edit}>
-		<EditMenu onDone={app.closeMenu} />
+		<EditMenu />
 	</MenuDropdown>
 	<MenuDropdown id="view" label={app.t.view}><ViewMenu /></MenuDropdown>
 	<MenuDropdown id="options" label={app.t.options}><OptionsMenu /></MenuDropdown>
@@ -38,7 +38,7 @@
 		padding: 6px 10px;
 		background: var(--bg-menu);
 		border-bottom: 1px solid var(--border);
-		z-index: 3;
+		z-index: var(--z-menubar);
 	}
 	.brand-mark {
 		width: 22px;

@@ -1,16 +1,16 @@
 {
-  "identifier": "default",
-  "description": "FidoRust desktop capabilities",
-  "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "dialog:default",
-    {
-      "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://github.com/Oneiros90/fidorust/releases/tag/*" }]
-    },
-    "fs:allow-read-file",
-    "fs:allow-write-file",
-    "fs:allow-exists"
-  ]
+	"identifier": "default",
+	"description": "FidoRust desktop capabilities",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"dialog:default",
+		{
+			"identifier": "opener:allow-open-url",
+			"allow": [{ "url": "https://github.com/Oneiros90/fidorust/releases/tag/*" }]
+		},
+		"fs:allow-read-file",
+		"fs:allow-write-file",
+		"fs:allow-exists"
+	]
 }

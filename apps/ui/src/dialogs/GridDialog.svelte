@@ -1,128 +1,81 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import type { GridValues } from '../app/appSession.svelte';
 	import type { Dict } from '../i18n';
+	import { clampInt } from '../lib/num';
 	import Modal from './Modal.svelte';
-
-	interface GridValues {
-		gridX: number;
-		gridY: number;
-		snapX: number;
-		snapY: number;
-		showGrid: boolean;
-		snapEnable: boolean;
-		hideMacroOrigin: boolean;
-	}
 
 	let {
 		t,
-		gridX,
-		gridY,
-		snapX,
-		snapY,
-		showGrid,
-		snapEnable,
-		hideMacroOrigin,
+		values,
 		onApply,
 		onCancel
 	}: {
 		t: Dict;
-		gridX: number;
-		gridY: number;
-		snapX: number;
-		snapY: number;
-		showGrid: boolean;
-		snapEnable: boolean;
-		hideMacroOrigin: boolean;
+		values: GridValues;
 		onApply: (values: GridValues) => void;
 		onCancel: () => void;
 	} = $props();
 
-	let editGridX = $state(untrack(() => gridX));
-	let editGridY = $state(untrack(() => gridY));
-	let editSnapX = $state(untrack(() => snapX));
-	let editSnapY = $state(untrack(() => snapY));
-	let editShowGrid = $state(untrack(() => showGrid));
-	let editSnapEnable = $state(untrack(() => snapEnable));
-	let editHideMacroOrigin = $state(untrack(() => hideMacroOrigin));
-
-	function clamp(n: number, min: number, max: number) {
-		const v = Math.round(Number(n));
-		if (!Number.isFinite(v)) return min;
-		return Math.min(max, Math.max(min, v));
-	}
+	let edit = $state(untrack(() => ({ ...values })));
 
 	function apply() {
 		onApply({
-			gridX: clamp(editGridX, 1, 40),
-			gridY: clamp(editGridY, 1, 40),
-			snapX: clamp(editSnapX, 1, 20),
-			snapY: clamp(editSnapY, 1, 20),
-			showGrid: editShowGrid,
-			snapEnable: editSnapEnable,
-			hideMacroOrigin: editHideMacroOrigin
+			gridX: clampInt(edit.gridX, 1, 40),
+			gridY: clampInt(edit.gridY, 1, 40),
+			snapX: clampInt(edit.snapX, 1, 20),
+			snapY: clampInt(edit.snapY, 1, 20),
+			showGrid: edit.showGrid,
+			snapEnable: edit.snapEnable,
+			hideMacroOrigin: edit.hideMacroOrigin
 		});
-	}
-
-	function onKey(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			e.preventDefault();
-			onCancel();
-			return;
-		}
-		if (e.key === 'Enter') {
-			if (e.target instanceof HTMLButtonElement) return;
-			e.preventDefault();
-			apply();
-		}
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
-
-<Modal labelledBy="grid-dlg-title" maxWidth="420px">
-	<h2 id="grid-dlg-title">{t.gridSnap}</h2>
+<Modal
+	title={t.gridSnap}
+	titleId="grid-dlg-title"
+	maxWidth="420px"
+	onClose={onCancel}
+	onSubmit={apply}
+>
 	<div class="form">
 		<label>
 			{t.gridX}
-			<input type="number" min="1" max="40" step="1" bind:value={editGridX} />
+			<input type="number" min="1" max="40" step="1" bind:value={edit.gridX} />
 		</label>
 		<label>
 			{t.snapX}
-			<input type="number" min="1" max="20" step="1" bind:value={editSnapX} />
+			<input type="number" min="1" max="20" step="1" bind:value={edit.snapX} />
 		</label>
 		<label>
 			{t.gridY}
-			<input type="number" min="1" max="40" step="1" bind:value={editGridY} />
+			<input type="number" min="1" max="40" step="1" bind:value={edit.gridY} />
 		</label>
 		<label>
 			{t.snapY}
-			<input type="number" min="1" max="20" step="1" bind:value={editSnapY} />
+			<input type="number" min="1" max="20" step="1" bind:value={edit.snapY} />
 		</label>
 		<label class="chk">
-			<input type="checkbox" bind:checked={editShowGrid} />
+			<input type="checkbox" bind:checked={edit.showGrid} />
 			{t.showGrid}
 		</label>
 		<label class="chk">
-			<input type="checkbox" bind:checked={editSnapEnable} />
+			<input type="checkbox" bind:checked={edit.snapEnable} />
 			{t.enableSnap}
 		</label>
 		<label class="chk full">
-			<input type="checkbox" bind:checked={editHideMacroOrigin} />
+			<input type="checkbox" bind:checked={edit.hideMacroOrigin} />
 			{t.hideMacroOrigin}
 		</label>
-		<div class="actions">
-			<button type="button" class="ok" onclick={apply}>{t.ok}</button>
+		<div class="dialog-actions">
+			<button type="button" class="primary" onclick={apply}>{t.ok}</button>
 			<button type="button" onclick={onCancel}>{t.cancel}</button>
 		</div>
 	</div>
 </Modal>
 
 <style>
-	h2 {
-		margin: 0 0 12px;
-		font-size: 15px;
-		font-weight: 600;
-	}
 	.form {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -147,16 +100,8 @@
 	input[type='number'] {
 		width: 100%;
 	}
-	.actions {
+	.dialog-actions {
 		grid-column: 1 / -1;
-		display: flex;
-		justify-content: flex-end;
-		gap: 8px;
 		margin-top: 8px;
-	}
-	.ok {
-		background: var(--accent);
-		color: var(--accent-fg);
-		border-color: var(--accent);
 	}
 </style>

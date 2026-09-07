@@ -16,26 +16,16 @@
 		{ id: 'light', labelKey: 'light' },
 		{ id: 'dark', labelKey: 'dark' }
 	];
-
-	function pickLocale(loc: Locale) {
-		app.setLocale(loc);
-		app.closeMenu();
-	}
-
-	function pickTheme(theme: Theme) {
-		app.setTheme(theme);
-		app.closeMenu();
-	}
 </script>
 
-<MenuItem label={app.t.splitMacros} onclick={app.toggleSplitMacros} />
+<MenuItem label={app.t.splitMacros} closeOnClick={false} onclick={app.toggleSplitMacros} />
 <MenuSubmenu label={app.t.language}>
 	{#each locales as loc (loc.id)}
 		<MenuItem
 			label={app.t[loc.labelKey]}
 			checkable
 			active={app.locale === loc.id}
-			onclick={() => pickLocale(loc.id)}
+			onclick={() => app.setLocale(loc.id)}
 		/>
 	{/each}
 </MenuSubmenu>
@@ -45,7 +35,7 @@
 			label={app.t[th.labelKey]}
 			checkable
 			active={app.theme === th.id}
-			onclick={() => pickTheme(th.id)}
+			onclick={() => app.setTheme(th.id)}
 		/>
 	{/each}
 </MenuSubmenu>

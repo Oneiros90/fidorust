@@ -59,7 +59,7 @@
 		box-shadow: var(--shadow);
 		padding: 6px;
 		flex-direction: column;
-		z-index: 6;
+		z-index: var(--z-flyout);
 	}
 	.flyout::before {
 		content: '';

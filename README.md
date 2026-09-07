@@ -21,6 +21,16 @@ rustup target add wasm32-unknown-unknown
 cargo install wasm-pack
 cd apps/ui
 npm install
+npm run check        # svelte-check
+npm run format       # prettier (svelte plugin)
 npm run dev          # web at http://localhost:5173
 npm run tauri dev    # desktop
+```
+
+Rust quality:
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```

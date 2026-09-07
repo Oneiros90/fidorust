@@ -1,0 +1,148 @@
+[
+  {
+    "Line": {
+      "a": {
+        "x": 1,
+        "y": 2
+      },
+      "b": {
+        "x": 3,
+        "y": 4
+      },
+      "layer": 1
+    }
+  },
+  {
+    "Rect": {
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 5,
+        "y": 5
+      },
+      "filled": true,
+      "layer": 0
+    }
+  },
+  {
+    "Ellipse": {
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 8,
+        "y": 4
+      },
+      "filled": false,
+      "layer": 2
+    }
+  },
+  {
+    "Poly": {
+      "pts": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 1
+        }
+      ],
+      "filled": false,
+      "layer": 0
+    }
+  },
+  {
+    "Bezier": {
+      "p0": {
+        "x": 0,
+        "y": 0
+      },
+      "p1": {
+        "x": 1,
+        "y": 2
+      },
+      "p2": {
+        "x": 3,
+        "y": 2
+      },
+      "p3": {
+        "x": 4,
+        "y": 0
+      },
+      "layer": 0
+    }
+  },
+  {
+    "Text": {
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "sy": 4,
+      "sx": 3,
+      "angle": 90,
+      "style": 3,
+      "layer": 1,
+      "font": "Courier New",
+      "text": "Hi",
+      "simple": false
+    }
+  },
+  {
+    "Connection": {
+      "pos": {
+        "x": 7,
+        "y": 8
+      },
+      "layer": 0
+    }
+  },
+  {
+    "PcbTrack": {
+      "a": {
+        "x": 0,
+        "y": 0
+      },
+      "b": {
+        "x": 10,
+        "y": 0
+      },
+      "width": 4,
+      "layer": 1
+    }
+  },
+  {
+    "PcbPad": {
+      "pos": {
+        "x": 5,
+        "y": 5
+      },
+      "dx": 18,
+      "dy": 12,
+      "hole": 8,
+      "style": "RoundedRect",
+      "layer": 1
+    }
+  },
+  {
+    "Macro": {
+      "pos": {
+        "x": 10,
+        "y": 20
+      },
+      "rotations": 1,
+      "mirrored": true,
+      "name": "080",
+      "standard": true
+    }
+  }
+]

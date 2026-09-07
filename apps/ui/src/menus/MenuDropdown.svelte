@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { getAppSession } from '../app/appContext';
+	import { setCloseMenu } from './menuContext';
 
 	let {
 		id,
@@ -14,14 +15,12 @@
 
 	const app = getAppSession();
 	const open = $derived(app.menu === id);
+	setCloseMenu(() => app.closeMenu());
 </script>
 
 <div class="menu">
-	<button
-		type="button"
-		class="menu-btn"
-		onclick={() => app.toggleMenu(id)}
-		aria-expanded={open}>{label}</button
+	<button type="button" class="menu-btn" onclick={() => app.toggleMenu(id)} aria-expanded={open}
+		>{label}</button
 	>
 	{#if open}
 		<div class="dropdown">{@render children()}</div>
@@ -49,7 +48,7 @@
 		padding: 6px;
 		display: flex;
 		flex-direction: column;
-		z-index: 5;
+		z-index: var(--z-dropdown);
 		overflow: visible;
 	}
 </style>

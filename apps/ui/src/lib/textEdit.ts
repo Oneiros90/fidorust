@@ -1,15 +1,7 @@
-export type TextEdit = {
-	text: string;
-	wx: number;
-	wy: number;
-	sx: number;
-	sy: number;
-	angle: number;
-	style: number;
-	screenX: number;
-	screenY: number;
-	zoom: number;
-};
+import type { TextEdit } from '../app/engineTypes';
+import { styleHasItalic, styleHasMirrored } from './textStyle';
+
+export type { TextEdit };
 
 export function parseEdit(raw: string): TextEdit | null {
 	if (!raw || raw === 'null') return null;
@@ -51,8 +43,8 @@ export function textOverlayLayout(edit: TextEdit, scale: number) {
 		fontSize: Math.max(8, (edit.sy * edit.zoom) / scale),
 		charWidth: Math.max(4, (edit.sx * edit.zoom) / scale),
 		angle: edit.angle,
-		italic: (edit.style & 2) !== 0,
-		mirrored: (edit.style & 4) !== 0,
+		italic: styleHasItalic(edit.style),
+		mirrored: styleHasMirrored(edit.style),
 		text: edit.text
 	};
 }

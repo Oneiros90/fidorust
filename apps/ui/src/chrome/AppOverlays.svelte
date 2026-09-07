@@ -12,8 +12,10 @@
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
 	import LayerContextMenu from '../layers/LayerContextMenu.svelte';
+	import Scrim from './Scrim.svelte';
 
 	const app = getAppSession();
+	const dialog = $derived(app.dialogs.dialog);
 
 	function bindFilePicker(node: HTMLInputElement) {
 		app.filePicker = node;
@@ -23,94 +25,59 @@
 	}
 </script>
 
-<input
-	{@attach bindFilePicker}
-	type="file"
-	accept=".fcd,.txt"
-	hidden
-	onchange={app.onPickedFile}
-/>
+<input {@attach bindFilePicker} type="file" accept=".fcd,.txt" hidden onchange={app.onPickedFile} />
 
 {#if app.libGhost}
 	<MacroGhost {...app.libGhost} />
 {/if}
 
 {#if app.ctxMenu}
-	<ContextMenu
-		x={app.ctxMenu.x}
-		y={app.ctxMenu.y}
-		onClose={() => (app.ctxMenu = null)}
-	>
+	<ContextMenu x={app.ctxMenu.x} y={app.ctxMenu.y} onClose={() => (app.ctxMenu = null)}>
 		{#if app.ctxMenu.kind === 'edit'}
-			<EditMenu onDone={() => (app.ctxMenu = null)} />
+			<EditMenu />
 		{:else}
-			<LayerContextMenu
-				index={app.ctxMenu.index}
-				onDone={() => (app.ctxMenu = null)}
-			/>
+			<LayerContextMenu index={app.ctxMenu.index} />
 		{/if}
 	</ContextMenu>
 {/if}
 
 {#if app.menu}
-	<button type="button" class="scrim" onclick={app.closeMenu} aria-label="close menu"></button>
+	<Scrim z="var(--z-scrim)" label="close menu" onclick={app.closeMenu} />
 {/if}
 
-{#if app.pendingDeleteLayer !== null}
-	<DeleteLayerDialog />
-{/if}
-
-{#if app.showAbout}
+{#if dialog?.kind === 'deleteLayer'}
+	<DeleteLayerDialog index={dialog.index} />
+{:else if dialog?.kind === 'about'}
 	<AboutDialog />
-{/if}
-
-{#if app.showGridDlg}
+{:else if dialog?.kind === 'grid'}
 	<GridDialog
 		t={app.t}
-		gridX={app.status.grid}
-		gridY={app.status.grid_y}
-		snapX={app.status.snap}
-		snapY={app.status.snap_y}
-		showGrid={app.status.show_grid}
-		snapEnable={app.status.snap_enable}
-		hideMacroOrigin={app.status.hide_macro_origin}
+		values={{
+			gridX: app.status.grid,
+			gridY: app.status.grid_y,
+			snapX: app.status.snap,
+			snapY: app.status.snap_y,
+			showGrid: app.status.show_grid,
+			snapEnable: app.status.snap_enable,
+			hideMacroOrigin: app.status.hide_macro_origin
+		}}
 		onApply={app.applyGrid}
-		onCancel={() => (app.showGridDlg = false)}
+		onCancel={() => app.dialogs.close()}
 	/>
-{/if}
-
-{#if app.showPropsDlg}
+{:else if dialog?.kind === 'properties'}
 	<PropertiesDialog
 		t={app.t}
-		fields={app.propsFormFields}
+		fields={dialog.fields}
 		layers={app.layers}
 		onApply={app.applyProperties}
-		onCancel={() => (app.showPropsDlg = false)}
+		onCancel={() => app.dialogs.close()}
 	/>
-{/if}
-
-{#if app.error}
+{:else if dialog?.kind === 'error'}
 	<ErrorDialog />
-{/if}
-
-{#if app.showDiscardConfirm}
+{:else if dialog?.kind === 'discard'}
 	<ConfirmDialog />
+{:else if dialog?.kind === 'shareLink'}
+	<ShareLinkDialog url={dialog.url} />
+{:else if dialog?.kind === 'shareFcd'}
+	<ShareFcdDialog text={dialog.text} />
 {/if}
-
-{#if app.showShareLink}
-	<ShareLinkDialog />
-{/if}
-
-{#if app.shareFcdText !== null}
-	<ShareFcdDialog />
-{/if}
-
-<style>
-	.scrim {
-		position: fixed;
-		inset: 0;
-		background: transparent;
-		border: none;
-		z-index: 2;
-	}
-</style>

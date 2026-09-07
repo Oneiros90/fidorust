@@ -1,6 +1,6 @@
 //! In-memory drawing.
 
-use crate::geom::{Aabb, Point};
+use crate::geom::Aabb;
 use crate::layers::LayerSet;
 use crate::library::LibrarySet;
 use crate::primitive::Primitive;
@@ -56,9 +56,7 @@ impl Document {
     pub fn aabb(&self, libs: &LibrarySet) -> Aabb {
         let mut bb = Aabb::empty();
         for p in &self.primitives {
-            for q in crate::library::expand_primitive(p, libs) {
-                bb.include_aabb(&q.aabb());
-            }
+            bb.include_aabb(&crate::library::expanded_aabb(p, libs));
         }
         bb
     }
@@ -80,9 +78,7 @@ impl Document {
         let mut bb = Aabb::empty();
         for &i in selected {
             if let Some(p) = self.primitives.get(i) {
-                for q in crate::library::expand_primitive(p, libs) {
-                    bb.include_aabb(&q.aabb());
-                }
+                bb.include_aabb(&crate::library::expanded_aabb(p, libs));
             }
         }
         bb
@@ -90,9 +86,5 @@ impl Document {
 
     pub fn lu_to_mm(lu: i32) -> f64 {
         lu as f64 * crate::layers::MICRON_PER_LU as f64 / 1000.0
-    }
-
-    pub fn origin_mm(&self, p: Point) -> (f64, f64) {
-        (Self::lu_to_mm(p.x), Self::lu_to_mm(p.y))
     }
 }

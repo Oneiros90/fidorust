@@ -15,11 +15,6 @@
 	onMount(() => {
 		void app.init();
 	});
-
-	$effect(() => {
-		document.documentElement.lang = app.locale;
-		app.engine?.set_locale(app.locale);
-	});
 </script>
 
 <svelte:window onkeydown={app.onKey} />

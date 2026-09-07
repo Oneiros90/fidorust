@@ -17,7 +17,10 @@ export function displayVersion(version: string): string {
 }
 
 export function parseSemver(version: string): [number, number, number] | null {
-	const m = version.trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)\.(\d+)/);
+	const m = version
+		.trim()
+		.replace(/^v/i, '')
+		.match(/^(\d+)\.(\d+)\.(\d+)/);
 	if (!m) return null;
 	return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
@@ -36,7 +39,11 @@ export function isNewerVersion(remote: string, current: string): boolean {
 export function isReleaseUrl(url: string): boolean {
 	try {
 		const parsed = new URL(url);
-		return parsed.protocol === 'https:' && parsed.hostname === 'github.com' && parsed.pathname.startsWith(RELEASE_PATH);
+		return (
+			parsed.protocol === 'https:' &&
+			parsed.hostname === 'github.com' &&
+			parsed.pathname.startsWith(RELEASE_PATH)
+		);
 	} catch {
 		return false;
 	}

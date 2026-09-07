@@ -1,0 +1,23 @@
+{
+  "can_redo": false,
+  "can_undo": true,
+  "grid": 5,
+  "grid_y": 5,
+  "hide_macro_origin": true,
+  "layer": 0,
+  "n": 159,
+  "pcb": false,
+  "pending_macro": null,
+  "selected": 0,
+  "show_grid": true,
+  "snap": 5,
+  "snap_enable": true,
+  "snap_y": 5,
+  "title": "Alimentatore per CB",
+  "tool": "select",
+  "x": 0,
+  "xmm": 0.0,
+  "y": 0,
+  "ymm": 0.0,
+  "zoom": 2.278481
+}

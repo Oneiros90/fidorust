@@ -12,11 +12,7 @@
 	aria-hidden="true"
 >
 	{#if name === 'select'}
-		<path
-			fill="currentColor"
-			stroke="none"
-			d="M6 3.8v16.2l4.4-3.8 3.2 6.1 2.7-1.3-3.3-6.2H19z"
-		/>
+		<path fill="currentColor" stroke="none" d="M6 3.8v16.2l4.4-3.8 3.2 6.1 2.7-1.3-3.3-6.2H19z" />
 	{:else if name === 'line'}
 		<line x1="5" y1="18" x2="19" y2="6" />
 		<circle cx="5" cy="18" r="1.55" fill="currentColor" stroke="none" />

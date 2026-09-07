@@ -13,33 +13,11 @@ impl Point {
         Self { x, y }
     }
 
-    pub fn add(self, other: Self) -> Self {
-        Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
-
-    pub fn sub(self, other: Self) -> Self {
-        Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
-    }
-
     pub fn rotate90_cw(self, origin: Self) -> Self {
-        let d = self.sub(origin);
+        let d = self - origin;
         Self {
             x: origin.x + d.y,
             y: origin.y - d.x,
-        }
-    }
-
-    pub fn rotate90_ccw(self, origin: Self) -> Self {
-        let d = self.sub(origin);
-        Self {
-            x: origin.x - d.y,
-            y: origin.y + d.x,
         }
     }
 
@@ -59,6 +37,26 @@ impl Point {
 
     pub fn as_f32(self) -> (f32, f32) {
         (self.x as f32, self.y as f32)
+    }
+}
+
+impl std::ops::Add for Point {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
+    }
+}
+
+impl std::ops::Sub for Point {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
     }
 }
 
@@ -110,10 +108,6 @@ impl Aabb {
         self.min.x > self.max.x || self.min.y > self.max.y
     }
 
-    pub fn contains(&self, p: Point) -> bool {
-        p.x >= self.min.x && p.x <= self.max.x && p.y >= self.min.y && p.y <= self.max.y
-    }
-
     pub fn intersects(&self, other: &Aabb) -> bool {
         self.min.x <= other.max.x
             && self.max.x >= other.min.x
@@ -139,14 +133,6 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn identity() -> Self {
-        Self {
-            origin: Point::new(0, 0),
-            rotations: 0,
-            mirrored: false,
-        }
-    }
-
     pub fn apply(&self, p: Point, macro_origin: Point) -> Point {
         let xc = (p.x - macro_origin.x) as f64;
         let yc = (p.y - macro_origin.y) as f64;

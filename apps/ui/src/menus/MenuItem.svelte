@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { getCloseMenu } from './menuContext';
+
 	let {
 		label,
 		shortcut,
 		disabled = false,
 		checkable = false,
 		active = false,
+		closeOnClick = true,
 		onclick
 	}: {
 		label: string;
@@ -13,11 +16,24 @@
 		/** Reserved checkmark column (language, theme, …). */
 		checkable?: boolean;
 		active?: boolean;
+		closeOnClick?: boolean;
 		onclick?: () => void;
 	} = $props();
+
+	const closeMenu = getCloseMenu();
+
+	function handleClick() {
+		onclick?.();
+		if (closeOnClick) closeMenu();
+	}
 </script>
 
-<button type="button" {disabled} {onclick} aria-checked={checkable ? active : undefined}>
+<button
+	type="button"
+	{disabled}
+	onclick={handleClick}
+	aria-checked={checkable ? active : undefined}
+>
 	{#if checkable}
 		<span class="mark" aria-hidden="true">{active ? '✓' : ''}</span>
 	{/if}

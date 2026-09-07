@@ -1,6 +1,9 @@
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
-use fidocad_core::{Document, Editor, LayerId, Point, Primitive, SaveOptions, Tool};
+use fidocad_core::{
+    Connection, Document, Editor, LayerId, Line, MacroRef, PcbPad, PcbTrack, Point, Poly,
+    Primitive, SaveOptions, Text, Tool,
+};
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
 MC 65 35 0 0 410
@@ -33,13 +36,13 @@ fn parse_website_sample() {
     let macros = doc
         .primitives
         .iter()
-        .filter(|p| matches!(p, Primitive::Macro { .. }))
+        .filter(|p| matches!(p, Primitive::Macro(MacroRef { .. })))
         .count();
     assert_eq!(macros, 4);
     let texts = doc
         .primitives
         .iter()
-        .filter(|p| matches!(p, Primitive::Text { .. }))
+        .filter(|p| matches!(p, Primitive::Text(Text { .. })))
         .count();
     assert_eq!(texts, 2);
 }
@@ -55,12 +58,12 @@ fn skip_fcj_and_splines() {
 fn layer_omitted_means_zero() {
     let p = parse_primitive_line("LI 1 2 3 4").unwrap();
     match p {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 0),
         _ => panic!("expected line"),
     }
     let p = parse_primitive_line("LI 1 2 3 4 7").unwrap();
     match p {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 7),
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 7),
         _ => panic!(),
     }
 }
@@ -133,7 +136,7 @@ fn macro_transform_matches_fidocad() {
 fn expand_terminal() {
     let libs = builtin_libraries();
     let doc = parse_document("[FIDOCAD]\nMC 10 10 0 0 000\n").unwrap();
-    let flat = fidocad_core::library::flatten(&doc.primitives, &libs);
+    let flat = fidocad_core::library::expand_primitive(&doc.primitives[0], &libs);
     assert!(flat.len() >= 2);
 }
 
@@ -143,7 +146,11 @@ fn mirrored_text_aabb_extends_left_of_origin() {
     let bb = p.aabb();
     // style 5 includes mirrored (bit 4): glyphs sit left of pos, not right.
     assert!(bb.max.x <= 1100, "max.x={} should be ≤ origin", bb.max.x);
-    assert!(bb.min.x < 1100 - 100, "min.x={} should cover the string leftward", bb.min.x);
+    assert!(
+        bb.min.x < 1100 - 100,
+        "min.x={} should cover the string leftward",
+        bb.min.x
+    );
     assert!(bb.min.y <= 265);
     assert!(bb.max.y >= 265 + 30);
 }
@@ -160,7 +167,7 @@ fn axis_aligned_text_aabb_extends_right_of_origin() {
 fn pcb_pad_and_track() {
     let p = parse_primitive_line("PA 100 100 18 18 8 0 1").unwrap();
     match p {
-        Primitive::PcbPad { hole, layer, .. } => {
+        Primitive::PcbPad(PcbPad { hole, layer, .. }) => {
             assert_eq!(hole, 8);
             assert_eq!(layer.0, 1);
         }
@@ -168,7 +175,7 @@ fn pcb_pad_and_track() {
     }
     let t = parse_primitive_line("PL 0 0 50 0 10 1").unwrap();
     match t {
-        Primitive::PcbTrack { width, layer, .. } => {
+        Primitive::PcbTrack(PcbTrack { width, layer, .. }) => {
             assert_eq!(width, 10);
             assert_eq!(layer.0, 1);
         }
@@ -186,14 +193,14 @@ fn empty_document_ok() {
 #[test]
 fn reject_zero_length_line() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Line;
-    ed.doc.snap = 1;
+    ed.set_tool(Tool::Line);
+    ed.doc_mut().snap = 1;
     let p = Point::new(10, 10);
     ed.pointer_down(p, (0.0, 0.0), false, false);
     ed.pointer_move(p, (0.0, 0.0));
     ed.pointer_up(p);
     assert!(
-        ed.doc.primitives.is_empty(),
+        ed.doc_mut().primitives.is_empty(),
         "original FidoCAD ignores a second point that coincides with the first"
     );
 }
@@ -201,24 +208,21 @@ fn reject_zero_length_line() {
 #[test]
 fn accept_nonzero_line() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Line;
-    ed.doc.snap = 1;
+    ed.set_tool(Tool::Line);
+    ed.doc_mut().snap = 1;
     ed.pointer_down(Point::new(10, 10), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(30, 10), (20.0, 0.0));
     ed.pointer_up(Point::new(30, 10));
-    assert_eq!(ed.doc.primitives.len(), 1);
+    assert_eq!(ed.doc_mut().primitives.len(), 1);
 }
 
 #[test]
 fn marquee_rect_while_dragging() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Select;
+    ed.set_tool(Tool::Select);
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_move(Point::new(40, 25), (40.0, 25.0));
-    assert_eq!(
-        ed.marquee_screen_rect(),
-        Some((0.0, 0.0, 40.0, 25.0))
-    );
+    assert_eq!(ed.marquee_screen_rect(), Some((0.0, 0.0, 40.0, 25.0)));
     ed.pointer_up(Point::new(40, 25));
     assert!(ed.marquee_screen_rect().is_none());
 }
@@ -226,30 +230,30 @@ fn marquee_rect_while_dragging() {
 #[test]
 fn right_click_rotates_pending_macro() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Macro;
-    ed.pending_macro = Some("080".into());
+    ed.set_tool(Tool::Macro);
+    ed.set_pending_macro(Some("080".into()));
     assert!(ed.right_click(Point::new(20, 20)));
-    assert_eq!(ed.pending_rotations, 1);
+    assert_eq!(ed.pending_rotations(), 1);
     assert!(ed.right_click(Point::new(20, 20)));
-    assert_eq!(ed.pending_rotations, 2);
+    assert_eq!(ed.pending_rotations(), 2);
 }
 
 #[test]
 fn right_click_rotates_while_moving_selection() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Select;
-    ed.doc.snap = 1;
-    ed.doc.insert(Primitive::Line {
+    ed.set_tool(Tool::Select);
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 0),
         b: Point::new(10, 0),
         layer: LayerId(0),
-    });
-    ed.selected.push(0);
+    }));
+    ed.selected_mut().push(0);
     ed.pointer_down(Point::new(5, 0), (5.0, 0.0), false, false);
     ed.pointer_move(Point::new(8, 0), (8.0, 0.0));
     assert!(ed.right_click(Point::new(8, 0)));
-    match &ed.doc.primitives[0] {
-        Primitive::Line { a, b, .. } => {
+    match &ed.doc_mut().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
             assert_ne!((*a, *b), (Point::new(3, 0), Point::new(13, 0)));
         }
         _ => panic!("expected line"),
@@ -259,21 +263,21 @@ fn right_click_rotates_while_moving_selection() {
 #[test]
 fn invert_selection_toggles_indices() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.insert(Primitive::Connection {
+    ed.doc_mut().insert(Primitive::Connection(Connection {
         pos: Point::new(0, 0),
         layer: LayerId(0),
-    });
-    ed.doc.insert(Primitive::Connection {
+    }));
+    ed.doc_mut().insert(Primitive::Connection(Connection {
         pos: Point::new(10, 0),
         layer: LayerId(0),
-    });
-    ed.selected = vec![0];
+    }));
+    ed.set_selected(vec![0]);
     ed.invert_selection();
-    assert_eq!(ed.selected, vec![1]);
+    assert_eq!(ed.selected(), [1].as_slice());
 }
 
 fn sample_text(pos: Point, text: &str) -> Primitive {
-    Primitive::Text {
+    Primitive::Text(Text {
         pos,
         sy: 4,
         sx: 3,
@@ -283,14 +287,14 @@ fn sample_text(pos: Point, text: &str) -> Primitive {
         font: "Courier New".into(),
         text: text.into(),
         simple: false,
-    }
+    })
 }
 
 #[test]
 fn text_hit_matches_glyph_box() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.snap = 1;
-    ed.doc.insert(sample_text(Point::new(10, 20), "AB"));
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(sample_text(Point::new(10, 20), "AB"));
     // "AB" is 2×3 LU wide and 4 LU tall, origin top-left at (10, 20).
     assert!(ed.begin_text_edit_at(Point::new(11, 21)).is_some());
     ed.cancel_text_edit();
@@ -301,15 +305,15 @@ fn text_hit_matches_glyph_box() {
 #[test]
 fn text_edit_commit_replaces_content() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.snap = 1;
-    ed.doc.insert(sample_text(Point::new(0, 0), "IN"));
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(sample_text(Point::new(0, 0), "IN"));
     let session = ed.begin_text_edit_at(Point::new(1, 1)).expect("hit text");
     assert_eq!(session.text, "IN");
-    assert_eq!(ed.editing_text, Some(0));
+    assert_eq!(ed.editing_text(), Some(0));
     ed.commit_text_edit("OUT".into());
-    assert!(ed.editing_text.is_none());
-    match &ed.doc.primitives[0] {
-        Primitive::Text { text, .. } => assert_eq!(text, "OUT"),
+    assert!(ed.editing_text().is_none());
+    match &ed.doc_mut().primitives[0] {
+        Primitive::Text(Text { text, .. }) => assert_eq!(text, "OUT"),
         _ => panic!("expected text"),
     }
 }
@@ -317,27 +321,27 @@ fn text_edit_commit_replaces_content() {
 #[test]
 fn dblclick_finishes_poly_instead_of_text_edit() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.tool = Tool::Poly;
-    ed.doc.snap = 1;
+    ed.set_tool(Tool::Poly);
+    ed.doc_mut().snap = 1;
     ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
     ed.pointer_up(Point::new(0, 0));
     ed.pointer_down(Point::new(10, 0), (10.0, 0.0), false, false);
     ed.pointer_up(Point::new(10, 0));
     assert!(ed.begin_text_edit_at(Point::new(5, 0)).is_none());
     assert!(ed
-        .doc
+        .doc()
         .primitives
         .iter()
-        .any(|p| matches!(p, Primitive::Poly { .. })));
+        .any(|p| matches!(p, Primitive::Poly(Poly { .. }))));
 }
 
 #[test]
 fn snap_xy_independent_and_disable() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.snap = 10;
-    ed.doc.snap_y = 5;
+    ed.doc_mut().snap = 10;
+    ed.doc_mut().snap_y = 5;
     assert_eq!(ed.snap_pt(Point::new(14, 8)), Point::new(10, 10));
-    ed.snap_enable = false;
+    ed.set_snap_enable(false);
     assert_eq!(ed.snap_pt(Point::new(14, 8)), Point::new(14, 8));
 }
 
@@ -345,18 +349,18 @@ fn snap_xy_independent_and_disable() {
 fn file_without_ld_uses_four_fidocad_layers() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\nLI 0 0 10 10 1\n").unwrap();
     assert_eq!(doc.layers.len(), 4);
-    assert_eq!(doc.layers.layers[0].name, "Schema");
-    assert_eq!(doc.layers.layers[1].name, "PCB lato rame");
-    assert_eq!(doc.layers.layers[1].color, [0, 0, 192]);
+    assert_eq!(doc.layers.get(0).unwrap().name, "Schema");
+    assert_eq!(doc.layers.get(1).unwrap().name, "PCB lato rame");
+    assert_eq!(doc.layers.get(1).unwrap().color, [0, 0, 192]);
 }
 
 #[test]
 fn file_without_ld_pads_generic_layers() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10 6\n").unwrap();
     assert_eq!(doc.layers.len(), 7);
-    assert_eq!(doc.layers.layers[6].name, "Layer 7");
+    assert_eq!(doc.layers.get(6).unwrap().name, "Layer 7");
     match &doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 6),
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 6),
         _ => panic!(),
     }
 }
@@ -366,13 +370,13 @@ fn ld_lines_replace_defaults() {
     let src = "[FIDOCAD]\nLD 10 20 30 0 Bottom copper\nLD 255 0 0 1 Top\nLI 0 0 10 10 1\n";
     let doc = parse_document(src).unwrap();
     assert_eq!(doc.layers.len(), 2);
-    assert_eq!(doc.layers.layers[0].name, "Bottom copper");
-    assert_eq!(doc.layers.layers[0].color, [10, 20, 30]);
-    assert!(!doc.layers.layers[0].show);
-    assert_eq!(doc.layers.layers[1].name, "Top");
-    assert!(doc.layers.layers[1].show);
+    assert_eq!(doc.layers.get(0).unwrap().name, "Bottom copper");
+    assert_eq!(doc.layers.get(0).unwrap().color, [10, 20, 30]);
+    assert!(!doc.layers.get(0).unwrap().show);
+    assert_eq!(doc.layers.get(1).unwrap().name, "Top");
+    assert!(doc.layers.get(1).unwrap().show);
     match &doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 1),
         _ => panic!(),
     }
 }
@@ -383,7 +387,7 @@ fn ld_out_of_range_primitive_clamps_to_zero() {
     let doc = parse_document(src).unwrap();
     assert_eq!(doc.layers.len(), 1);
     match &doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 0),
         _ => panic!(),
     }
 }
@@ -395,9 +399,15 @@ fn serialize_writes_ld_and_roundtrips() {
     let out = serialize_document(&doc, SaveOptions::default(), None);
     assert!(out.starts_with("[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\n"));
     let doc2 = parse_document(&out).unwrap();
-    assert_eq!(doc.layers.layers.len(), doc2.layers.layers.len());
-    assert_eq!(doc.layers.layers[0].name, doc2.layers.layers[0].name);
-    assert_eq!(doc.layers.layers[0].show, doc2.layers.layers[0].show);
+    assert_eq!(doc.layers.len(), doc2.layers.len());
+    assert_eq!(
+        doc.layers.get(0).unwrap().name,
+        doc2.layers.get(0).unwrap().name
+    );
+    assert_eq!(
+        doc.layers.get(0).unwrap().show,
+        doc2.layers.get(0).unwrap().show
+    );
     assert_eq!(doc.primitives.len(), doc2.primitives.len());
 }
 
@@ -413,24 +423,24 @@ fn new_document_has_four_fallback_layers() {
 #[test]
 fn delete_layer_remaps_and_can_move_objects() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.insert(Primitive::Line {
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 0),
         b: Point::new(10, 0),
         layer: LayerId(1),
-    });
-    ed.doc.insert(Primitive::Line {
+    }));
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 5),
         b: Point::new(10, 5),
         layer: LayerId(2),
-    });
+    }));
     assert!(ed.delete_layer(1, Some(0)));
-    assert_eq!(ed.doc.layers.len(), 3);
-    match &ed.doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+    assert_eq!(ed.doc_mut().layers.len(), 3);
+    match &ed.doc_mut().primitives[0] {
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 0),
         _ => panic!(),
     }
-    match &ed.doc.primitives[1] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+    match &ed.doc_mut().primitives[1] {
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 1),
         _ => panic!(),
     }
 }
@@ -438,20 +448,20 @@ fn delete_layer_remaps_and_can_move_objects() {
 #[test]
 fn delete_layer_drops_objects() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.insert(Primitive::Line {
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 0),
         b: Point::new(10, 0),
         layer: LayerId(1),
-    });
-    ed.doc.insert(Primitive::Line {
+    }));
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 5),
         b: Point::new(10, 5),
         layer: LayerId(0),
-    });
+    }));
     assert!(ed.delete_layer(1, None));
-    assert_eq!(ed.doc.primitives.len(), 1);
-    match &ed.doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+    assert_eq!(ed.doc_mut().primitives.len(), 1);
+    match &ed.doc_mut().primitives[0] {
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 0),
         _ => panic!(),
     }
 }
@@ -459,27 +469,27 @@ fn delete_layer_drops_objects() {
 #[test]
 fn reorder_layer_remaps_primitive_ids() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc.insert(Primitive::Line {
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 0),
         b: Point::new(10, 0),
         layer: LayerId(0),
-    });
-    ed.doc.insert(Primitive::Line {
+    }));
+    ed.doc_mut().insert(Primitive::Line(Line {
         a: Point::new(0, 5),
         b: Point::new(10, 5),
         layer: LayerId(2),
-    });
-    let name0 = ed.doc.layers.layers[0].name.clone();
-    let name2 = ed.doc.layers.layers[2].name.clone();
+    }));
+    let name0 = ed.doc_mut().layers.get(0).unwrap().name.clone();
+    let name2 = ed.doc_mut().layers.get(2).unwrap().name.clone();
     assert!(ed.reorder_layer(2, 0));
-    assert_eq!(ed.doc.layers.layers[0].name, name2);
-    assert_eq!(ed.doc.layers.layers[1].name, name0);
-    match &ed.doc.primitives[0] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+    assert_eq!(ed.doc_mut().layers.get(0).unwrap().name, name2);
+    assert_eq!(ed.doc_mut().layers.get(1).unwrap().name, name0);
+    match &ed.doc_mut().primitives[0] {
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 1),
         _ => panic!(),
     }
-    match &ed.doc.primitives[1] {
-        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+    match &ed.doc_mut().primitives[1] {
+        Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 0),
         _ => panic!(),
     }
 }
@@ -487,9 +497,9 @@ fn reorder_layer_remaps_primitive_ids() {
 #[test]
 fn cannot_delete_last_layer() {
     let mut ed = Editor::new(builtin_libraries());
-    while ed.doc.layers.len() > 1 {
+    while ed.doc_mut().layers.len() > 1 {
         assert!(ed.delete_layer(0, None));
     }
     assert!(!ed.delete_layer(0, None));
-    assert_eq!(ed.doc.layers.len(), 1);
+    assert_eq!(ed.doc_mut().layers.len(), 1);
 }

@@ -1,16 +1,11 @@
+import type { MacroCursor } from '../app/engineTypes';
+
 export { canvasLocal, cssPerLu } from './canvasCoords';
+export type { MacroCursor } from '../app/engineTypes';
 
 export function macroFullName(stem: string, key: string): string {
 	return stem === 'stdlib' ? key : `${stem}.${key}`;
 }
-
-export type MacroCursor = {
-	svg: string;
-	ox: number;
-	oy: number;
-	w: number;
-	h: number;
-};
 
 export function parseMacroCursor(json: string): MacroCursor | null {
 	try {
