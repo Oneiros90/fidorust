@@ -2,25 +2,54 @@
 
 use fidocad_core::geom::Point;
 
-use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, Scene};
+use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
 use crate::theme::Rgb;
 
 struct SvgWriter<F> {
     tx: F,
     stroke_scale: f32,
     min_stroke: f32,
+    min_radius: f32,
     emit_circles: bool,
 }
 
 impl<F: Fn(f32, f32) -> (f32, f32)> SvgWriter<F> {
     fn write(&self, out: &mut String, scene: &Scene) {
-        for tri in scene.fills.chunks(3) {
+        self.write_fills(out, &scene.fills);
+        self.write_lines(out, &scene.lines);
+        if self.emit_circles {
+            self.write_circles(out, &scene.circles);
+        }
+    }
+
+    fn write_layer(&self, out: &mut String, scene: &Scene, i: usize) {
+        self.write_fills(
+            out,
+            Scene::layer_items(&scene.layer_fill_end, &scene.fills, i),
+        );
+        self.write_lines(
+            out,
+            Scene::layer_items(&scene.layer_line_end, &scene.lines, i),
+        );
+        if self.emit_circles {
+            self.write_circles(
+                out,
+                Scene::layer_items(&scene.layer_circ_end, &scene.circles, i),
+            );
+        }
+    }
+
+    fn write_fills(&self, out: &mut String, fills: &[FillVertexGpu]) {
+        for tri in fills.chunks(3) {
             if tri.len() != 3 {
                 continue;
             }
             write_polygon(out, &self.tx, tri);
         }
-        for l in &scene.lines {
+    }
+
+    fn write_lines(&self, out: &mut String, lines: &[LineInstance]) {
+        for l in lines {
             write_line(
                 out,
                 &self.tx,
@@ -30,10 +59,18 @@ impl<F: Fn(f32, f32) -> (f32, f32)> SvgWriter<F> {
                 self.emit_circles,
             );
         }
-        if self.emit_circles {
-            for c in &scene.circles {
-                write_circle(out, &self.tx, c, self.stroke_scale, self.min_stroke);
-            }
+    }
+
+    fn write_circles(&self, out: &mut String, circles: &[CircleInstance]) {
+        for c in circles {
+            write_circle(
+                out,
+                &self.tx,
+                c,
+                self.stroke_scale,
+                self.min_stroke,
+                self.min_radius,
+            );
         }
     }
 }
@@ -82,14 +119,15 @@ fn write_circle(
     c: &CircleInstance,
     scale: f32,
     min_stroke: f32,
+    min_radius: f32,
 ) {
     let (cx, cy) = tx(c.x, c.y);
-    let rx = (c.rx * scale).max(0.4);
-    let ry = (c.ry * scale).max(0.4);
+    let rx = (c.rx * scale).max(min_radius);
+    let ry = (c.ry * scale).max(min_radius);
     let stroke = fill_rgb(c.r, c.g, c.b);
     if c.stroke > 0.001 {
         out.push_str(&format!(
-            r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" stroke="{stroke}" stroke-width="{:.2}"/>"#,
+            r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="none" stroke="{stroke}" stroke-width="{:.2}"/>"#,
             (c.stroke * scale).max(min_stroke),
         ));
     } else {
@@ -110,11 +148,115 @@ pub fn scene_to_svg(scene: &Scene, w: f32, h: f32, zoom: f32, pan: (f32, f32)) -
         tx,
         stroke_scale: zoom,
         min_stroke: 0.6,
+        min_radius: 0.4,
         emit_circles: false,
     }
     .write(&mut s, scene);
     s.push_str("</svg>");
     s
+}
+
+/// Full-sheet export in world LU: no viewport crop, no white background, circles and smart holes.
+pub fn scene_to_export_svg(scene: &Scene, margin: f32) -> String {
+    let margin = margin.max(0.0);
+    let Some((minx, miny, maxx, maxy)) = scene_bounds(scene) else {
+        return r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="0 0 1 1" fill="none"></svg>"#
+            .into();
+    };
+    let x0 = minx - margin;
+    let y0 = miny - margin;
+    let w = (maxx - minx + 2.0 * margin).max(1.0);
+    let h = (maxy - miny + 2.0 * margin).max(1.0);
+    let writer = SvgWriter {
+        tx: |x: f32, y: f32| (x, y),
+        stroke_scale: 1.0,
+        min_stroke: 0.0,
+        min_radius: 0.0,
+        emit_circles: true,
+    };
+    let mut out = format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.2}" height="{h:.2}" viewBox="{x0:.2} {y0:.2} {w:.2} {h:.2}" fill="none">"#
+    );
+    write_export_hole_defs(&mut out, scene, x0, y0, w, h);
+    let n = scene.layer_count();
+    if n == 0 {
+        writer.write(&mut out, scene);
+    } else {
+        write_export_layers(&mut out, scene, &writer, n as isize - 1);
+    }
+    out.push_str("</svg>");
+    out
+}
+
+fn write_export_hole_defs(out: &mut String, scene: &Scene, x0: f32, y0: f32, w: f32, h: f32) {
+    let n = scene.layer_count();
+    let mut any = false;
+    for i in 0..n {
+        if !Scene::layer_items(&scene.layer_hole_end, &scene.pad_holes, i).is_empty() {
+            any = true;
+            break;
+        }
+    }
+    if !any {
+        return;
+    }
+    out.push_str("<defs>");
+    for i in 0..n {
+        let holes = Scene::layer_items(&scene.layer_hole_end, &scene.pad_holes, i);
+        if holes.is_empty() {
+            continue;
+        }
+        out.push_str(&format!(
+            r#"<mask id="export-h{i}" maskUnits="userSpaceOnUse" x="{x0:.2}" y="{y0:.2}" width="{w:.2}" height="{h:.2}">"#
+        ));
+        out.push_str(&format!(
+            r#"<rect x="{x0:.2}" y="{y0:.2}" width="{w:.2}" height="{h:.2}" fill="white"/>"#
+        ));
+        for hole in holes {
+            write_hole_circle(out, hole, "black");
+        }
+        out.push_str("</mask>");
+    }
+    out.push_str("</defs>");
+}
+
+fn write_export_layers(
+    out: &mut String,
+    scene: &Scene,
+    writer: &SvgWriter<impl Fn(f32, f32) -> (f32, f32)>,
+    i: isize,
+) {
+    if i < 0 {
+        return;
+    }
+    let i = i as usize;
+    let holes = Scene::layer_items(&scene.layer_hole_end, &scene.pad_holes, i);
+    if !holes.is_empty() {
+        out.push_str(&format!(r#"<g mask="url(#export-h{i})">"#));
+        write_export_layers(out, scene, writer, i as isize - 1);
+        writer.write_layer(out, scene, i);
+        for hole in holes {
+            write_hole_marker(out, hole);
+        }
+        out.push_str("</g>");
+    } else {
+        write_export_layers(out, scene, writer, i as isize - 1);
+        writer.write_layer(out, scene, i);
+    }
+}
+
+fn write_hole_circle(out: &mut String, hole: &PadHole, fill: &str) {
+    out.push_str(&format!(
+        r#"<circle cx="{:.2}" cy="{:.2}" r="{:.2}" fill="{fill}"/>"#,
+        hole.x, hole.y, hole.r
+    ));
+}
+
+fn write_hole_marker(out: &mut String, hole: &PadHole) {
+    out.push_str(&format!(
+        r#"<circle class="pad-hole" cx="{:.2}" cy="{:.2}" r="{:.2}" fill="none"/>"#,
+        hole.x, hole.y, hole.r
+    ));
 }
 
 fn scene_bounds(scene: &Scene) -> Option<(f32, f32, f32, f32)> {
@@ -140,6 +282,10 @@ fn scene_bounds(scene: &Scene) -> Option<(f32, f32, f32, f32)> {
     }
     for v in &scene.fills {
         include(v.x, v.y);
+    }
+    for hole in &scene.pad_holes {
+        include(hole.x - hole.r, hole.y - hole.r);
+        include(hole.x + hole.r, hole.y + hole.r);
     }
     if empty {
         None
@@ -220,6 +366,7 @@ fn write_scene_svg(
         tx,
         stroke_scale: scale,
         min_stroke: if scale < 1.5 { 0.175 } else { 0.575 },
+        min_radius: 0.4,
         emit_circles: true,
     }
     .write(out, scene);

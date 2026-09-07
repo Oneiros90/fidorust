@@ -27,15 +27,11 @@
 		{/each}
 	</MenuSubmenu>
 </MenuSubmenu>
-<MenuSubmenu label={app.t.save}>
-	<MenuItem label={app.t.saveFcd} shortcut="Ctrl+S" onclick={app.saveFile} />
-	<MenuItem label={app.t.saveSvg} onclick={app.exportSvg} />
-	<MenuItem label={app.t.savePng} onclick={app.exportPng} />
-	<MenuItem label={app.t.savePdf} onclick={app.exportPdf} />
-</MenuSubmenu>
+<MenuItem label={app.t.save} shortcut="Ctrl+S" onclick={app.saveFile} />
+<MenuItem label={app.t.export} onclick={() => app.openExport('svg')} />
 <MenuSubmenu label={app.t.share}>
 	<MenuItem label={app.t.shareLink} onclick={() => void app.openShareLink()} />
 	<MenuItem label={app.t.shareFcd} onclick={app.openShareFcd} />
 </MenuSubmenu>
 <MenuSeparator />
-<MenuItem label={app.t.print} onclick={app.printDoc} />
+<MenuItem label={app.t.print} onclick={() => app.openExport('print')} />

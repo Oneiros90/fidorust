@@ -90,6 +90,26 @@ impl Scene {
         self.layer_hole_end.push(self.pad_holes.len() as u32);
     }
 
+    pub fn layer_count(&self) -> usize {
+        self.layer_fill_end
+            .len()
+            .max(self.layer_line_end.len())
+            .max(self.layer_circ_end.len())
+            .max(self.layer_hole_end.len())
+    }
+
+    pub fn layer_items<'a, T>(ends: &[u32], items: &'a [T], i: usize) -> &'a [T] {
+        let start = if i == 0 {
+            0
+        } else {
+            ends.get(i - 1).copied().unwrap_or(0) as usize
+        };
+        let end = ends.get(i).copied().unwrap_or(start as u32) as usize;
+        let end = end.min(items.len());
+        let start = start.min(end);
+        &items[start..end]
+    }
+
     pub fn push_line(&mut self, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
         self.push_line_f(
             a.x as f32, a.y as f32, b.x as f32, b.y as f32, w, rgb, selected,

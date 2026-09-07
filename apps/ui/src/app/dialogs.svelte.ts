@@ -1,4 +1,5 @@
 import type { PropFormField } from '../lib/propForm';
+import type { ExportFormat } from '../lib/exportOptions';
 
 export type DialogState =
 	| { kind: 'deleteLayer'; index: number }
@@ -8,7 +9,8 @@ export type DialogState =
 	| { kind: 'error'; message: string }
 	| { kind: 'discard' }
 	| { kind: 'shareLink'; url: string }
-	| { kind: 'shareFcd'; text: string };
+	| { kind: 'shareFcd'; text: string }
+	| { kind: 'export'; format: ExportFormat };
 
 /**
  * Single dialog slot. Kind `deleteLayer` is listed first: Escape used to clear

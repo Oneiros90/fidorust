@@ -11,6 +11,8 @@
 		onSubmit,
 		ignoreEnterOnButton = true,
 		maxWidth = '720px',
+		maxHeight = '80vh',
+		overflow = 'auto',
 		children,
 		actions
 	}: {
@@ -23,6 +25,8 @@
 		onSubmit?: () => void;
 		ignoreEnterOnButton?: boolean;
 		maxWidth?: string;
+		maxHeight?: string;
+		overflow?: string;
 		children: Snippet;
 		actions?: Snippet;
 	} = $props();
@@ -46,7 +50,12 @@
 <svelte:window onkeydown={onClose || onSubmit ? onKey : undefined} />
 
 <div class="modal" role="dialog" aria-modal="true" aria-labelledby={labelId}>
-	<div class="card" style:--card-max={maxWidth}>
+	<div
+		class="card"
+		style:--card-max={maxWidth}
+		style:--card-max-h={maxHeight}
+		style:--card-overflow={overflow}
+	>
 		{#if title}
 			{#if closable}
 				<div class="card-head">
@@ -79,8 +88,8 @@
 		border-radius: 12px;
 		max-width: var(--card-max);
 		width: min(var(--card-max), 92vw);
-		max-height: 80vh;
-		overflow: auto;
+		max-height: var(--card-max-h);
+		overflow: var(--card-overflow);
 		box-shadow: var(--shadow);
 	}
 	.card-head {

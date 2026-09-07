@@ -17,6 +17,7 @@ import * as share from './shareOps';
 import * as edit from './editCommands';
 import { LibraryDragSession, getCursor } from './libraryDrag.svelte';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
+import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 
 export type { RecentEntry };
 export type { LibGhost };
@@ -255,10 +256,8 @@ export class AppSession {
 	requestNewDoc = () => files.requestNewDoc(this);
 	newDoc = () => files.newDoc(this);
 	saveFile = () => files.saveFile(this);
-	exportSvg = () => files.exportSvg(this);
-	exportPng = () => files.exportPng(this);
-	exportPdf = () => files.exportPdf(this);
-	printDoc = () => files.printDoc(this);
+	openExport = (format: ExportFormat) => files.openExport(this, format);
+	confirmExport = (opts: ExportPreviewOpts, svg: string) => files.confirmExport(this, opts, svg);
 	copyFcd = () => clip.copyFcd(this);
 	cutFcd = () => clip.cutFcd(this);
 	pasteFcd = () => clip.pasteFcd(this);

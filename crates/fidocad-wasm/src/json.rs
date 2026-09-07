@@ -1,7 +1,7 @@
 //! JSON DTOs for the WASM ↔ UI bridge.
 
 use fidocad_core::{Document, Editor, TextEditSession, Tool};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub fn to_json<T: Serialize>(v: &T, fallback: &'static str) -> String {
     serde_json::to_string(v).unwrap_or_else(|_| fallback.into())
@@ -94,4 +94,21 @@ pub struct MacroCursorDto {
     pub oy: f32,
     pub w: f32,
     pub h: f32,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct ExportSvgOpts {
+    #[serde(default)]
+    pub margin_lu: f32,
+    #[serde(default)]
+    pub bw: bool,
+    #[serde(default)]
+    pub layers: Vec<ExportLayerOpt>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ExportLayerOpt {
+    pub show: bool,
+    #[serde(default)]
+    pub invert: bool,
 }

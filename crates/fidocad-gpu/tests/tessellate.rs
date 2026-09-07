@@ -183,6 +183,56 @@ fn macro_cursor_svg_has_hotspot() {
 }
 
 #[test]
+fn export_svg_includes_ellipses_and_smart_holes() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives
+        .push(fidocad_core::Primitive::Ellipse(Ellipse {
+            a: fidocad_core::Point::new(0, 0),
+            b: fidocad_core::Point::new(40, 20),
+            filled: false,
+            layer: fidocad_core::LayerId(0),
+        }));
+    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
+        pos: fidocad_core::Point::new(80, 40),
+        dx: 20,
+        dy: 20,
+        hole: 8,
+        style: fidocad_core::primitive::PadStyle::Oval,
+        layer: fidocad_core::LayerId(0),
+    }));
+    doc.primitives
+        .push(fidocad_core::Primitive::PcbTrack(PcbTrack {
+            a: fidocad_core::Point::new(60, 40),
+            b: fidocad_core::Point::new(100, 40),
+            width: 10,
+            layer: fidocad_core::LayerId(0),
+        }));
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_doc(doc);
+    let svg = fidocad_gpu::scene_to_export_svg(
+        &fidocad_gpu::tessellate_export(&ed, &ed.doc().layers),
+        4.0,
+    );
+    assert!(svg.contains("<ellipse"), "round figures must be exported");
+    assert!(
+        svg.contains("fill=\"none\""),
+        "stroked ellipses must not default-fill"
+    );
+    assert!(
+        svg.contains("pad-hole") && svg.contains("mask"),
+        "smart holes need a mask plus pad-hole markers"
+    );
+    assert!(
+        !svg.contains(r#"<rect width="100%" height="100%" fill="white"/>"#),
+        "export must not paint a white page background"
+    );
+    assert!(
+        !svg.contains("viewBox=\"0 0 800"),
+        "must not use the canvas viewport"
+    );
+}
+
+#[test]
 fn pending_macro_ghost_appears_at_hover() {
     let mut ed = Editor::new(builtin_libraries());
     ed.set_tool(Tool::Macro);

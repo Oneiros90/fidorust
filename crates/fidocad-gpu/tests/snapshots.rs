@@ -3,8 +3,8 @@ mod common;
 use fidocad_core::parse::builtin_libraries;
 use fidocad_core::{Editor, Point, Text};
 use fidocad_gpu::{
-    scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, tessellate_primitives, tessellate_view,
-    Scene,
+    scene_to_cursor_svg, scene_to_export_svg, scene_to_svg, scene_to_thumb_svg, tessellate_export,
+    tessellate_primitives, tessellate_view, Scene,
 };
 
 fn scene_digest(scene: &Scene) -> String {
@@ -33,6 +33,8 @@ fn snapshot_tessellate_alimentatore() {
     common::assert_snapshot("alimentatore_view.txt", &scene_digest(&scene));
     let svg = scene_to_svg(&scene, 800.0, 600.0, ed.zoom(), ed.pan());
     common::assert_snapshot("alimentatore_export.svg", &svg);
+    let export = scene_to_export_svg(&tessellate_export(&ed, &ed.doc().layers), 8.0);
+    common::assert_snapshot("alimentatore_full_export.svg", &export);
 }
 
 #[test]

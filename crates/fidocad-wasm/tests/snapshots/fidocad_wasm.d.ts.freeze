@@ -17,7 +17,10 @@ export class App {
      * `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
      */
     delete_layer(n: number, mode: string, move_to: number): void;
-    export_svg(): string;
+    /**
+     * `opts_json` is `{ margin_lu, bw, layers: [{ show, invert }] }`. Empty / invalid JSON uses document layers.
+     */
+    export_svg(opts_json: string): string;
     fit(): void;
     invert_selection(): void;
     key(key: string, meta: boolean): boolean;
@@ -86,7 +89,7 @@ export interface InitOutput {
     readonly app_commit_text_edit: (a: number, b: number, c: number) => void;
     readonly app_dblclick: (a: number, b: number, c: number) => [number, number];
     readonly app_delete_layer: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly app_export_svg: (a: number) => [number, number];
+    readonly app_export_svg: (a: number, b: number, c: number) => [number, number];
     readonly app_fit: (a: number) => void;
     readonly app_invert_selection: (a: number) => void;
     readonly app_key: (a: number, b: number, c: number, d: number) => number;

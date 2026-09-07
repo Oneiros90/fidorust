@@ -7,14 +7,14 @@ use fidocad_core::parse::builtin_libraries;
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{Editor, EditorError, PropPatch, SaveOptions, Tool};
 use fidocad_gpu::tessellate::{
-    scene_to_svg, scene_to_thumb_svg, tessellate_editor, tessellate_primitives,
+    scene_to_export_svg, scene_to_thumb_svg, tessellate_export, tessellate_primitives,
 };
 use render_backend::Backend;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
-use json::{text_edit_json, to_json, MacroCursorDto, StatusDto};
+use json::{text_edit_json, to_json, ExportSvgOpts, MacroCursorDto, StatusDto};
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&err.to_string())
@@ -126,16 +126,39 @@ impl App {
         }
     }
 
+    /// `opts_json` is `{ margin_lu, bw, layers: [{ show, invert }] }`. Empty / invalid JSON uses document layers.
     #[wasm_bindgen]
-    pub fn export_svg(&self) -> String {
-        let scene = tessellate_editor(&self.editor);
-        scene_to_svg(
-            &scene,
-            self.width,
-            self.height,
-            self.editor.zoom(),
-            self.editor.pan(),
-        )
+    pub fn export_svg(&self, opts_json: &str) -> String {
+        let opts: ExportSvgOpts = serde_json::from_str(opts_json).unwrap_or_default();
+        let mut layers = self.editor.doc().layers.clone();
+        if opts.layers.is_empty() {
+            if opts.bw {
+                for i in 0..layers.len() {
+                    layers.update(i, |info| {
+                        if info.show {
+                            info.color = [0, 0, 0];
+                        }
+                    });
+                }
+            }
+        } else {
+            for (i, overlay) in opts.layers.iter().enumerate() {
+                layers.update(i, |info| {
+                    info.show = overlay.show;
+                    if opts.bw {
+                        info.color = [0, 0, 0];
+                    } else if overlay.invert {
+                        info.color = [
+                            255 - info.color[0],
+                            255 - info.color[1],
+                            255 - info.color[2],
+                        ];
+                    }
+                });
+            }
+        }
+        let scene = tessellate_export(&self.editor, &layers);
+        scene_to_export_svg(&scene, opts.margin_lu.max(0.0))
     }
 
     #[wasm_bindgen]

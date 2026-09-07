@@ -18,7 +18,9 @@ use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
 use crate::theme::Rgb;
 
 pub use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
-pub use crate::svg::{scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg};
+pub use crate::svg::{
+    scene_to_cursor_svg, scene_to_export_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg,
+};
 
 const PCB_TRACK_CAP_SEGS: u32 = 24;
 
@@ -307,6 +309,17 @@ pub fn tessellate_editor(ed: &Editor) -> Scene {
         TessellateInput::from_editor(ed, None, false),
         &DraftParams::from_editor(ed),
     )
+}
+
+/// Flattened document geometry for file export: no draft, selection, handles, or pending macros.
+pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
+    let expanded: Vec<Primitive> = ed
+        .doc()
+        .primitives
+        .iter()
+        .flat_map(|p| fidocad_core::library::expand_primitive(p, ed.libs()))
+        .collect();
+    tessellate_primitives(&expanded, layers, false)
 }
 
 pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {

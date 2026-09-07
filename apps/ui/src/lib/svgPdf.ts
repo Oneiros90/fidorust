@@ -1,4 +1,6 @@
-import { PDF_MAX_PT } from './constants';
+import { A4_PT, LETTER_PT, PDF_MAX_PT, PT_PER_LU } from './constants';
+import type { PdfPage } from './exportOptions';
+import { parseSvgPrims, parseSvgViewBox, type SvgPrim } from './svgGeom';
 
 function concat(parts: Uint8Array[]): Uint8Array {
 	let len = 0;
@@ -20,47 +22,114 @@ function rgb(r: number, g: number, b: number): string {
 	return `${n(r / 255)} ${n(g / 255)} ${n(b / 255)}`;
 }
 
-function parseSvgSize(svg: string): { w: number; h: number } {
-	const m = svg.match(/<svg[^>]*\bwidth="([\d.]+)"[^>]*\bheight="([\d.]+)"/);
-	if (!m) throw new Error('Invalid SVG');
-	const w = Number(m[1]);
-	const h = Number(m[2]);
-	if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0)
-		throw new Error('Invalid SVG size');
-	return { w, h };
+const KAPPA = 0.5522847498307936;
+
+export type PdfExportOpts = {
+	page?: PdfPage;
+	landscape?: boolean;
+	scale?: number;
+};
+
+export type PdfLayout = {
+	pageW: number;
+	pageH: number;
+	scale: number;
+	ox: number;
+	oy: number;
+};
+
+export function pdfLayout(svg: string, opts: PdfExportOpts = {}): PdfLayout {
+	const box = parseSvgViewBox(svg);
+	const userScale = opts.scale && opts.scale > 0 ? opts.scale : 1;
+	const page = opts.page ?? 'drawing';
+	if (page === 'drawing') {
+		const s = PT_PER_LU * userScale;
+		let pageW = Math.max(1, box.w * s);
+		let pageH = Math.max(1, box.h * s);
+		const maxPt = PDF_MAX_PT;
+		const fit = Math.min(1, maxPt / Math.max(pageW, pageH, 1));
+		pageW *= fit;
+		pageH *= fit;
+		return { pageW, pageH, scale: s * fit, ox: 0, oy: 0 };
+	}
+	const paper = page === 'letter' ? LETTER_PT : A4_PT;
+	const pageW = opts.landscape ? paper.h : paper.w;
+	const pageH = opts.landscape ? paper.w : paper.h;
+	const margin = 18;
+	const innerW = Math.max(1, pageW - 2 * margin);
+	const innerH = Math.max(1, pageH - 2 * margin);
+	const s = Math.min(innerW / box.w, innerH / box.h) * userScale;
+	const ox = margin + (innerW - box.w * s) / 2;
+	const oy = margin + (innerH - box.h * s) / 2;
+	return { pageW, pageH, scale: s, ox, oy };
 }
 
-function svgToContentStream(svg: string, pageW: number, pageH: number, scale: number): string {
-	const py = (y: number) => pageH - y * scale;
-	const px = (x: number) => x * scale;
-	const parts: string[] = ['1 1 1 rg', `0 0 ${n(pageW)} ${n(pageH)} re`, 'f'];
+function ellipseOps(
+	cx: number,
+	cy: number,
+	rx: number,
+	ry: number,
+	px: (x: number) => number,
+	py: (y: number) => number
+): string[] {
+	const ox = rx * KAPPA;
+	const oy = ry * KAPPA;
+	const p = (x: number, y: number) => `${n(px(x))} ${n(py(y))}`;
+	return [
+		`${p(cx + rx, cy)} m`,
+		`${p(cx + rx, cy - oy)} ${p(cx + ox, cy - ry)} ${p(cx, cy - ry)} c`,
+		`${p(cx - ox, cy - ry)} ${p(cx - rx, cy - oy)} ${p(cx - rx, cy)} c`,
+		`${p(cx - rx, cy + oy)} ${p(cx - ox, cy + ry)} ${p(cx, cy + ry)} c`,
+		`${p(cx + ox, cy + ry)} ${p(cx + rx, cy + oy)} ${p(cx + rx, cy)} c`
+	];
+}
 
-	const polyRe = /<polygon points="([^"]+)" fill="rgb\((\d+),(\d+),(\d+)\)"\/>/g;
-	for (const m of svg.matchAll(polyRe)) {
-		const pts = m[1]
-			.trim()
-			.split(/\s+/)
-			.map((p) => {
-				const [x, y] = p.split(',').map(Number);
-				return [px(x), py(y)] as const;
-			});
-		if (pts.length < 3) continue;
-		parts.push(`${rgb(+m[2], +m[3], +m[4])} rg`);
+function emitPrim(
+	prim: SvgPrim,
+	parts: string[],
+	px: (x: number) => number,
+	py: (y: number) => number,
+	scale: number
+) {
+	if (prim.kind === 'polygon') {
+		const pts = prim.pts.map(([x, y]) => [px(x), py(y)] as const);
+		parts.push(`${rgb(prim.r, prim.g, prim.b)} rg`);
 		parts.push(`${n(pts[0][0])} ${n(pts[0][1])} m`);
 		for (let i = 1; i < pts.length; i++) parts.push(`${n(pts[i][0])} ${n(pts[i][1])} l`);
 		parts.push('h f');
+		return;
 	}
-
-	const lineRe =
-		/<line x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)" stroke="rgb\((\d+),(\d+),(\d+)\)" stroke-width="([^"]+)"[^/]*\/>/g;
-	parts.push('1 J');
-	for (const m of svg.matchAll(lineRe)) {
-		const w = Number(m[8]) * scale;
-		parts.push(`${rgb(+m[5], +m[6], +m[7])} RG`);
-		parts.push(`${n(Math.max(w, 0.2))} w`);
-		parts.push(`${n(px(+m[1]))} ${n(py(+m[2]))} m ${n(px(+m[3]))} ${n(py(+m[4]))} l S`);
+	if (prim.kind === 'line') {
+		const w = Math.max(prim.width * scale, 0.2);
+		parts.push(`${rgb(prim.r, prim.g, prim.b)} RG`);
+		parts.push(`${n(w)} w`);
+		parts.push(`${n(px(prim.x1))} ${n(py(prim.y1))} m ${n(px(prim.x2))} ${n(py(prim.y2))} l S`);
+		return;
 	}
+	if (prim.kind === 'ellipse') {
+		const ops = ellipseOps(prim.cx, prim.cy, prim.rx, prim.ry, px, py);
+		if (prim.fill) {
+			parts.push(`${rgb(prim.fill[0], prim.fill[1], prim.fill[2])} rg`);
+			parts.push(...ops, 'h f');
+		}
+		if (prim.stroke) {
+			parts.push(`${rgb(prim.stroke[0], prim.stroke[1], prim.stroke[2])} RG`);
+			parts.push(`${n(Math.max(prim.strokeWidth * scale, 0.2))} w`);
+			parts.push(...ops, 's');
+		}
+		return;
+	}
+	parts.push('1 1 1 rg');
+	parts.push(...ellipseOps(prim.cx, prim.cy, prim.r, prim.r, px, py), 'h f');
+}
 
+function svgToContentStream(svg: string, layout: PdfLayout): string {
+	const box = parseSvgViewBox(svg);
+	const { pageW, pageH, scale, ox, oy } = layout;
+	const px = (x: number) => ox + (x - box.x) * scale;
+	const py = (y: number) => pageH - (oy + (y - box.y) * scale);
+	const parts: string[] = ['1 1 1 rg', `0 0 ${n(pageW)} ${n(pageH)} re`, 'f', '1 J', '1 j'];
+	for (const prim of parseSvgPrims(svg)) emitPrim(prim, parts, px, py, scale);
 	return parts.join('\n') + '\n';
 }
 
@@ -101,14 +170,10 @@ function wrapPdf(pageW: number, pageH: number, content: Uint8Array): Uint8Array 
 	return concat([...chunks, tail]);
 }
 
-export function svgToPdfBlob(svg: string): Blob {
-	const { w, h } = parseSvgSize(svg);
-	const maxPt = PDF_MAX_PT;
-	const scale = Math.min(1, maxPt / Math.max(w, h, 1));
-	const pageW = Math.max(1, w * scale);
-	const pageH = Math.max(1, h * scale);
-	const content = new TextEncoder().encode(svgToContentStream(svg, pageW, pageH, scale));
-	const pdf = wrapPdf(pageW, pageH, content);
+export function svgToPdfBlob(svg: string, opts: PdfExportOpts = {}): Blob {
+	const layout = pdfLayout(svg, opts);
+	const content = new TextEncoder().encode(svgToContentStream(svg, layout));
+	const pdf = wrapPdf(layout.pageW, layout.pageH, content);
 	const copy = new Uint8Array(pdf.byteLength);
 	copy.set(pdf);
 	return new Blob([copy.buffer], { type: 'application/pdf' });

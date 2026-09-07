@@ -8,6 +8,7 @@
 	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
+	import ExportPreviewDialog from '../dialogs/ExportPreviewDialog.svelte';
 	import MacroGhost from '../library/MacroGhost.svelte';
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
@@ -80,4 +81,6 @@
 	<ShareLinkDialog url={dialog.url} />
 {:else if dialog?.kind === 'shareFcd'}
 	<ShareFcdDialog text={dialog.text} />
+{:else if dialog?.kind === 'export'}
+	<ExportPreviewDialog format={dialog.format} />
 {/if}
