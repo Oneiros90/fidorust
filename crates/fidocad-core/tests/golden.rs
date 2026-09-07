@@ -340,3 +340,156 @@ fn snap_xy_independent_and_disable() {
     ed.snap_enable = false;
     assert_eq!(ed.snap_pt(Point::new(14, 8)), Point::new(14, 8));
 }
+
+#[test]
+fn file_without_ld_uses_four_fidocad_layers() {
+    let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\nLI 0 0 10 10 1\n").unwrap();
+    assert_eq!(doc.layers.len(), 4);
+    assert_eq!(doc.layers.layers[0].name, "Schema");
+    assert_eq!(doc.layers.layers[1].name, "PCB lato rame");
+    assert_eq!(doc.layers.layers[1].color, [0, 0, 192]);
+}
+
+#[test]
+fn file_without_ld_pads_generic_layers() {
+    let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10 6\n").unwrap();
+    assert_eq!(doc.layers.len(), 7);
+    assert_eq!(doc.layers.layers[6].name, "Layer 7");
+    match &doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 6),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn ld_lines_replace_defaults() {
+    let src = "[FIDOCAD]\nLD 10 20 30 0 Bottom copper\nLD 255 0 0 1 Top\nLI 0 0 10 10 1\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.layers.len(), 2);
+    assert_eq!(doc.layers.layers[0].name, "Bottom copper");
+    assert_eq!(doc.layers.layers[0].color, [10, 20, 30]);
+    assert!(!doc.layers.layers[0].show);
+    assert_eq!(doc.layers.layers[1].name, "Top");
+    assert!(doc.layers.layers[1].show);
+    match &doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn ld_out_of_range_primitive_clamps_to_zero() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Only\nLI 0 0 10 10 3\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.layers.len(), 1);
+    match &doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn serialize_writes_ld_and_roundtrips() {
+    let src = "[FIDOCAD Title]\nLD 1 2 3 0 Hidden sheet\nLD 0 80 200 1 Rame\nLI 1 2 3 4 1\n";
+    let doc = parse_document(src).unwrap();
+    let out = serialize_document(&doc, SaveOptions::default(), None);
+    assert!(out.starts_with("[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\n"));
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.layers.layers.len(), doc2.layers.layers.len());
+    assert_eq!(doc.layers.layers[0].name, doc2.layers.layers[0].name);
+    assert_eq!(doc.layers.layers[0].show, doc2.layers.layers[0].show);
+    assert_eq!(doc.primitives.len(), doc2.primitives.len());
+}
+
+#[test]
+fn new_document_has_four_fallback_layers() {
+    let d = Document::default();
+    assert_eq!(d.layers.len(), 4);
+    let s = serialize_document(&d, SaveOptions::default(), None);
+    assert!(s.contains("LD 0 0 0 1 Schema"));
+    assert!(s.contains("LD 0 0 192 1 PCB lato rame"));
+}
+
+#[test]
+fn delete_layer_remaps_and_can_move_objects() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(1),
+    });
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 5),
+        b: Point::new(10, 5),
+        layer: LayerId(2),
+    });
+    assert!(ed.delete_layer(1, Some(0)));
+    assert_eq!(ed.doc.layers.len(), 3);
+    match &ed.doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        _ => panic!(),
+    }
+    match &ed.doc.primitives[1] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn delete_layer_drops_objects() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(1),
+    });
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 5),
+        b: Point::new(10, 5),
+        layer: LayerId(0),
+    });
+    assert!(ed.delete_layer(1, None));
+    assert_eq!(ed.doc.primitives.len(), 1);
+    match &ed.doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn reorder_layer_remaps_primitive_ids() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    });
+    ed.doc.insert(Primitive::Line {
+        a: Point::new(0, 5),
+        b: Point::new(10, 5),
+        layer: LayerId(2),
+    });
+    let name0 = ed.doc.layers.layers[0].name.clone();
+    let name2 = ed.doc.layers.layers[2].name.clone();
+    assert!(ed.reorder_layer(2, 0));
+    assert_eq!(ed.doc.layers.layers[0].name, name2);
+    assert_eq!(ed.doc.layers.layers[1].name, name0);
+    match &ed.doc.primitives[0] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 1),
+        _ => panic!(),
+    }
+    match &ed.doc.primitives[1] {
+        Primitive::Line { layer, .. } => assert_eq!(layer.0, 0),
+        _ => panic!(),
+    }
+}
+
+#[test]
+fn cannot_delete_last_layer() {
+    let mut ed = Editor::new(builtin_libraries());
+    while ed.doc.layers.len() > 1 {
+        assert!(ed.delete_layer(0, None));
+    }
+    assert!(!ed.delete_layer(0, None));
+    assert_eq!(ed.doc.layers.len(), 1);
+}

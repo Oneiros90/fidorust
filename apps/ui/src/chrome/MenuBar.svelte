@@ -6,7 +6,6 @@
 	import MenuDropdown from '../menus/MenuDropdown.svelte';
 	import OptionsMenu from '../menus/OptionsMenu.svelte';
 	import ViewMenu from '../menus/ViewMenu.svelte';
-	import LayerSelect from './LayerSelect.svelte';
 
 	const app = getAppSession();
 </script>
@@ -29,7 +28,6 @@
 	<MenuDropdown id="options" label={app.t.options}><OptionsMenu /></MenuDropdown>
 	<MenuDropdown id="help" label={app.t.help}><HelpMenu /></MenuDropdown>
 	<div class="grow"></div>
-	<LayerSelect />
 </header>
 
 <style>

@@ -52,9 +52,12 @@ declare module './wasm/fidocad_wasm.js' {
 		set_locale(loc: string): void;
 		set_theme(theme: string): void;
 		set_layer_show(n: number, show: boolean): void;
-		set_layer_print(n: number, print: boolean): void;
 		set_layer_name(n: number, name: string): void;
 		set_layer_color(n: number, r: number, g: number, b: number): void;
+		add_layer(): void;
+		delete_layer(n: number, mode: string, move_to: number): void;
+		reorder_layer(from: number, to: number): void;
+		layer_object_count(n: number): number;
 		status_json(): string;
 		library_json(): string;
 		layers_json(): string;
@@ -114,9 +117,12 @@ declare module '../wasm/fidocad_wasm.js' {
     set_locale(loc: string): void;
     set_theme(theme: string): void;
     set_layer_show(n: number, show: boolean): void;
-    set_layer_print(n: number, print: boolean): void;
     set_layer_name(n: number, name: string): void;
     set_layer_color(n: number, r: number, g: number, b: number): void;
+    add_layer(): void;
+    delete_layer(n: number, mode: string, move_to: number): void;
+    reorder_layer(from: number, to: number): void;
+    layer_object_count(n: number): number;
     status_json(): string;
     library_json(): string;
     layers_json(): string;

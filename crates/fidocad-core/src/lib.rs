@@ -14,7 +14,7 @@ pub mod serialize;
 pub use commands::{Command, Editor, TextEditSession, Tool};
 pub use document::{Document, SaveOptions};
 pub use geom::{Aabb, Point, Transform};
-pub use layers::{LayerId, LayerSet, LAYER_COUNT, MICRON_PER_LU};
+pub use layers::{LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
 pub use library::{Library, LibrarySet, MacroDef};
 pub use parse::{parse_document, parse_library, ParseError};
 pub use primitive::{PadStyle, Primitive, PrimitiveKind};

@@ -3,7 +3,6 @@
 #![cfg(target_arch = "wasm32")]
 
 use crate::tessellate::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
-use fidocad_core::layers::LAYER_COUNT;
 use glow::{Context, HasContext};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;
@@ -528,7 +527,7 @@ impl Renderer {
                 );
             }
 
-            for i in 0..LAYER_COUNT {
+            for i in 0..scene.layer_fill_end.len() {
                 let (f0, fn_) = layer_span(i, &scene.layer_fill_end);
                 if fn_ > 0 {
                     gl.use_program(Some(self.fill_prog));
@@ -619,7 +618,7 @@ unsafe fn set4(gl: &Context, prog: glow::Program, name: &str, v: [f32; 4]) {
     gl.uniform_4_f32(loc.as_ref(), v[0], v[1], v[2], v[3]);
 }
 
-fn layer_span(i: usize, ends: &[u32; LAYER_COUNT]) -> (i32, i32) {
+fn layer_span(i: usize, ends: &[u32]) -> (i32, i32) {
     let start = if i == 0 { 0 } else { ends[i - 1] };
     (start as i32, (ends[i] - start) as i32)
 }

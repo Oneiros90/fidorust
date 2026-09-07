@@ -1,7 +1,7 @@
 //! Serialize a document back to FidoCAD 0.96 text (CRLF, omit layer 0).
 
 use crate::document::{Document, SaveOptions};
-use crate::layers::LayerId;
+use crate::layers::{LayerId, LayerInfo};
 use crate::library::LibrarySet;
 use crate::primitive::Primitive;
 
@@ -174,6 +174,17 @@ fn p_expand(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
     crate::library::expand_primitive(p, libs)
 }
 
+pub fn serialize_layer(info: &LayerInfo) -> String {
+    format!(
+        "LD {} {} {} {} {}\r\n",
+        info.color[0],
+        info.color[1],
+        info.color[2],
+        if info.show { 1 } else { 0 },
+        info.name
+    )
+}
+
 pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&LibrarySet>) -> String {
     let mut out = String::new();
     if doc.title.is_empty() {
@@ -182,6 +193,9 @@ pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&Libra
         out.push_str("[FIDOCAD ");
         out.push_str(&doc.title);
         out.push_str("]\r\n");
+    }
+    for layer in &doc.layers.layers {
+        out.push_str(&serialize_layer(layer));
     }
     for p in &doc.primitives {
         for q in expand_for_save(p, libs, opts.split_nonstandard_macros) {

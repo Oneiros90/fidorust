@@ -7,7 +7,7 @@
 	import MenuBar from './chrome/MenuBar.svelte';
 	import StatusBar from './chrome/StatusBar.svelte';
 	import ToolSidebar from './chrome/ToolSidebar.svelte';
-	import LibraryPanel from './library/LibraryPanel.svelte';
+	import RightSidebar from './chrome/RightSidebar.svelte';
 
 	const app = new AppSession();
 	setAppSession(app);
@@ -34,7 +34,7 @@
 	<div class="body">
 		<ToolSidebar />
 		<CanvasHost />
-		<LibraryPanel />
+		<RightSidebar />
 	</div>
 	<StatusBar />
 </div>

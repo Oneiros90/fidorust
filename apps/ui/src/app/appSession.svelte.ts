@@ -35,7 +35,11 @@ export class AppSession {
 	status = $state<Status>(defaultStatus());
 	libs = $state<LibraryEntry[]>([]);
 	layers = $state<LayersData>({ layers: [] });
-	showLayers = $state(false);
+	rightTab = $state<'layers' | 'library'>('library');
+	rightCollapsed = $state(
+		typeof matchMedia === 'function' && matchMedia('(max-width: 768px)').matches
+	);
+	pendingDeleteLayer = $state<number | null>(null);
 	showAbout = $state(false);
 	showGridDlg = $state(false);
 	showPropsDlg = $state(false);
@@ -45,7 +49,12 @@ export class AppSession {
 	error = $state('');
 	fileHandleName = $state('untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
-	ctxMenu = $state<{ x: number; y: number } | null>(null);
+	ctxMenu = $state<
+		| { kind: 'edit'; x: number; y: number }
+		| { kind: 'layer'; x: number; y: number; index: number }
+		| null
+	>(null);
+	editingLayerName = $state<number | null>(null);
 	libGhost = $state<LibGhost | null>(null);
 	cursorCache = new SvelteMap<string, MacroCursor>();
 	recents = $state<RecentEntry[]>(loadRecents());
@@ -79,7 +88,20 @@ export class AppSession {
 
 	openContextMenu = (x: number, y: number) => {
 		this.menu = null;
-		this.ctxMenu = { x, y };
+		this.editingLayerName = null;
+		this.ctxMenu = { kind: 'edit', x, y };
+	};
+
+	openLayerContextMenu = (x: number, y: number, index: number) => {
+		this.menu = null;
+		this.editingLayerName = null;
+		this.ctxMenu = { kind: 'layer', x, y, index };
+		this.setLayer(index);
+	};
+
+	beginRenameLayer = (index: number) => {
+		this.ctxMenu = null;
+		this.editingLayerName = index;
 	};
 
 	applyTheme = () => {
@@ -122,8 +144,8 @@ export class AppSession {
 	};
 
 	onKey = (e: KeyboardEvent) => {
-		if (e.key === 'Escape' && this.showLayers) {
-			this.showLayers = false;
+		if (e.key === 'Escape' && this.pendingDeleteLayer !== null) {
+			this.pendingDeleteLayer = null;
 			e.preventDefault();
 			return;
 		}
@@ -139,7 +161,8 @@ export class AppSession {
 			this.error ||
 			this.showDiscardConfirm ||
 			this.showShareLink ||
-			this.shareFcdText
+			this.shareFcdText ||
+			this.pendingDeleteLayer !== null
 		)
 			return;
 		if (e.defaultPrevented) return;
@@ -625,21 +648,58 @@ export class AppSession {
 		this.showGridDlg = false;
 	};
 
+	addLayer = () => {
+		this.engine?.add_layer();
+		this.afterChange();
+	};
+
+	reorderLayer = (from: number, to: number) => {
+		if (from === to) return;
+		this.engine?.reorder_layer(from, to);
+		this.afterChange();
+	};
+
+	requestDeleteLayer = (i: number) => {
+		if (this.layers.layers.length <= 1) return;
+		const n = this.engine?.layer_object_count(i) ?? 0;
+		if (n === 0) {
+			this.engine?.delete_layer(i, 'objects', 0);
+			this.afterChange();
+			return;
+		}
+		this.pendingDeleteLayer = i;
+	};
+
+	confirmDeleteLayer = (mode: 'objects' | 'move', moveTo: number) => {
+		const i = this.pendingDeleteLayer;
+		this.pendingDeleteLayer = null;
+		if (i === null) return;
+		this.applyDeleteLayer(i, mode, moveTo);
+	};
+
+	applyDeleteLayer = (i: number, mode: 'objects' | 'move', moveTo: number) => {
+		this.editingLayerName = null;
+		this.engine?.delete_layer(i, mode, moveTo);
+		this.afterChange();
+	};
+
+	cancelDeleteLayer = () => {
+		this.pendingDeleteLayer = null;
+	};
+
 	setLayerColor = (i: number, r: number, g: number, b: number) => {
 		this.engine?.set_layer_color(i, r, g, b);
-		this.engine?.render();
+		this.afterChange();
 	};
 
 	setLayerName = (i: number, name: string) => {
 		this.engine?.set_layer_name(i, name);
+		this.editingLayerName = null;
+		this.refresh();
 	};
 
 	setLayerShow = (i: number, show: boolean) => {
 		this.engine?.set_layer_show(i, show);
 		this.afterChange();
-	};
-
-	setLayerPrint = (i: number, print: boolean) => {
-		this.engine?.set_layer_print(i, print);
 	};
 }

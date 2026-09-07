@@ -3,7 +3,10 @@
 use crate::document::Document;
 use crate::geom::{snap, Point, Transform};
 use crate::hit::{hit_test, marquee_select};
-use crate::layers::LayerId;
+use crate::layers::{
+    count_on_layer, remap_after_remove, remap_after_reorder, remap_primitive_layers, LayerId,
+    MAX_LAYERS,
+};
 use crate::library::LibrarySet;
 use crate::primitive::{PadStyle, Primitive};
 use crate::properties::{apply_selection_props, selection_props_form, PropPatch};
@@ -270,7 +273,8 @@ impl Editor {
         }
         self.push_undo();
         self.selected.clear();
-        for p in incoming.primitives {
+        for mut p in incoming.primitives {
+            p.set_layer(self.doc.layers.clamp_id(p.layer()));
             let i = self.doc.insert(p);
             self.selected.push(i);
         }
@@ -372,6 +376,7 @@ impl Editor {
     }
 
     pub fn set_selected_layer(&mut self, layer: LayerId) {
+        let layer = self.doc.layers.clamp_id(layer);
         self.push_undo();
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
@@ -864,6 +869,11 @@ impl Editor {
         if !apply_selection_props(&mut targets, &patch) {
             return Ok(());
         }
+        if patch.layer.is_some() {
+            for p in &mut targets {
+                p.set_layer(self.doc.layers.clamp_id(p.layer()));
+            }
+        }
         self.push_undo();
         for (idx, &i) in self.selected.iter().enumerate() {
             if let Some(slot) = self.doc.primitives.get_mut(i) {
@@ -879,8 +889,124 @@ impl Editor {
         self.push_undo();
         self.doc = crate::parse::parse_document(text)?;
         self.selected.clear();
+        self.clamp_current_layer();
         self.fit_view(800.0, 600.0);
         Ok(())
+    }
+
+    fn clamp_current_layer(&mut self) {
+        let max = self.doc.layers.len().saturating_sub(1) as u8;
+        if self.layer.0 > max {
+            self.layer = LayerId(max);
+        }
+    }
+
+    pub fn layer_object_count(&self, index: usize) -> usize {
+        count_on_layer(&self.doc.primitives, LayerId(index as u8))
+    }
+
+    pub fn add_layer(&mut self) -> Option<LayerId> {
+        if self.doc.layers.len() >= MAX_LAYERS {
+            return None;
+        }
+        self.push_undo();
+        let id = self.doc.layers.add()?;
+        self.layer = id;
+        Some(id)
+    }
+
+    /// Remove layer `index`. `move_to` relocates its objects; `None` deletes them.
+    /// Macros are never deleted (they have no layer of their own).
+    pub fn delete_layer(&mut self, index: usize, move_to: Option<usize>) -> bool {
+        let n = self.doc.layers.len();
+        if n <= 1 || index >= n {
+            return false;
+        }
+        if let Some(dest) = move_to {
+            if dest >= n || dest == index {
+                return false;
+            }
+        }
+        self.push_undo();
+        let removed = LayerId(index as u8);
+        if let Some(dest) = move_to {
+            let dest_id = LayerId(dest as u8);
+            for p in &mut self.doc.primitives {
+                if !matches!(p, Primitive::Macro { .. }) && p.layer() == removed {
+                    p.set_layer(dest_id);
+                }
+            }
+        } else {
+            self.doc.primitives.retain(|p| {
+                matches!(p, Primitive::Macro { .. }) || p.layer() != removed
+            });
+        }
+        remap_primitive_layers(&mut self.doc.primitives, |id| {
+            LayerId(remap_after_remove(id.0, index as u8))
+        });
+        self.doc.layers.layers.remove(index);
+        let cur = self.layer.0 as usize;
+        if cur == index {
+            self.layer = LayerId(index.min(self.doc.layers.len() - 1) as u8);
+        } else if cur > index {
+            self.layer = LayerId((cur - 1) as u8);
+        }
+        self.selected.clear();
+        true
+    }
+
+    pub fn reorder_layer(&mut self, from: usize, to: usize) -> bool {
+        let n = self.doc.layers.len();
+        if from >= n || to >= n || from == to {
+            return false;
+        }
+        self.push_undo();
+        let item = self.doc.layers.layers.remove(from);
+        self.doc.layers.layers.insert(to, item);
+        remap_primitive_layers(&mut self.doc.primitives, |id| {
+            LayerId(remap_after_reorder(id.0, from as u8, to as u8))
+        });
+        self.layer = LayerId(remap_after_reorder(self.layer.0, from as u8, to as u8));
+        true
+    }
+
+    pub fn set_layer_show(&mut self, index: usize, show: bool) -> bool {
+        if self.doc.layers.layers.get(index).map(|l| l.show) != Some(show) {
+            if index >= self.doc.layers.len() {
+                return false;
+            }
+            self.push_undo();
+            self.doc.layers.layers[index].show = show;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_layer_name(&mut self, index: usize, name: String) -> bool {
+        if self.doc.layers.layers.get(index).map(|l| l.name.as_str()) != Some(name.as_str()) {
+            if index >= self.doc.layers.len() {
+                return false;
+            }
+            self.push_undo();
+            self.doc.layers.layers[index].name = name;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_layer_color(&mut self, index: usize, color: [u8; 3]) -> bool {
+        if self.doc.layers.layers.get(index).map(|l| l.color) != Some(color) {
+            if index >= self.doc.layers.len() {
+                return false;
+            }
+            self.push_undo();
+            self.doc.layers.layers[index].color = color;
+            true
+        } else {
+            false
+        }
     }
 
     pub fn fit_view(&mut self, w: f32, h: f32) {

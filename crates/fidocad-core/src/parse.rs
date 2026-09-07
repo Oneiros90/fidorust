@@ -2,7 +2,7 @@
 
 use crate::document::Document;
 use crate::geom::Point;
-use crate::layers::LayerId;
+use crate::layers::{LayerId, LayerInfo, LayerSet};
 use crate::library::{Library, LibrarySet, MacroDef};
 use crate::primitive::{PadStyle, Primitive};
 use encoding_rs::{UTF_8, WINDOWS_1252};
@@ -56,6 +56,51 @@ fn layer_from(toks: &[&str], idx: usize) -> LayerId {
         .and_then(|s| parse_i32(s))
         .map(LayerId::from_i32)
         .unwrap_or(LayerId(0))
+}
+
+/// `LD <r> <g> <b> <visible> <name…>`
+pub fn parse_ld_line(line: &str) -> Option<LayerInfo> {
+    let line = line.trim();
+    if line.len() < 2 || !line[..2].eq_ignore_ascii_case("LD") {
+        return None;
+    }
+    let rest = &line[2..];
+    if !rest.is_empty() && !rest.as_bytes()[0].is_ascii_whitespace() {
+        return None;
+    }
+    let t = tokens(rest);
+    if t.len() < 4 {
+        return None;
+    }
+    let r = parse_i32(t[0])?.clamp(0, 255) as u8;
+    let g = parse_i32(t[1])?.clamp(0, 255) as u8;
+    let b = parse_i32(t[2])?.clamp(0, 255) as u8;
+    let show = parse_i32(t[3])? != 0;
+    let name = extract_string(rest, 4);
+    Some(LayerInfo { name, color: [r, g, b], show })
+}
+
+fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>) {
+    if !defined.is_empty() {
+        for (i, layer) in defined.iter_mut().enumerate() {
+            if layer.name.is_empty() {
+                layer.name = format!("Layer {}", i + 1);
+            }
+        }
+        doc.layers = LayerSet { layers: defined };
+    } else {
+        doc.layers = LayerSet::default();
+        let max = doc
+            .primitives
+            .iter()
+            .map(|p| p.layer().index())
+            .max()
+            .unwrap_or(0);
+        doc.layers.ensure_len(max + 1);
+    }
+    for p in &mut doc.primitives {
+        p.set_layer(doc.layers.clamp_id(p.layer()));
+    }
 }
 
 /// Text after `skip` whitespace-separated tokens (original ExtractString).
@@ -343,12 +388,17 @@ pub fn parse_document(text: &str) -> Result<Document, ParseError> {
         text
     };
     let mut warnings = 0u32;
+    let mut defined = Vec::new();
     for raw in body.lines() {
         let line = raw.trim();
         if line.is_empty() {
             continue;
         }
         if skip_line(line) {
+            continue;
+        }
+        if let Some(info) = parse_ld_line(line) {
+            defined.push(info);
             continue;
         }
         match parse_primitive_line(line) {
@@ -360,6 +410,7 @@ pub fn parse_document(text: &str) -> Result<Document, ParseError> {
             }
         }
     }
+    apply_layers(&mut doc, defined);
     doc.warnings = warnings;
     Ok(doc)
 }

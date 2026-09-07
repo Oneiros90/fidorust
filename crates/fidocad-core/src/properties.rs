@@ -356,7 +356,7 @@ fn apply_field(p: &mut Primitive, field: PropField, value: &PropFieldValue) -> b
             if matches!(p, Primitive::Macro { .. }) {
                 return false;
             }
-            if (0..16).contains(v) {
+            if (0..256).contains(v) {
                 p.set_layer(LayerId(*v as u8));
                 true
             } else {

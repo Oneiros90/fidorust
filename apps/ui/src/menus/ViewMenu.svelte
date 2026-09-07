@@ -19,10 +19,3 @@
 />
 <MenuItem label={app.t.fit} onclick={() => run(app.fit)} />
 <MenuItem label={app.t.pcbMode} onclick={() => run(app.togglePcb)} />
-<MenuItem
-	label={app.t.layers}
-	onclick={() =>
-		run(() => {
-			app.showLayers = true;
-		})}
-/>

@@ -3,9 +3,11 @@
 
 	let {
 		label,
+		side = 'right',
 		children
 	}: {
 		label: string;
+		side?: 'left' | 'right';
 		children: Snippet;
 	} = $props();
 </script>
@@ -14,7 +16,7 @@
 	<button type="button" class="sub-btn" aria-haspopup="menu">
 		{label}<span class="acc">›</span>
 	</button>
-	<div class="flyout">{@render children()}</div>
+	<div class={['flyout', { left: side === 'left' }]}>{@render children()}</div>
 </div>
 
 <style>
@@ -66,6 +68,14 @@
 		top: 0;
 		bottom: 0;
 		width: 8px;
+	}
+	.flyout.left {
+		left: auto;
+		right: 100%;
+	}
+	.flyout.left::before {
+		left: auto;
+		right: -8px;
 	}
 	.sub:hover > .flyout,
 	.sub:focus-within > .flyout {

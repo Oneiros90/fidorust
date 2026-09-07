@@ -28,7 +28,6 @@ export type Layer = {
 	name: string;
 	color: number[];
 	show: boolean;
-	print: boolean;
 };
 
 export type LayersData = { layers: Layer[] };

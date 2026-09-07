@@ -4,13 +4,14 @@
 	import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import GridDialog from '../dialogs/GridDialog.svelte';
-	import LayersDialog from '../dialogs/LayersDialog.svelte';
+	import DeleteLayerDialog from '../dialogs/DeleteLayerDialog.svelte';
 	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import MacroGhost from '../library/MacroGhost.svelte';
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
+	import LayerContextMenu from '../layers/LayerContextMenu.svelte';
 
 	const app = getAppSession();
 
@@ -40,7 +41,14 @@
 		y={app.ctxMenu.y}
 		onClose={() => (app.ctxMenu = null)}
 	>
-		<EditMenu onDone={() => (app.ctxMenu = null)} />
+		{#if app.ctxMenu.kind === 'edit'}
+			<EditMenu onDone={() => (app.ctxMenu = null)} />
+		{:else}
+			<LayerContextMenu
+				index={app.ctxMenu.index}
+				onDone={() => (app.ctxMenu = null)}
+			/>
+		{/if}
 	</ContextMenu>
 {/if}
 
@@ -48,8 +56,8 @@
 	<button type="button" class="scrim" onclick={app.closeMenu} aria-label="close menu"></button>
 {/if}
 
-{#if app.showLayers}
-	<LayersDialog />
+{#if app.pendingDeleteLayer !== null}
+	<DeleteLayerDialog />
 {/if}
 
 {#if app.showAbout}

@@ -1,7 +1,7 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
 use fidocad_core::geom::{bezier_point, Point};
-use fidocad_core::layers::{LayerSet, LAYER_COUNT};
+use fidocad_core::layers::LayerSet;
 use fidocad_core::primitive::{PadStyle, Primitive};
 use fidocad_core::{Editor, Tool};
 use lyon::math::point;
@@ -69,17 +69,17 @@ pub struct Scene {
     pub marquee_color: [f32; 3],
     pub pad_holes: Vec<PadHole>,
     /// Exclusive end of each layer's slice in `fills` / `lines` / `circles` / `pad_holes`.
-    pub layer_fill_end: [u32; LAYER_COUNT],
-    pub layer_line_end: [u32; LAYER_COUNT],
-    pub layer_circ_end: [u32; LAYER_COUNT],
-    pub layer_hole_end: [u32; LAYER_COUNT],
+    pub layer_fill_end: Vec<u32>,
+    pub layer_line_end: Vec<u32>,
+    pub layer_circ_end: Vec<u32>,
+    pub layer_hole_end: Vec<u32>,
 }
 
-fn mark_layer_end(scene: &mut Scene, i: usize) {
-    scene.layer_fill_end[i] = scene.fills.len() as u32;
-    scene.layer_line_end[i] = scene.lines.len() as u32;
-    scene.layer_circ_end[i] = scene.circles.len() as u32;
-    scene.layer_hole_end[i] = scene.pad_holes.len() as u32;
+fn mark_layer_end(scene: &mut Scene) {
+    scene.layer_fill_end.push(scene.fills.len() as u32);
+    scene.layer_line_end.push(scene.lines.len() as u32);
+    scene.layer_circ_end.push(scene.circles.len() as u32);
+    scene.layer_hole_end.push(scene.pad_holes.len() as u32);
 }
 
 fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
@@ -519,13 +519,13 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
 
 pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet, dark: bool) -> Scene {
     let mut scene = Scene::default();
-    for i in 0..LAYER_COUNT {
+    for i in 0..layers.len() {
         for p in prims {
             if p.layer().index() == i {
                 add_prim(&mut scene, p, layers, false, dark);
             }
         }
-        mark_layer_end(&mut scene, i);
+        mark_layer_end(&mut scene);
     }
     scene
 }
@@ -577,7 +577,8 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
         })
         .collect();
     let pending = ed.pending_macro_preview();
-    for li in 0..LAYER_COUNT {
+    let n = layers.len();
+    for li in 0..n {
         for (sel, q) in &expanded {
             if q.layer().index() == li {
                 add_prim(&mut scene, q, layers, *sel, dark);
@@ -591,7 +592,7 @@ fn tessellate_impl(ed: &Editor, viewport: Option<(f32, f32)>, dark: bool) -> Sce
         if ed.layer.index() == li {
             add_draft(&mut scene, ed, preview);
         }
-        mark_layer_end(&mut scene, li);
+        mark_layer_end(&mut scene);
     }
     for (i, p) in ed.doc.primitives.iter().enumerate() {
         if !selected.contains(&i) {

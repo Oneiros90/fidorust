@@ -288,7 +288,8 @@ impl App {
 
     #[wasm_bindgen]
     pub fn set_layer(&mut self, n: u8) {
-        self.editor.layer = LayerId(n.min(15));
+        let max = self.editor.doc.layers.len().saturating_sub(1) as u8;
+        self.editor.layer = LayerId(n.min(max));
         if !self.editor.selected.is_empty() {
             self.editor.set_selected_layer(self.editor.layer);
         }
@@ -517,32 +518,53 @@ impl App {
 
     #[wasm_bindgen]
     pub fn set_layer_show(&mut self, n: u8, show: bool) {
-        if (n as usize) < 16 {
-            self.editor.doc.layers.layers[n as usize].show = show;
+        if self.editor.set_layer_show(n as usize, show) {
             self.dirty = true;
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn set_layer_print(&mut self, n: u8, print: bool) {
-        if (n as usize) < 16 {
-            self.editor.doc.layers.layers[n as usize].print = print;
         }
     }
 
     #[wasm_bindgen]
     pub fn set_layer_name(&mut self, n: u8, name: &str) {
-        if (n as usize) < 16 {
-            self.editor.doc.layers.layers[n as usize].name = name.to_string();
-        }
+        self.editor.set_layer_name(n as usize, name.to_string());
     }
 
     #[wasm_bindgen]
     pub fn set_layer_color(&mut self, n: u8, r: u8, g: u8, b: u8) {
-        if (n as usize) < 16 {
-            self.editor.doc.layers.layers[n as usize].color = [r, g, b];
+        if self.editor.set_layer_color(n as usize, [r, g, b]) {
             self.dirty = true;
         }
+    }
+
+    #[wasm_bindgen]
+    pub fn add_layer(&mut self) {
+        if self.editor.add_layer().is_some() {
+            self.dirty = true;
+        }
+    }
+
+    /// `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
+    #[wasm_bindgen]
+    pub fn delete_layer(&mut self, n: u8, mode: &str, move_to: u8) {
+        let dest = if mode == "move" {
+            Some(move_to as usize)
+        } else {
+            None
+        };
+        if self.editor.delete_layer(n as usize, dest) {
+            self.dirty = true;
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn reorder_layer(&mut self, from: u8, to: u8) {
+        if self.editor.reorder_layer(from as usize, to as usize) {
+            self.dirty = true;
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn layer_object_count(&self, n: u8) -> u32 {
+        self.editor.layer_object_count(n as usize) as u32
     }
 
     #[wasm_bindgen]
