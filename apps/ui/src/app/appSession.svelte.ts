@@ -1,5 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import type { Locale } from '../i18n';
+import type { Example } from '../lib/examples';
 import { loadRecents, type RecentEntry } from '../lib/recentFiles';
 import { decodeProject } from '../lib/shareCodec';
 import { parsePropForm, type PropPatch } from '../lib/propForm';
@@ -247,7 +248,7 @@ export class AppSession {
 	cancelDiscard = () => files.cancelDiscard(this);
 	loadBytes = (bytes: Uint8Array, name: string) => files.loadBytes(this, bytes, name);
 	loadText = (text: string, name: string) => files.loadText(this, text, name);
-	openExample = (file: string) => files.openExample(this, file);
+	openExample = (ex: Example) => files.openExample(this, ex);
 	openFile = () => files.openFile(this);
 	onPickedFile = (e: Event) => files.onPickedFile(this, e);
 	openRecent = (entry: RecentEntry) => files.openRecent(this, entry);

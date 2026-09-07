@@ -23,7 +23,7 @@
 	</MenuSubmenu>
 	<MenuSubmenu label={app.t.examples}>
 		{#each EXAMPLES as ex (ex.file)}
-			<MenuItem label={ex.label} onclick={() => void app.openExample(ex.file)} />
+			<MenuItem label={ex.label} onclick={() => app.openExample(ex)} />
 		{/each}
 	</MenuSubmenu>
 </MenuSubmenu>

@@ -21,7 +21,7 @@ fn snapshot_alimentatore_roundtrip() {
 
 #[test]
 fn snapshot_sample_roundtrip() {
-    let src = include_str!("../../../apps/ui/public/sample.fcd");
+    let src = include_str!("../../../apps/ui/src/lib/sample.fcd");
     common::assert_snapshot("sample.fcd", &roundtrip(src));
 }
 

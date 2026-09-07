@@ -1,6 +1,7 @@
 import { svgToPdfBlob } from '../lib/svgPdf';
 import type { RecentEntry } from '../lib/recentFiles';
 import { pushRecent } from '../lib/recentFiles';
+import type { Example } from '../lib/examples';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import type { AppSession } from './appSession.svelte';
 
@@ -70,17 +71,8 @@ export function loadText(s: AppSession, text: string, name: string) {
 	applyLoaded(s, (app) => app.load_fcd(text), name);
 }
 
-export function openExample(s: AppSession, file: string) {
-	confirmDiscard(s, () => void loadExampleFile(s, file));
-}
-
-export async function loadExampleFile(s: AppSession, file: string) {
-	const r = await fetch(s.assetUrl(file));
-	if (!r.ok) {
-		s.error = `${r.status} ${r.url}`;
-		return;
-	}
-	loadBytes(s, new Uint8Array(await r.arrayBuffer()), file);
+export function openExample(s: AppSession, ex: Example) {
+	confirmDiscard(s, () => loadText(s, ex.fcd, ex.file));
 }
 
 export function openFile(s: AppSession) {
