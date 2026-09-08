@@ -5,9 +5,10 @@ use crate::geom::{Point, Transform};
 use crate::hit::hit_test;
 use crate::layers::{LayerId, LayerSet};
 use crate::library::{
-    component_full_name, explode_named_everywhere, paint_primitives, rewrite_component_names,
-    rewrite_component_names_in_libs, translate_primitives, ComponentDef, Library,
-    UserLibraryTarget,
+    component_full_name, drawing_uses_user_library_components, explode_library_instances,
+    explode_named_everywhere, paint_primitives, rewrite_component_names,
+    rewrite_component_names_in_libs, rewrite_library_stem, translate_primitives, ComponentDef,
+    Library, LibraryKind, PROJECT_STEM,
 };
 use crate::primitive::{ComponentRef, Primitive};
 use crate::COMPONENT_ORIGIN;
@@ -26,7 +27,7 @@ pub(super) struct ComponentEditSession {
     pub saved_pending: Option<String>,
     pub saved_layer: crate::layers::LayerId,
     pub saved_project: Library,
-    pub saved_local: Library,
+    pub saved_user: Vec<Library>,
     pub original_primitives: Vec<Primitive>,
 }
 
@@ -188,21 +189,28 @@ impl Editor {
         self.hover = None;
     }
 
-    pub fn insert_pending_component_at(&mut self, world: Point) {
-        let Some(name) = self.pending_component.clone() else {
-            return;
-        };
+    pub fn insert_pending_component_at(&mut self, world: Point) -> Option<usize> {
+        let name = self.pending_component.clone()?;
         self.push_undo();
         let pt = self.snap_pt(world);
         let standard = self.libs.is_standard(&name);
-        self.doc.insert(Primitive::Component(ComponentRef {
+        Some(self.doc.insert(Primitive::Component(ComponentRef {
             pos: pt,
             rotations: self.pending_rotations,
             mirrored: false,
             name,
             standard,
             layer: self.layer,
-        }));
+        })))
+    }
+
+    /// Drag-and-drop from the library: place, select the instance, return to Select.
+    pub fn place_dropped_component(&mut self, world: Point) {
+        let Some(i) = self.insert_pending_component_at(world) else {
+            return;
+        };
+        self.selected = vec![i];
+        self.set_tool(Tool::Select);
     }
 
     pub fn set_pending_component(&mut self, name: Option<String>) {
@@ -217,13 +225,17 @@ impl Editor {
 
     pub fn create_component_from_selection(
         &mut self,
-        target: UserLibraryTarget,
+        stem: &str,
         display_name: &str,
     ) -> Option<(String, String)> {
         if self.selected.is_empty() {
             return None;
         }
         self.libs.ensure_user_libraries();
+        let writable = self.libs.library(stem).is_some_and(|l| l.writable());
+        if !writable {
+            return None;
+        }
         let bb = self.doc.selected_aabb(&self.selected, &self.libs);
         if bb.is_empty() {
             return None;
@@ -246,7 +258,6 @@ impl Editor {
             COMPONENT_ORIGIN.y - origin.y,
         );
         paint_primitives(&mut body, LayerId(0));
-        let stem = target.stem();
         let lib = self.libs.library_mut(stem)?;
         let key = lib.next_key();
         let name = lib.unique_display_name(display_name);
@@ -411,11 +422,7 @@ impl Editor {
                 .project()
                 .cloned()
                 .unwrap_or_else(Library::empty_project),
-            saved_local: self
-                .libs
-                .local()
-                .cloned()
-                .unwrap_or_else(Library::empty_local),
+            saved_user: self.libs.user_libraries_cloned(),
             original_primitives: primitives.clone(),
         };
         self.doc.primitives = primitives;
@@ -456,7 +463,7 @@ impl Editor {
             return false;
         };
         self.libs.set_project(session.saved_project.clone());
-        self.libs.set_local(session.saved_local.clone());
+        self.libs.replace_user_libraries(session.saved_user.clone());
         self.bump_libs_rev();
         self.restore_from_component_edit(session);
         true
@@ -503,9 +510,128 @@ impl Editor {
             .unwrap_or(&self.doc)
     }
 
+    pub fn load_user_libraries(&mut self, libs: Vec<Library>) {
+        self.libs.replace_user_libraries(Vec::new());
+        for lib in libs {
+            self.libs.add_user_library(lib);
+        }
+        self.bump_libs_rev();
+    }
+
     pub fn load_local_library(&mut self, lib: Library) {
         self.libs.set_local(lib);
         self.bump_libs_rev();
+    }
+
+    pub fn create_user_library(&mut self, title: &str) -> String {
+        self.push_undo();
+        let title = self.libs.unique_library_title(title.trim());
+        let stem = self.libs.unique_stem(&title);
+        self.libs.add(Library::empty_user(&stem, title));
+        self.bump_libs_rev();
+        stem
+    }
+
+    pub fn import_library(&mut self, lib: Library) -> String {
+        self.push_undo();
+        let stem = self.libs.add_user_library(lib);
+        self.bump_libs_rev();
+        stem
+    }
+
+    pub fn rename_library(&mut self, stem: &str, title: &str) -> Option<String> {
+        let title = title.trim();
+        if title.is_empty() || stem.eq_ignore_ascii_case(PROJECT_STEM) {
+            return None;
+        }
+        let lib = self.libs.library(stem)?;
+        if lib.kind != LibraryKind::Local {
+            return None;
+        }
+        let new_stem = self.libs.unique_stem_excluding(title, stem);
+        if lib.name == title && lib.file_stem == new_stem {
+            return None;
+        }
+        self.push_undo();
+        if new_stem != stem {
+            rewrite_library_stem(&mut self.doc.primitives, &mut self.libs, stem, &new_stem);
+            if let Some(pending) = self.pending_component.as_mut() {
+                let prefix = format!("{stem}.");
+                if pending.len() > prefix.len()
+                    && pending[..prefix.len()].eq_ignore_ascii_case(&prefix)
+                {
+                    *pending = format!("{new_stem}.{}", &pending[prefix.len()..]);
+                }
+            }
+            if let Some(lib) = self.libs.library_mut(stem) {
+                lib.file_stem = new_stem.clone();
+                lib.name = title.to_string();
+            }
+        } else if let Some(lib) = self.libs.library_mut(stem) {
+            lib.name = title.to_string();
+        }
+        self.bump_libs_rev();
+        Some(new_stem)
+    }
+
+    pub fn clear_project_library(&mut self) -> bool {
+        let Some(project) = self.libs.project() else {
+            return false;
+        };
+        if project.components.is_empty() {
+            return false;
+        }
+        if self
+            .component_edit
+            .as_ref()
+            .is_some_and(|s| s.stem.eq_ignore_ascii_case(PROJECT_STEM))
+        {
+            self.cancel_component_edit();
+        }
+        self.push_undo();
+        explode_library_instances(&mut self.doc.primitives, &mut self.libs, PROJECT_STEM);
+        if let Some(project) = self.libs.project_mut() {
+            project.components.clear();
+        }
+        self.selected.clear();
+        self.bump_libs_rev();
+        true
+    }
+
+    pub fn remove_user_library(&mut self, stem: &str) -> bool {
+        if stem.eq_ignore_ascii_case(PROJECT_STEM) {
+            return false;
+        }
+        let Some(lib) = self.libs.library(stem) else {
+            return false;
+        };
+        if lib.kind != LibraryKind::Local {
+            return false;
+        }
+        if self
+            .component_edit
+            .as_ref()
+            .is_some_and(|s| s.stem.eq_ignore_ascii_case(stem))
+        {
+            self.cancel_component_edit();
+        }
+        self.push_undo();
+        explode_library_instances(&mut self.doc.primitives, &mut self.libs, stem);
+        if let Some(pending) = &self.pending_component {
+            let prefix = format!("{stem}.");
+            if pending.len() > prefix.len() && pending[..prefix.len()].eq_ignore_ascii_case(&prefix)
+            {
+                self.pending_component = None;
+            }
+        }
+        self.libs.remove_library(stem);
+        self.selected.clear();
+        self.bump_libs_rev();
+        true
+    }
+
+    pub fn uses_user_library_components(&self) -> bool {
+        drawing_uses_user_library_components(&self.persistent_doc().primitives, &self.libs)
     }
 
     pub fn set_project_library(&mut self, lib: Option<Library>) {

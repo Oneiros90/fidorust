@@ -10,6 +10,8 @@ import type { Example } from '../lib/examples';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import type { AppSession } from './appSession.svelte';
 
+export type SaveLibraryPolicy = 'keep' | 'fold' | 'explode';
+
 export function download(name: string, content: string | Blob, mime: string) {
 	const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
 	const a = document.createElement('a');
@@ -114,15 +116,59 @@ export function saveFile(s: AppSession) {
 		s.saveComponentEdit();
 		return;
 	}
+	if (s.engine.query((app) => app.uses_user_library_components())) {
+		s.dialogs.open({ kind: 'saveLocalComponents', purpose: 'save' });
+		return;
+	}
+	finishSaveFcd(s, 'keep');
+}
+
+export function finishSaveFcd(s: AppSession, policy: SaveLibraryPolicy) {
+	if (!s.engine) return;
 	const name = s.fileHandleName.endsWith('.fcd') ? s.fileHandleName : 'drawing.fcd';
 	download(
 		name,
-		s.engine.query((app) => app.save_fcd()),
+		s.engine.query((app) => app.save_fcd_with_policy(policy)),
 		'text/plain'
 	);
 	s.fileHandleName = name;
 	markClean(s);
 	rememberCurrent(s, name);
+}
+
+export function exportLibrary(s: AppSession, stem: string) {
+	if (!s.engine) return;
+	const fcl = s.engine.query((app) => app.export_library_fcl(stem));
+	if (!fcl) return;
+	download(`${stem}.fcl`, fcl, 'text/plain');
+}
+
+export function importLibrary(s: AppSession) {
+	s.ui.closeMenu();
+	s.libraryPicker?.click();
+}
+
+export async function onPickedLibraries(s: AppSession, e: Event) {
+	const input = e.currentTarget as HTMLInputElement;
+	const files = Array.from(input.files ?? []);
+	input.value = '';
+	if (!s.engine || files.length === 0) return;
+	const imported: string[] = [];
+	for (const file of files) {
+		const text = await file.text();
+		try {
+			let stem = '';
+			s.engine.mutate((app) => {
+				stem = app.import_library(text);
+			});
+			if (stem) imported.push(stem);
+		} catch (err) {
+			s.error = String(err);
+		}
+	}
+	for (const stem of imported) {
+		s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
+	}
 }
 
 export function openExport(s: AppSession, format: ExportFormat) {

@@ -209,23 +209,39 @@ fn add_pcb_pad(
     let hx = dx as f32 / 2.0;
     let hy = dy as f32 / 2.0;
     let hole_r = hole as f32 / 2.0;
-    let mut builder = Path::builder();
     match style {
-        fidocad_core::PadStyle::Oval => path_ellipse(&mut builder, cx, cy, hx, hy, 1.0),
-        fidocad_core::PadStyle::Rectangular => path_rect(&mut builder, cx, cy, hx, hy),
+        fidocad_core::PadStyle::Oval => {
+            let inner = if hole_r > 0.001 {
+                (hole_r / hx.max(hy).max(0.001)).clamp(0.0, 0.98)
+            } else {
+                0.0
+            };
+            scene.push_circle(cx, cy, hx.max(0.5), hy.max(0.5), inner, 0.0, rgb, selected);
+        }
+        fidocad_core::PadStyle::Rectangular => {
+            let mut builder = Path::builder();
+            path_rect(&mut builder, cx, cy, hx, hy);
+            if hole_r > 0.001 {
+                path_ellipse(&mut builder, cx, cy, hole_r, hole_r, -1.0);
+            }
+            scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
+        }
         fidocad_core::PadStyle::RoundedRect => {
-            path_rounded_rect(&mut builder, cx, cy, hx, hy, hx * 0.5, hy * 0.5)
+            let mut builder = Path::builder();
+            path_rounded_rect(&mut builder, cx, cy, hx, hy, hx * 0.5, hy * 0.5);
+            if hole_r > 0.001 {
+                path_ellipse(&mut builder, cx, cy, hole_r, hole_r, -1.0);
+            }
+            scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
         }
     }
     if hole_r > 0.001 {
-        path_ellipse(&mut builder, cx, cy, hole_r, hole_r, -1.0);
         scene.pad_holes.push(PadHole {
             x: cx,
             y: cy,
             r: hole_r,
         });
     }
-    scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
 }
 
 fn color(

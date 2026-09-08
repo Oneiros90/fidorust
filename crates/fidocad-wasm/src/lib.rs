@@ -4,8 +4,11 @@ mod json;
 mod render_backend;
 
 use fidocad_core::parse::{builtin_libraries, parse_library};
-use fidocad_core::serialize::{serialize_clipboard, serialize_document, serialize_library};
-use fidocad_core::{Editor, EditorError, PropPatch, Tool, UserLibraryTarget};
+use fidocad_core::serialize::{
+    serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_library,
+    SaveLibraryPolicy,
+};
+use fidocad_core::{Editor, EditorError, LibraryKind, PropPatch, Tool};
 use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
@@ -14,6 +17,7 @@ use web_sys::HtmlCanvasElement;
 
 use json::{
     text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts, StatusDto,
+    UserLibBlob,
 };
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
@@ -100,6 +104,20 @@ impl App {
     #[wasm_bindgen]
     pub fn save_fcd(&self) -> String {
         serialize_document(self.editor.persistent_doc(), Some(self.editor.libs()))
+    }
+
+    #[wasm_bindgen]
+    pub fn save_fcd_with_policy(&self, policy: &str) -> String {
+        serialize_document_with_policy(
+            self.editor.persistent_doc(),
+            self.editor.libs(),
+            SaveLibraryPolicy::from_str(policy),
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn uses_user_library_components(&self) -> bool {
+        self.editor.uses_user_library_components()
     }
 
     #[wasm_bindgen]
@@ -342,7 +360,7 @@ impl App {
         }
         self.editor.adopt_component_tool();
         let w = self.editor.screen_to_world(sx, sy);
-        self.editor.insert_pending_component_at(w);
+        self.editor.place_dropped_component(w);
     }
 
     #[wasm_bindgen]
@@ -461,11 +479,9 @@ impl App {
 
     #[wasm_bindgen]
     pub fn new_doc(&mut self) {
-        let local = self.editor.libs().local().cloned();
+        let blob = self.user_libraries_blob();
         self.editor = Editor::new(builtin_libraries());
-        if let Some(local) = local {
-            self.editor.load_local_library(local);
-        }
+        self.load_user_libraries(&blob);
         self.backend.apply_theme(&mut self.editor, &self.theme);
     }
 
@@ -537,9 +553,6 @@ impl App {
 
     #[wasm_bindgen]
     pub fn create_component_from_selection(&mut self, target: &str, display_name: &str) -> String {
-        let Some(target) = UserLibraryTarget::from_stem(target) else {
-            return String::new();
-        };
         match self
             .editor
             .create_component_from_selection(target, display_name)
@@ -600,24 +613,86 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn load_local_library(&mut self, text: &str) {
-        if text.trim().is_empty() {
-            return;
+    pub fn load_user_libraries(&mut self, json: &str) {
+        let blobs: Vec<UserLibBlob> = serde_json::from_str(json).unwrap_or_default();
+        let mut libs = Vec::new();
+        for b in blobs {
+            if b.fcl.trim().is_empty() {
+                if !b.stem.is_empty() {
+                    libs.push(fidocad_core::Library::empty_user(
+                        b.stem,
+                        if b.title.is_empty() {
+                            "Library".into()
+                        } else {
+                            b.title
+                        },
+                    ));
+                }
+                continue;
+            }
+            if let Ok(mut lib) = parse_library(&b.fcl) {
+                if !b.stem.is_empty() {
+                    lib.file_stem = b.stem;
+                }
+                if !b.title.is_empty() {
+                    lib.name = b.title;
+                }
+                lib.kind = LibraryKind::Local;
+                lib.standard = false;
+                libs.push(lib);
+            }
         }
-        if let Ok(mut lib) = parse_library(text) {
-            lib.file_stem = fidocad_core::LOCAL_STEM.into();
-            lib.kind = fidocad_core::LibraryKind::Local;
-            lib.standard = false;
-            self.editor.load_local_library(lib);
-        }
+        self.editor.load_user_libraries(libs);
     }
 
     #[wasm_bindgen]
-    pub fn local_library_fcl(&self) -> String {
-        match self.editor.libs().local() {
-            Some(lib) if !lib.components.is_empty() => serialize_library(lib),
-            _ => String::new(),
-        }
+    pub fn user_libraries_blob(&self) -> String {
+        let blobs: Vec<UserLibBlob> = self
+            .editor
+            .libs()
+            .user_libraries()
+            .map(|lib| UserLibBlob {
+                stem: lib.file_stem.clone(),
+                title: lib.name.clone(),
+                fcl: serialize_library(lib),
+            })
+            .collect();
+        to_json(&blobs, "[]")
+    }
+
+    #[wasm_bindgen]
+    pub fn create_user_library(&mut self, title: &str) -> String {
+        self.editor.create_user_library(title)
+    }
+
+    #[wasm_bindgen]
+    pub fn import_library(&mut self, text: &str) -> Result<String, JsValue> {
+        let lib = parse_library(text).map_err(to_js)?;
+        Ok(self.editor.import_library(lib))
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_library(&mut self, stem: &str, title: &str) -> String {
+        self.editor.rename_library(stem, title).unwrap_or_default()
+    }
+
+    #[wasm_bindgen]
+    pub fn export_library_fcl(&self, stem: &str) -> String {
+        self.editor
+            .libs()
+            .library(stem)
+            .map(serialize_library)
+            .unwrap_or_default()
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_project_library(&mut self) -> bool {
+        self.editor.clear_project_library()
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_user_library(&mut self, stem: &str) -> bool {
+        self.editor.remove_user_library(stem)
     }
 
     #[wasm_bindgen]

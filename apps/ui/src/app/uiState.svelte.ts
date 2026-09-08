@@ -6,6 +6,7 @@ export class UiState {
 		| { kind: 'edit'; x: number; y: number }
 		| { kind: 'layer'; x: number; y: number; index: number }
 		| { kind: 'libraryItem'; x: number; y: number; stem: string; key: string }
+		| { kind: 'library'; x: number; y: number; stem: string }
 		| null
 	>(null);
 	rightTab = $state<'layers' | 'library'>('layers');
@@ -13,10 +14,11 @@ export class UiState {
 		typeof matchMedia === 'function' && matchMedia(RIGHT_PANEL_COLLAPSE_QUERY).matches
 	);
 	editingLayerName = $state<number | null>(null);
+	editingLibraryTitle = $state<string | null>(null);
 	editingLibraryField = $state<{ stem: string; key: string; field: 'name' | 'description' } | null>(
 		null
 	);
-	expandedUserLibs = $state<Record<string, boolean>>({ project: true, local: false });
+	expandedUserLibs = $state<Record<string, boolean>>({ project: true });
 	libraryFocus = $state<{ stem: string; key: string } | null>(null);
 
 	toggleMenu = (id: string) => {

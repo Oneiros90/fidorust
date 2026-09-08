@@ -391,7 +391,7 @@ impl Editor {
                 }));
             }
             Tool::Component => {
-                self.insert_pending_component_at(pt);
+                let _ = self.insert_pending_component_at(pt);
             }
             Tool::Zoom => {
                 self.zoom = (self.zoom * ZOOM_TOOL_FACTOR).min(ZOOM_MAX_WHEEL);

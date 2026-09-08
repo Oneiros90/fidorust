@@ -22,10 +22,12 @@ import * as clip from './clipboardOps';
 import * as share from './shareOps';
 import * as edit from './editCommands';
 import { LibraryDragSession, getCursor } from './libraryDrag.svelte';
+import { PreviewCache } from '../lib/previewCache';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
 import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 import { componentFullName } from '../lib/libraryDrag';
-import { loadLocalLibrary, saveLocalLibrary } from '../lib/localLibrary';
+import { loadUserLibraries, persistUserLibrariesBlob } from '../lib/userLibraries';
+import type { SaveLibraryPolicy } from './fileOps';
 
 export type { RecentEntry };
 export type { LibGhost };
@@ -51,6 +53,7 @@ export class AppSession {
 		() => this.engine,
 		(theme) => {
 			this.cursorCache.clear();
+			this.previewCache.clear();
 			this.engine?.query((app) => {
 				app.set_theme(theme);
 				app.render();
@@ -63,8 +66,10 @@ export class AppSession {
 	dialogs = new Dialogs();
 	fileHandleName = $state(this.#session?.name ?? 'untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
+	libraryPicker: HTMLInputElement | undefined;
 	libGhost = $state<LibGhost | null>(null);
 	cursorCache = new SvelteMap<string, ComponentCursor>();
+	previewCache = new PreviewCache();
 	recents = $state<RecentEntry[]>(loadRecents());
 	savedSnapshot = '';
 	pendingDiscard: (() => void) | null = null;
@@ -124,6 +129,12 @@ export class AppSession {
 	set editingLibraryField(v) {
 		this.ui.editingLibraryField = v;
 	}
+	get editingLibraryTitle() {
+		return this.ui.editingLibraryTitle;
+	}
+	set editingLibraryTitle(v) {
+		this.ui.editingLibraryTitle = v;
+	}
 	get expandedUserLibs() {
 		return this.ui.expandedUserLibs;
 	}
@@ -162,6 +173,7 @@ export class AppSession {
 		this.ui.menu = null;
 		this.ui.editingLayerName = null;
 		this.ui.editingLibraryField = null;
+		this.ui.editingLibraryTitle = null;
 		this.ui.ctxMenu = { kind: 'edit', x, y };
 	};
 
@@ -169,6 +181,7 @@ export class AppSession {
 		this.ui.menu = null;
 		this.ui.editingLayerName = null;
 		this.ui.editingLibraryField = null;
+		this.ui.editingLibraryTitle = null;
 		this.ui.ctxMenu = { kind: 'layer', x, y, index };
 		this.setLayer(index);
 	};
@@ -177,8 +190,22 @@ export class AppSession {
 		this.ui.menu = null;
 		this.ui.editingLayerName = null;
 		this.ui.editingLibraryField = null;
+		this.ui.editingLibraryTitle = null;
 		this.ui.ctxMenu = { kind: 'libraryItem', x, y, stem, key };
 		this.ui.libraryFocus = { stem, key };
+	};
+
+	openLibraryContextMenu = (x: number, y: number, stem: string) => {
+		this.ui.menu = null;
+		this.ui.editingLayerName = null;
+		this.ui.editingLibraryField = null;
+		this.ui.editingLibraryTitle = null;
+		this.ui.ctxMenu = { kind: 'library', x, y, stem };
+	};
+
+	libraryTitle = (stem: string) => {
+		if (stem === 'project') return this.t.projectLibrary;
+		return this.libs.find((l) => l.stem === stem)?.title ?? stem;
 	};
 
 	beginRenameLayer = (index: number) => {
@@ -199,11 +226,11 @@ export class AppSession {
 		const { App } = await import('../wasm/fidocad_wasm.js');
 		await initWasm();
 		this.engine = new Engine(new App());
-		const localFcl = loadLocalLibrary();
+		const userLibs = loadUserLibraries();
 		this.engine.query((app) => {
 			app.set_locale(this.locale);
 			app.set_theme(this.theme);
-			if (localFcl) app.load_local_library(localFcl);
+			if (userLibs.length) app.load_user_libraries(JSON.stringify(userLibs));
 			if (this.#session) {
 				app.set_hide_component_origin(this.#session.hideComponentOrigin);
 			}
@@ -233,6 +260,7 @@ export class AppSession {
 				if (this.engine && this.engine.libsRev !== libsRev) {
 					libsRev = this.engine.libsRev;
 					this.cursorCache.clear();
+					this.previewCache.clear();
 				}
 				this.schedulePersist();
 			};
@@ -306,14 +334,15 @@ export class AppSession {
 			theme: this.theme,
 			locale: this.locale
 		});
-		saveLocalLibrary(this.engine.query((app) => app.local_library_fcl()));
+		persistUserLibrariesBlob(this.engine.query((app) => app.user_libraries_blob()));
 	};
 
 	onKey = (e: KeyboardEvent) => {
 		if (
 			e.key === 'Escape' &&
 			(this.dialogs.dialog?.kind === 'deleteLayer' ||
-				this.dialogs.dialog?.kind === 'deleteComponent')
+				this.dialogs.dialog?.kind === 'deleteComponent' ||
+				this.dialogs.dialog?.kind === 'deleteLibrary')
 		) {
 			this.dialogs.close();
 			e.preventDefault();
@@ -394,10 +423,13 @@ export class AppSession {
 	openExample = (ex: Example) => files.openExample(this, ex);
 	openFile = () => files.openFile(this);
 	onPickedFile = (e: Event) => files.onPickedFile(this, e);
+	onPickedLibraries = (e: Event) => files.onPickedLibraries(this, e);
 	openRecent = (entry: RecentEntry) => files.openRecent(this, entry);
 	requestNewDoc = () => files.requestNewDoc(this);
 	newDoc = () => files.newDoc(this);
 	saveFile = () => files.saveFile(this);
+	importLibrary = () => files.importLibrary(this);
+	exportLibrary = (stem: string) => files.exportLibrary(this, stem);
 	openExport = (format: ExportFormat) => files.openExport(this, format);
 	confirmExport = (opts: ExportPreviewOpts, svg: string) => files.confirmExport(this, opts, svg);
 	copyFcd = () => clip.copyFcd(this);
@@ -437,7 +469,7 @@ export class AppSession {
 		this.libraryFocus = { stem, key };
 	};
 
-	createComponentFromSelection = (target: 'project' | 'local') => {
+	createComponentFromSelection = (target: string) => {
 		if (!this.engine) return;
 		const created = { stem: '', key: '' };
 		this.engine.mutate((app) => {
@@ -535,6 +567,76 @@ export class AppSession {
 
 	cancelDeleteComponent = () => {
 		if (this.dialogs.dialog?.kind === 'deleteComponent') this.dialogs.close();
+	};
+
+	createUserLibrary = () => {
+		this.ui.ctxMenu = null;
+		this.ui.closeMenu();
+		let stem = '';
+		this.engine?.mutate((app) => {
+			stem = app.create_user_library(this.t.newLibrary);
+		});
+		if (!stem) return;
+		this.rightTab = 'library';
+		this.expandedUserLibs = { ...this.expandedUserLibs, [stem]: true };
+		this.beginRenameLibrary(stem);
+	};
+
+	beginRenameLibrary = (stem: string) => {
+		if (stem === 'project') return;
+		this.ui.ctxMenu = null;
+		this.ui.editingLibraryTitle = stem;
+	};
+
+	renameLibrary = (stem: string, title: string) => {
+		let next = stem;
+		this.engine?.mutate((app) => {
+			const renamed = app.rename_library(stem, title);
+			if (renamed) next = renamed;
+		});
+		this.editingLibraryTitle = null;
+		if (next !== stem) {
+			const expanded = { ...this.expandedUserLibs };
+			expanded[next] = expanded[stem] ?? true;
+			delete expanded[stem];
+			this.expandedUserLibs = expanded;
+		}
+	};
+
+	requestDeleteLibrary = (stem: string) => {
+		this.ui.ctxMenu = null;
+		this.dialogs.open({ kind: 'deleteLibrary', stem });
+	};
+
+	confirmDeleteLibrary = (stem: string) => {
+		this.dialogs.close();
+		this.engine?.mutate((app) => {
+			if (stem === 'project') app.clear_project_library();
+			else app.remove_user_library(stem);
+		});
+		if (stem !== 'project') {
+			const expanded = { ...this.expandedUserLibs };
+			delete expanded[stem];
+			this.expandedUserLibs = expanded;
+		}
+	};
+
+	cancelDeleteLibrary = () => {
+		if (this.dialogs.dialog?.kind === 'deleteLibrary') this.dialogs.close();
+	};
+
+	confirmSaveLocalComponents = (policy: SaveLibraryPolicy) => {
+		const d = this.dialogs.dialog;
+		if (d?.kind !== 'saveLocalComponents') return;
+		const purpose = d.purpose;
+		this.dialogs.close();
+		if (purpose === 'save') files.finishSaveFcd(this, policy);
+		else if (purpose === 'shareFcd') share.openShareFcdWithPolicy(this, policy);
+		else void share.openShareLinkWithPolicy(this, policy);
+	};
+
+	cancelSaveLocalComponents = () => {
+		if (this.dialogs.dialog?.kind === 'saveLocalComponents') this.dialogs.close();
 	};
 
 	getCursor = (name: string) => getCursor(this, name);

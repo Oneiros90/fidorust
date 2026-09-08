@@ -9,7 +9,7 @@ use crate::library::Library;
 pub(super) struct HistorySnapshot {
     pub doc: Document,
     pub project: Library,
-    pub local: Library,
+    pub user: Vec<Library>,
 }
 
 impl Editor {
@@ -21,20 +21,16 @@ impl Editor {
                 .project()
                 .cloned()
                 .unwrap_or_else(Library::empty_project),
-            local: self
-                .libs
-                .local()
-                .cloned()
-                .unwrap_or_else(Library::empty_local),
+            user: self.libs.user_libraries_cloned(),
         }
     }
 
     pub(super) fn apply_snapshot(&mut self, snap: HistorySnapshot) {
-        let libs_changed =
-            self.libs.project() != Some(&snap.project) || self.libs.local() != Some(&snap.local);
+        let libs_changed = self.libs.project() != Some(&snap.project)
+            || self.libs.user_libraries_cloned() != snap.user;
         self.doc = snap.doc;
         self.libs.set_project(snap.project);
-        self.libs.set_local(snap.local);
+        self.libs.replace_user_libraries(snap.user);
         if libs_changed {
             self.bump_libs_rev();
         }

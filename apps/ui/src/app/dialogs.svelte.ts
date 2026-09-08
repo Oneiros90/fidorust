@@ -4,6 +4,8 @@ import type { ExportFormat } from '../lib/exportOptions';
 export type DialogState =
 	| { kind: 'deleteLayer'; index: number }
 	| { kind: 'deleteComponent'; stem: string; key: string }
+	| { kind: 'deleteLibrary'; stem: string }
+	| { kind: 'saveLocalComponents'; purpose: 'save' | 'shareFcd' | 'shareLink' }
 	| { kind: 'about' }
 	| { kind: 'technologies' }
 	| { kind: 'projectSettings' }

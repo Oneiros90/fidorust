@@ -16,13 +16,11 @@ pub use document::{Document, ProjectSettings};
 pub use editor::{Editor, EditorError, TextEditSession, Tool};
 pub use fcd::{
     parse_document, parse_document_with_project_library, parse_library, serialize_document,
-    ParseError,
+    serialize_document_with_policy, ParseError, SaveLibraryPolicy,
 };
 pub use geom::{Aabb, Point, Transform};
 pub use layers::{LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
-pub use library::{
-    ComponentDef, Library, LibraryKind, LibrarySet, UserLibraryTarget, LOCAL_STEM, PROJECT_STEM,
-};
+pub use library::{ComponentDef, Library, LibraryKind, LibrarySet, LOCAL_STEM, PROJECT_STEM};
 pub use primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
     Rect, Text, TextLayout, TextStyle,

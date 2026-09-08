@@ -261,12 +261,12 @@
           {
             "description": "",
             "key": "390",
-            "name": "NJFET"
+            "name": "PJFET"
           },
           {
             "description": "",
             "key": "400",
-            "name": "PJFET"
+            "name": "NJFET"
           },
           {
             "description": "",
@@ -2097,14 +2097,6 @@
     "standard": false,
     "stem": "project",
     "title": "Project library",
-    "writable": true
-  },
-  {
-    "categories": [],
-    "kind": "local",
-    "standard": false,
-    "stem": "local",
-    "title": "Local library",
     "writable": true
   }
 ]

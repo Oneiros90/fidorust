@@ -127,6 +127,13 @@ pub struct CreatedComponentDto {
     pub key: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserLibBlob {
+    pub stem: String,
+    pub title: String,
+    pub fcl: String,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct ExportSvgOpts {
     #[serde(default)]

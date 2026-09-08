@@ -81,10 +81,10 @@ This is a resistor from the standard library, a wire, two junctions, and the lab
 
 Component collections are separate `.fcl` files (`[FIDOLIB]` header, `[key Display name]` entries). They use the same drawing commands inside each component definition. When you place a component, the `.fcd` stores only a short reference (`MC x y rot mir name`), not the whole artwork.
 
-FidoRust also keeps two user libraries:
+FidoRust keeps a **project library** and any number of **user libraries**:
 
-- **Project library** — stored in the `.fcd` itself as a trailing `[FIDOLIB project]` block.
-- **Local library** — stored on this device (not in the file).
+- **Project library** — stored in the `.fcd` itself as a trailing `[FIDOLIB project]` block. Always present in the UI; clearing it splits instances and empties the slot.
+- **User libraries** — created in the app or imported from `.fcl` files, stored on this device (not in the drawing file). There is no default local library.
 
 A project-library block looks like this:
 
@@ -100,7 +100,9 @@ LI 100 100 120 100
 
 `DS` is a FidoRust extension for the component description. Classic FidoCAD ignores unknown lines.
 
-The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. The `[FIDOLIB project]` block is written so FidoRust keeps the definitions; older tools skip the unknown header. Local-library instances stay as `MC` references and are not stored in the file.
+The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. The `[FIDOLIB project]` block is written so FidoRust keeps the definitions; older tools skip the unknown header.
+
+User-library instances stay as `MC` references (`stem.key`) and are not stored in the file. If the drawing uses those components when you save, FidoRust asks whether to keep the local references, copy the definitions into the project library for that save only, or write the expanded primitives.
 
 ---
 

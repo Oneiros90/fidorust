@@ -7,6 +7,7 @@
 	const app = getAppSession();
 	const hasSelection = $derived(app.status.selected > 0);
 	const editing = $derived(!!app.status.editing_component);
+	const writableLibs = $derived(app.libs.filter((l) => l.writable));
 </script>
 
 <MenuItem
@@ -42,16 +43,13 @@
 <MenuItem label={app.t.mirror} shortcut="S" disabled={!hasSelection} onclick={app.doMirror} />
 <MenuSubmenu label={app.t.component}>
 	<MenuSubmenu label={app.t.createFromSelection} disabled={!hasSelection}>
-		<MenuItem
-			label={app.t.createInProject}
-			disabled={!hasSelection}
-			onclick={() => app.createComponentFromSelection('project')}
-		/>
-		<MenuItem
-			label={app.t.createOnDevice}
-			disabled={!hasSelection}
-			onclick={() => app.createComponentFromSelection('local')}
-		/>
+		{#each writableLibs as lib (lib.stem)}
+			<MenuItem
+				label={lib.stem === 'project' ? app.t.createInProject : lib.title}
+				disabled={!hasSelection}
+				onclick={() => app.createComponentFromSelection(lib.stem)}
+			/>
+		{/each}
 	</MenuSubmenu>
 	<MenuItem
 		label={app.t.splitComponent}

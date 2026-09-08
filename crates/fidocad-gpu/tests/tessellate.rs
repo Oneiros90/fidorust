@@ -51,10 +51,47 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
-    assert!(scene.fills.len() >= 6);
-    assert_eq!(scene.circles.len(), 0);
+    assert_eq!(scene.circles.len(), 1);
+    assert!(scene.circles[0].inner > 0.01);
+    assert!((scene.circles[0].rx - 20.0).abs() < 0.01);
+    assert!((scene.circles[0].ry - 15.0).abs() < 0.01);
+    assert_eq!(scene.fills.len(), 0);
     assert_eq!(scene.pad_holes.len(), 1);
     assert!((scene.pad_holes[0].r - 12.5).abs() < 0.01);
+    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    assert_eq!(svg.matches("<polygon").count(), 0);
+    assert!(
+        svg.contains("fill-rule=\"evenodd\""),
+        "oval pad thumbs must punch the hole with a native path: {svg}"
+    );
+}
+
+#[test]
+fn dense_oval_pad_thumb_stays_compact() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    for i in 0..256 {
+        doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
+            pos: fidocad_core::Point::new(10 + (i % 16) * 20, 10 + (i / 16) * 20),
+            dx: 12,
+            dy: 12,
+            hole: 6,
+            style: fidocad_core::primitive::PadStyle::Oval,
+            layer: fidocad_core::LayerId(0),
+        }));
+    }
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_doc(doc);
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.circles.len(), 256);
+    assert_eq!(scene.fills.len(), 0);
+    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    assert_eq!(svg.matches("<polygon").count(), 0);
+    assert_eq!(svg.matches("<path").count(), 256);
+    assert!(
+        svg.len() < 80_000,
+        "PGA-like thumbs must not explode into tessellated SVG, got {} bytes",
+        svg.len()
+    );
 }
 
 #[test]

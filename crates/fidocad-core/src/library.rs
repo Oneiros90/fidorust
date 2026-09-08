@@ -10,6 +10,19 @@ use serde::{Deserialize, Serialize};
 pub const PROJECT_STEM: &str = "project";
 pub const LOCAL_STEM: &str = "local";
 
+const RESERVED_STEMS: &[&str] = &[PROJECT_STEM, "stdlib", "PCB", "lib1"];
+
+pub fn sanitize_stem(raw: &str) -> String {
+    let mut out: String = raw.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+    if out.is_empty() {
+        return "user".into();
+    }
+    if out.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        out.insert(0, 'L');
+    }
+    out
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LibraryKind {
@@ -22,46 +35,6 @@ pub enum LibraryKind {
 impl LibraryKind {
     pub fn writable(self) -> bool {
         !matches!(self, Self::Builtin)
-    }
-
-    pub fn stem(self) -> Option<&'static str> {
-        match self {
-            Self::Builtin => None,
-            Self::Project => Some(PROJECT_STEM),
-            Self::Local => Some(LOCAL_STEM),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UserLibraryTarget {
-    Project,
-    Local,
-}
-
-impl UserLibraryTarget {
-    pub fn stem(self) -> &'static str {
-        match self {
-            Self::Project => PROJECT_STEM,
-            Self::Local => LOCAL_STEM,
-        }
-    }
-
-    pub fn kind(self) -> LibraryKind {
-        match self {
-            Self::Project => LibraryKind::Project,
-            Self::Local => LibraryKind::Local,
-        }
-    }
-
-    pub fn from_stem(s: &str) -> Option<Self> {
-        if s.eq_ignore_ascii_case(PROJECT_STEM) {
-            Some(Self::Project)
-        } else if s.eq_ignore_ascii_case(LOCAL_STEM) || s.eq_ignore_ascii_case("device") {
-            Some(Self::Local)
-        } else {
-            None
-        }
     }
 }
 
@@ -108,14 +81,18 @@ impl Library {
         }
     }
 
-    pub fn empty_local() -> Self {
+    pub fn empty_user(stem: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
-            name: "Local library".into(),
-            file_stem: LOCAL_STEM.into(),
+            name: name.into(),
+            file_stem: stem.into(),
             standard: false,
             kind: LibraryKind::Local,
             components: Vec::new(),
         }
+    }
+
+    pub fn empty_local() -> Self {
+        Self::empty_user(LOCAL_STEM, "Local library")
     }
 
     pub fn writable(&self) -> bool {
@@ -182,9 +159,6 @@ impl LibrarySet {
         if !self.has_stem(PROJECT_STEM) {
             self.add(Library::empty_project());
         }
-        if !self.has_stem(LOCAL_STEM) {
-            self.add(Library::empty_local());
-        }
     }
 
     pub fn has_stem(&self, stem: &str) -> bool {
@@ -241,6 +215,92 @@ impl LibrarySet {
         } else {
             self.add(lib);
         }
+    }
+
+    pub fn user_libraries(&self) -> impl Iterator<Item = &Library> {
+        self.libraries
+            .iter()
+            .filter(|l| l.kind == LibraryKind::Local)
+    }
+
+    pub fn user_libraries_cloned(&self) -> Vec<Library> {
+        self.user_libraries().cloned().collect()
+    }
+
+    pub fn replace_user_libraries(&mut self, libs: Vec<Library>) {
+        self.libraries.retain(|l| l.kind != LibraryKind::Local);
+        for mut lib in libs {
+            lib.kind = LibraryKind::Local;
+            lib.standard = false;
+            self.add(lib);
+        }
+    }
+
+    pub fn remove_library(&mut self, stem: &str) -> bool {
+        if stem.eq_ignore_ascii_case(PROJECT_STEM) {
+            return false;
+        }
+        let before = self.libraries.len();
+        self.libraries
+            .retain(|l| !l.file_stem.eq_ignore_ascii_case(stem));
+        before != self.libraries.len()
+    }
+
+    pub fn unique_library_title(&self, base: &str) -> String {
+        if !self.libraries.iter().any(|l| l.name == base) {
+            return base.to_string();
+        }
+        let mut n = 2u32;
+        loop {
+            let name = format!("{base} {n}");
+            if !self.libraries.iter().any(|l| l.name == name) {
+                return name;
+            }
+            n += 1;
+        }
+    }
+
+    pub fn unique_stem(&self, desired: &str) -> String {
+        self.unique_stem_excluding(desired, "")
+    }
+
+    pub fn unique_stem_excluding(&self, desired: &str, allow: &str) -> String {
+        let base = sanitize_stem(desired);
+        if !self.stem_taken(&base, allow) {
+            return base;
+        }
+        let mut n = 2u32;
+        loop {
+            let candidate = format!("{base}{n}");
+            if !self.stem_taken(&candidate, allow) {
+                return candidate;
+            }
+            n += 1;
+        }
+    }
+
+    fn stem_taken(&self, stem: &str, allow: &str) -> bool {
+        if !allow.is_empty() && stem.eq_ignore_ascii_case(allow) {
+            return false;
+        }
+        RESERVED_STEMS.iter().any(|r| r.eq_ignore_ascii_case(stem)) || self.has_stem(stem)
+    }
+
+    pub fn add_user_library(&mut self, mut lib: Library) -> String {
+        lib.kind = LibraryKind::Local;
+        lib.standard = false;
+        let old_stem = if lib.file_stem.is_empty() {
+            sanitize_stem(&lib.name)
+        } else {
+            lib.file_stem.clone()
+        };
+        let stem = self.unique_stem(&old_stem);
+        if stem != old_stem {
+            rewrite_component_names_in_lib(&mut lib, &old_stem, &stem);
+        }
+        lib.file_stem = stem.clone();
+        self.add(lib);
+        stem
     }
 
     pub fn lookup(&self, mc_name: &str) -> Option<(&Library, &ComponentDef)> {
@@ -452,6 +512,54 @@ pub fn rewrite_component_names_in_libs(libs: &mut LibrarySet, from: &str, to: &s
     }
 }
 
+fn rewrite_component_names_in_lib(lib: &mut Library, old_stem: &str, new_stem: &str) {
+    let keys: Vec<String> = lib.components.iter().map(|c| c.key.clone()).collect();
+    for key in keys {
+        let from = component_full_name(old_stem, &key);
+        let to = component_full_name(new_stem, &key);
+        rewrite_component_names_in_defs(&mut lib.components, &from, &to);
+    }
+}
+
+fn rewrite_component_names_in_defs(defs: &mut [ComponentDef], from: &str, to: &str) {
+    for def in defs {
+        rewrite_component_names(&mut def.primitives, from, to);
+    }
+}
+
+pub fn rewrite_library_stem(
+    doc_prims: &mut [Primitive],
+    libs: &mut LibrarySet,
+    old_stem: &str,
+    new_stem: &str,
+) {
+    let keys: Vec<String> = libs
+        .library(old_stem)
+        .map(|l| l.components.iter().map(|c| c.key.clone()).collect())
+        .unwrap_or_default();
+    for key in keys {
+        let from = component_full_name(old_stem, &key);
+        let to = component_full_name(new_stem, &key);
+        rewrite_component_names(doc_prims, &from, &to);
+        rewrite_component_names_in_libs(libs, &from, &to);
+    }
+}
+
+pub fn explode_library_instances(
+    doc_prims: &mut Vec<Primitive>,
+    libs: &mut LibrarySet,
+    stem: &str,
+) {
+    let keys: Vec<String> = libs
+        .library(stem)
+        .map(|l| l.components.iter().map(|c| c.key.clone()).collect())
+        .unwrap_or_default();
+    for key in keys {
+        let full = component_full_name(stem, &key);
+        explode_named_everywhere(doc_prims, libs, &full);
+    }
+}
+
 /// Replace every instance of `full_name` with its expanded primitives.
 pub fn explode_named(prims: &mut Vec<Primitive>, full_name: &str, libs: &LibrarySet) {
     let mut out = Vec::with_capacity(prims.len());
@@ -489,4 +597,123 @@ pub fn translate_primitives(prims: &mut [Primitive], dx: i32, dy: i32) {
     for p in prims {
         p.transform(|q| q + delta);
     }
+}
+
+fn primitives_use_user_components(prims: &[Primitive], libs: &LibrarySet) -> bool {
+    prims.iter().any(|p| {
+        let Primitive::Component(c) = p else {
+            return false;
+        };
+        libs.lookup(&c.name)
+            .is_some_and(|(lib, _)| lib.kind == LibraryKind::Local)
+    })
+}
+
+/// True if the drawing or project-library defs reference a user (non-project) library.
+pub fn drawing_uses_user_library_components(prims: &[Primitive], libs: &LibrarySet) -> bool {
+    if primitives_use_user_components(prims, libs) {
+        return true;
+    }
+    if let Some(project) = libs.project() {
+        for def in &project.components {
+            if primitives_use_user_components(&def.primitives, libs) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn collect_used_user_defs(
+    prims: &[Primitive],
+    libs: &LibrarySet,
+    out: &mut Vec<(String, ComponentDef)>,
+) {
+    for p in prims {
+        let Primitive::Component(c) = p else {
+            continue;
+        };
+        let Some((lib, def)) = libs.lookup(&c.name) else {
+            continue;
+        };
+        if lib.kind == LibraryKind::Local {
+            let already = out
+                .iter()
+                .any(|(stem, d)| stem.eq_ignore_ascii_case(&lib.file_stem) && d.key == def.key);
+            if !already {
+                out.push((lib.file_stem.clone(), def.clone()));
+                collect_used_user_defs(&def.primitives, libs, out);
+            }
+        } else if lib.kind == LibraryKind::Project {
+            collect_used_user_defs(&def.primitives, libs, out);
+        }
+    }
+}
+
+/// Copy used user-library defs into the project library (clone). Rewrites MC names.
+pub fn fold_user_components_into_project(doc_prims: &mut Vec<Primitive>, libs: &mut LibrarySet) {
+    libs.ensure_user_libraries();
+    let mut used = Vec::new();
+    collect_used_user_defs(doc_prims, libs, &mut used);
+    if let Some(project) = libs.project() {
+        for def in &project.components {
+            collect_used_user_defs(&def.primitives, libs, &mut used);
+        }
+    }
+    let mut mapping: Vec<(String, String)> = Vec::new();
+    for (stem, def) in used {
+        let old_full = component_full_name(&stem, &def.key);
+        let dest_key = {
+            let project = match libs.project_mut() {
+                Some(p) => p,
+                None => continue,
+            };
+            if project.find(&def.key).is_none() {
+                def.key.clone()
+            } else {
+                project.next_key()
+            }
+        };
+        let new_full = component_full_name(PROJECT_STEM, &dest_key);
+        if let Some(project) = libs.project_mut() {
+            let mut moved = def;
+            moved.key = dest_key;
+            project.components.push(moved);
+        }
+        if old_full != new_full {
+            mapping.push((old_full, new_full));
+        }
+    }
+    for (from, to) in mapping {
+        rewrite_component_names(doc_prims, &from, &to);
+        rewrite_component_names_in_libs(libs, &from, &to);
+    }
+}
+
+fn explode_local_refs(prims: &mut Vec<Primitive>, libs: &LibrarySet) {
+    let mut out = Vec::with_capacity(prims.len());
+    for p in prims.drain(..) {
+        if let Primitive::Component(ComponentRef { name, .. }) = &p {
+            if libs
+                .lookup(name)
+                .is_some_and(|(lib, _)| lib.kind == LibraryKind::Local)
+            {
+                out.extend(expand_primitive(&p, libs));
+                continue;
+            }
+        }
+        out.push(p);
+    }
+    *prims = out;
+}
+
+/// Expand every user-library instance in the drawing and project defs (clone).
+pub fn explode_user_components_for_save(doc_prims: &mut Vec<Primitive>, libs: &mut LibrarySet) {
+    let snapshot = libs.clone();
+    if let Some(project) = libs.project_mut() {
+        for def in &mut project.components {
+            explode_local_refs(&mut def.primitives, &snapshot);
+        }
+    }
+    explode_local_refs(doc_prims, &snapshot);
 }

@@ -2,7 +2,9 @@
 
 use crate::document::Document;
 use crate::layers::LayerInfo;
-use crate::library::{Library, LibrarySet};
+use crate::library::{
+    explode_user_components_for_save, fold_user_components_into_project, Library, LibrarySet,
+};
 use crate::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
@@ -173,6 +175,50 @@ pub fn serialize_layer(info: &LayerInfo) -> String {
 }
 
 pub fn serialize_document(doc: &Document, libs: Option<&LibrarySet>) -> String {
+    serialize_document_body(doc, libs)
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SaveLibraryPolicy {
+    #[default]
+    Keep,
+    FoldIntoProject,
+    ExplodeUser,
+}
+
+impl SaveLibraryPolicy {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "fold" | "project" => Self::FoldIntoProject,
+            "explode" | "split" => Self::ExplodeUser,
+            _ => Self::Keep,
+        }
+    }
+}
+
+pub fn serialize_document_with_policy(
+    doc: &Document,
+    libs: &LibrarySet,
+    policy: SaveLibraryPolicy,
+) -> String {
+    match policy {
+        SaveLibraryPolicy::Keep => serialize_document(doc, Some(libs)),
+        SaveLibraryPolicy::FoldIntoProject => {
+            let mut doc = doc.clone();
+            let mut libs = libs.clone();
+            fold_user_components_into_project(&mut doc.primitives, &mut libs);
+            serialize_document(&doc, Some(&libs))
+        }
+        SaveLibraryPolicy::ExplodeUser => {
+            let mut doc = doc.clone();
+            let mut libs = libs.clone();
+            explode_user_components_for_save(&mut doc.primitives, &mut libs);
+            serialize_document(&doc, Some(&libs))
+        }
+    }
+}
+
+fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String {
     let mut out = String::new();
     if doc.title.is_empty() {
         out.push_str("[FIDOCAD]\r\n");

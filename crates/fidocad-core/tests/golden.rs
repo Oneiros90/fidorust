@@ -269,6 +269,21 @@ fn click_places_pending_component_without_follow() {
     ed.set_pending_component(Some("080".into()));
     ed.pointer_down(Point::new(20, 20), (20.0, 20.0), false, false);
     assert_eq!(ed.doc().primitives.len(), 1);
+    assert_eq!(ed.tool(), Tool::Component);
+    assert_eq!(ed.pending_component(), Some("080"));
+    assert!(ed.selected().is_empty());
+}
+
+#[test]
+fn drop_places_component_and_returns_to_select() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Component);
+    ed.set_pending_component(Some("080".into()));
+    ed.place_dropped_component(Point::new(20, 20));
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert_eq!(ed.tool(), Tool::Select);
+    assert!(ed.pending_component().is_none());
+    assert_eq!(ed.selected(), &[0]);
 }
 
 #[test]

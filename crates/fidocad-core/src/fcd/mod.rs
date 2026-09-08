@@ -10,6 +10,6 @@ pub use parse::{
     ParseError,
 };
 pub use serialize::{
-    serialize_clipboard, serialize_document, serialize_layer, serialize_library,
-    serialize_primitive, serialize_project_settings,
+    serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_layer,
+    serialize_library, serialize_primitive, serialize_project_settings, SaveLibraryPolicy,
 };

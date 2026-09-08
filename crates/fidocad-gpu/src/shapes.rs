@@ -14,7 +14,7 @@ pub fn path_ellipse(
     ry: f32,
     dir: f32,
 ) {
-    const SEGS: u32 = 64;
+    const SEGS: u32 = 24;
     builder.begin(point(cx + rx, cy));
     for i in 1..=SEGS {
         let t = dir * std::f32::consts::TAU * i as f32 / SEGS as f32;

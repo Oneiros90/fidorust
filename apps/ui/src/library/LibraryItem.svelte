@@ -40,21 +40,25 @@
 	let skipNameCommit = false;
 	let skipDescCommit = false;
 
+	const previewSvg = $derived(app.previewCache.get(theme, name));
+
 	const attachPreview = $derived.by(() => {
 		const eng = engine;
 		const n = name;
 		const themeKey = theme;
-		const rev = eng?.libsRev ?? 0;
+		const raw = previewSvg;
+		void (eng?.libsRev ?? 0);
 		return (node: HTMLElement) => {
+			if (raw) {
+				const el = parseSvgElement(raw);
+				if (el) node.replaceChildren(el);
+				return;
+			}
 			if (!eng) return;
-			node.dataset.theme = themeKey;
-			node.dataset.rev = String(rev);
 			const io = new IntersectionObserver(
 				(entries) => {
 					if (!entries.some((e) => e.isIntersecting)) return;
-					const raw = eng.query((wasm) => wasm.component_preview_svg(n));
-					const el = raw ? parseSvgElement(raw) : null;
-					if (el) node.replaceChildren(el);
+					app.previewCache.request(eng, themeKey, n);
 					io.disconnect();
 				},
 				{ rootMargin: PREVIEW_ROOT_MARGIN }

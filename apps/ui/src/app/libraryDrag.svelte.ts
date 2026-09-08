@@ -81,6 +81,7 @@ export class LibraryDragSession {
 				s.engine.mutate((app) => {
 					app.place_component_at(name, loc.x, loc.y);
 				});
+				s.libraryFocus = null;
 			} else {
 				s.engine.query((app) => {
 					app.clear_hover();

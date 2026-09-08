@@ -12,11 +12,13 @@ export class App {
     cancel_component_edit(): boolean;
     cancel_text_edit(): void;
     clear_hover(): void;
+    clear_project_library(): boolean;
     clipboard_fcd(): string;
     commit_text_edit(text: string): void;
     component_cursor_json(name: string): string;
     component_preview_svg(name: string): string;
     create_component_from_selection(target: string, display_name: string): string;
+    create_user_library(title: string): string;
     dblclick(sx: number, sy: number): string;
     delete_component(stem: string, key: string): boolean;
     /**
@@ -25,11 +27,13 @@ export class App {
     delete_layer(n: number, mode: string, move_to: number): void;
     edit_selected_component(): boolean;
     enter_component_edit(stem: string, key: string): boolean;
+    export_library_fcl(stem: string): string;
     /**
      * `opts_json` is `{ margin_lu, bw, layers: [{ show, invert }] }`. Empty / invalid JSON uses document layers.
      */
     export_svg(opts_json: string): string;
     fit(): void;
+    import_library(text: string): string;
     invert_selection(): void;
     key(key: string, meta: boolean): boolean;
     layer_object_count(n: number): number;
@@ -37,8 +41,7 @@ export class App {
     library_json(): string;
     load_fcd(text: string): void;
     load_fcd_bytes(bytes: Uint8Array): void;
-    load_local_library(text: string): void;
-    local_library_fcl(): string;
+    load_user_libraries(json: string): void;
     mirror(): void;
     move_component(stem: string, key: string, dest_stem: string): string;
     constructor();
@@ -51,13 +54,16 @@ export class App {
     pointer_up(sx: number, sy: number): void;
     prepare_context_menu(sx: number, sy: number): void;
     redo(): void;
+    remove_user_library(stem: string): boolean;
     rename_component(stem: string, key: string, name: string): boolean;
+    rename_library(stem: string, title: string): string;
     render(): void;
     reorder_layer(from: number, to: number): void;
     resize(w: number, h: number): void;
     rotate(): void;
     save_component_edit(): boolean;
     save_fcd(): string;
+    save_fcd_with_policy(policy: string): string;
     selection_props_form_json(): string;
     selection_props_json(): string;
     set_component_description(stem: string, key: string, description: string): boolean;
@@ -83,7 +89,9 @@ export class App {
     split_selected_components(): void;
     status_json(): string;
     undo(): void;
+    user_libraries_blob(): string;
     user_libraries_json(): string;
+    uses_user_library_components(): boolean;
     wheel(sx: number, sy: number, delta: number): void;
     world_to_screen_json(wx: number, wy: number): string;
 }
@@ -101,18 +109,22 @@ export interface InitOutput {
     readonly app_cancel_component_edit: (a: number) => number;
     readonly app_cancel_text_edit: (a: number) => void;
     readonly app_clear_hover: (a: number) => void;
+    readonly app_clear_project_library: (a: number) => number;
     readonly app_clipboard_fcd: (a: number) => [number, number];
     readonly app_commit_text_edit: (a: number, b: number, c: number) => void;
     readonly app_component_cursor_json: (a: number, b: number, c: number) => [number, number];
     readonly app_component_preview_svg: (a: number, b: number, c: number) => [number, number];
     readonly app_create_component_from_selection: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly app_create_user_library: (a: number, b: number, c: number) => [number, number];
     readonly app_dblclick: (a: number, b: number, c: number) => [number, number];
     readonly app_delete_component: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_delete_layer: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly app_edit_selected_component: (a: number) => number;
     readonly app_enter_component_edit: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly app_export_library_fcl: (a: number, b: number, c: number) => [number, number];
     readonly app_export_svg: (a: number, b: number, c: number) => [number, number];
     readonly app_fit: (a: number) => void;
+    readonly app_import_library: (a: number, b: number, c: number) => [number, number, number, number];
     readonly app_invert_selection: (a: number) => void;
     readonly app_key: (a: number, b: number, c: number, d: number) => number;
     readonly app_layer_object_count: (a: number, b: number) => number;
@@ -120,8 +132,7 @@ export interface InitOutput {
     readonly app_library_json: (a: number) => [number, number];
     readonly app_load_fcd: (a: number, b: number, c: number) => [number, number];
     readonly app_load_fcd_bytes: (a: number, b: number, c: number) => [number, number];
-    readonly app_load_local_library: (a: number, b: number, c: number) => void;
-    readonly app_local_library_fcl: (a: number) => [number, number];
+    readonly app_load_user_libraries: (a: number, b: number, c: number) => void;
     readonly app_mirror: (a: number) => void;
     readonly app_move_component: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly app_new: () => number;
@@ -134,13 +145,16 @@ export interface InitOutput {
     readonly app_pointer_up: (a: number, b: number, c: number) => void;
     readonly app_prepare_context_menu: (a: number, b: number, c: number) => void;
     readonly app_redo: (a: number) => void;
+    readonly app_remove_user_library: (a: number, b: number, c: number) => number;
     readonly app_rename_component: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly app_rename_library: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly app_render: (a: number) => void;
     readonly app_reorder_layer: (a: number, b: number, c: number) => void;
     readonly app_resize: (a: number, b: number, c: number) => void;
     readonly app_rotate: (a: number) => void;
     readonly app_save_component_edit: (a: number) => number;
     readonly app_save_fcd: (a: number) => [number, number];
+    readonly app_save_fcd_with_policy: (a: number, b: number, c: number) => [number, number];
     readonly app_selection_props_form_json: (a: number) => [number, number];
     readonly app_selection_props_json: (a: number) => [number, number];
     readonly app_set_component_description: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
@@ -166,7 +180,9 @@ export interface InitOutput {
     readonly app_split_selected_components: (a: number) => void;
     readonly app_status_json: (a: number) => [number, number];
     readonly app_undo: (a: number) => void;
+    readonly app_user_libraries_blob: (a: number) => [number, number];
     readonly app_user_libraries_json: (a: number) => [number, number];
+    readonly app_uses_user_library_components: (a: number) => number;
     readonly app_wheel: (a: number, b: number, c: number, d: number) => void;
     readonly app_world_to_screen_json: (a: number, b: number, c: number) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;

@@ -119,6 +119,18 @@ fn write_circle(
             r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="none" stroke="{stroke}" stroke-width="{:.2}"/>"#,
             (c.stroke * scale).max(min_stroke),
         ));
+    } else if c.inner > 0.01 {
+        // `inner` is in ellipse UV space (same as the GPU shader): a circular hole
+        // in UV maps to an ellipse matching the pad's eccentricity.
+        let hrx = (c.inner * rx).max(0.0);
+        let hry = (c.inner * ry).max(0.0);
+        out.push_str(&format!(
+            r#"<path fill-rule="evenodd" fill="{stroke}" d="M {ox:.2},{cy:.2} A {rx:.2},{ry:.2} 0 1 1 {ix:.2},{cy:.2} A {rx:.2},{ry:.2} 0 1 1 {ox:.2},{cy:.2} Z M {ih:.2},{cy:.2} A {hrx:.2},{hry:.2} 0 1 0 {oh:.2},{cy:.2} A {hrx:.2},{hry:.2} 0 1 0 {ih:.2},{cy:.2} Z"/>"#,
+            ox = cx - rx,
+            ix = cx + rx,
+            ih = cx - hrx,
+            oh = cx + hrx,
+        ));
     } else {
         out.push_str(&format!(
             r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="{stroke}"/>"#

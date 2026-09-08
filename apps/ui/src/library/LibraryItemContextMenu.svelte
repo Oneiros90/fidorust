@@ -13,9 +13,7 @@
 	const editing = $derived(!!app.status.editing_component);
 
 	function titleFor(s: string) {
-		if (s === 'project') return app.t.projectLibrary;
-		if (s === 'local') return app.t.localLibrary;
-		return s;
+		return app.libraryTitle(s);
 	}
 </script>
 
