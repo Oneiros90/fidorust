@@ -10,7 +10,7 @@
 		"preview": "vite preview",
 		"tauri": "tauri",
 		"tauri:dev": "cd ../../apps/ui && tauri dev",
-		"bump": "node ../../tools/bump.mjs",
+		"bump": "prettier --write . && node ../../tools/bump.mjs",
 		"check": "npm run wasm && svelte-check --tsconfig ./tsconfig.json",
 		"format": "prettier --write .",
 		"format:check": "prettier --check ."
