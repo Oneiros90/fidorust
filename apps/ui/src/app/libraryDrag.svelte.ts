@@ -1,8 +1,8 @@
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import { canvasLocal, cssPerLu } from '../lib/canvasCoords';
 import { DRAG_THRESHOLD_PX } from '../lib/constants';
-import { parseMacroCursor } from '../lib/libraryDrag';
-import type { MacroCursor } from './engineTypes';
+import { parseComponentCursor } from '../lib/libraryDrag';
+import type { ComponentCursor } from './engineTypes';
 import type { AppSession } from './appSession.svelte';
 
 export class LibraryDragSession {
@@ -71,7 +71,7 @@ export class LibraryDragSession {
 			const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
 			if (loc.inside) {
 				s.engine.mutate((app) => {
-					app.place_macro_at(name, loc.x, loc.y);
+					app.place_component_at(name, loc.x, loc.y);
 				});
 			} else {
 				s.engine.query((app) => {
@@ -111,12 +111,14 @@ export class LibraryDragSession {
 	};
 }
 
-export function getCursor(s: AppSession, name: string): MacroCursor | null {
+export function getCursor(s: AppSession, name: string): ComponentCursor | null {
 	if (!s.engine) return null;
 	const key = `${s.theme}:${name}`;
 	let c = s.cursorCache.get(key);
 	if (!c) {
-		const parsed = parseMacroCursor(s.engine.query((app: WasmApp) => app.macro_cursor_json(name)));
+		const parsed = parseComponentCursor(
+			s.engine.query((app: WasmApp) => app.component_cursor_json(name))
+		);
 		if (!parsed) return null;
 		s.cursorCache.set(key, parsed);
 		c = parsed;

@@ -11,7 +11,7 @@ import {
 import { decodeProject } from '../lib/shareCodec';
 import { parsePropForm, type PropPatch } from '../lib/propForm';
 import { defaultStatus } from './engineTypes';
-import type { MacroCursor } from './engineTypes';
+import type { ComponentCursor } from './engineTypes';
 import type { LibGhost, Theme } from './types';
 import { Engine } from './engine.svelte';
 import { Dialogs } from './dialogs.svelte';
@@ -24,6 +24,8 @@ import * as edit from './editCommands';
 import { LibraryDragSession, getCursor } from './libraryDrag.svelte';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
 import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
+import { componentFullName } from '../lib/libraryDrag';
+import { loadLocalLibrary, saveLocalLibrary } from '../lib/localLibrary';
 
 export type { RecentEntry };
 export type { LibGhost };
@@ -35,7 +37,7 @@ export type GridValues = {
 	snapY: number;
 	showGrid: boolean;
 	snapEnable: boolean;
-	hideMacroOrigin: boolean;
+	hideComponentOrigin: boolean;
 };
 
 export class AppSession {
@@ -57,11 +59,11 @@ export class AppSession {
 	);
 	ui = new UiState();
 	dialogs = new Dialogs();
-	splitMacros = $state(this.#session?.splitMacros ?? true);
+	splitComponents = $state(this.#session?.splitComponents ?? false);
 	fileHandleName = $state(this.#session?.name ?? 'untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
 	libGhost = $state<LibGhost | null>(null);
-	cursorCache = new SvelteMap<string, MacroCursor>();
+	cursorCache = new SvelteMap<string, ComponentCursor>();
 	recents = $state<RecentEntry[]>(loadRecents());
 	savedSnapshot = '';
 	pendingDiscard: (() => void) | null = null;
@@ -115,6 +117,24 @@ export class AppSession {
 	set editingLayerName(v) {
 		this.ui.editingLayerName = v;
 	}
+	get editingLibraryField() {
+		return this.ui.editingLibraryField;
+	}
+	set editingLibraryField(v) {
+		this.ui.editingLibraryField = v;
+	}
+	get expandedUserLibs() {
+		return this.ui.expandedUserLibs;
+	}
+	set expandedUserLibs(v) {
+		this.ui.expandedUserLibs = v;
+	}
+	get libraryFocus() {
+		return this.ui.libraryFocus;
+	}
+	set libraryFocus(v) {
+		this.ui.libraryFocus = v;
+	}
 	get error() {
 		const d = this.dialogs.dialog;
 		return d?.kind === 'error' ? d.message : '';
@@ -140,14 +160,24 @@ export class AppSession {
 	openContextMenu = (x: number, y: number) => {
 		this.ui.menu = null;
 		this.ui.editingLayerName = null;
+		this.ui.editingLibraryField = null;
 		this.ui.ctxMenu = { kind: 'edit', x, y };
 	};
 
 	openLayerContextMenu = (x: number, y: number, index: number) => {
 		this.ui.menu = null;
 		this.ui.editingLayerName = null;
+		this.ui.editingLibraryField = null;
 		this.ui.ctxMenu = { kind: 'layer', x, y, index };
 		this.setLayer(index);
+	};
+
+	openLibraryItemContextMenu = (x: number, y: number, stem: string, key: string) => {
+		this.ui.menu = null;
+		this.ui.editingLayerName = null;
+		this.ui.editingLibraryField = null;
+		this.ui.ctxMenu = { kind: 'libraryItem', x, y, stem, key };
+		this.ui.libraryFocus = { stem, key };
 	};
 
 	beginRenameLayer = (index: number) => {
@@ -168,10 +198,15 @@ export class AppSession {
 		const { App } = await import('../wasm/fidocad_wasm.js');
 		await initWasm();
 		this.engine = new Engine(new App());
+		const localFcl = loadLocalLibrary();
 		this.engine.query((app) => {
 			app.set_locale(this.locale);
 			app.set_theme(this.theme);
-			app.set_split_macros(this.splitMacros);
+			if (localFcl) app.load_local_library(localFcl);
+			app.set_split_components(this.splitComponents);
+			if (this.#session) {
+				app.set_hide_component_origin(this.#session.hideComponentOrigin);
+			}
 		});
 		this.refresh();
 		const project = new URLSearchParams(window.location.search).get('project');
@@ -192,7 +227,16 @@ export class AppSession {
 			this.markClean();
 		}
 		this.#persistEnabled = true;
-		if (this.engine) this.engine.onRefresh = () => this.schedulePersist();
+		if (this.engine) {
+			let libsRev = this.engine.libsRev;
+			this.engine.onRefresh = () => {
+				if (this.engine && this.engine.libsRev !== libsRev) {
+					libsRev = this.engine.libsRev;
+					this.cursorCache.clear();
+				}
+				this.schedulePersist();
+			};
+		}
 		window.addEventListener('pagehide', this.flushPersist);
 		document.addEventListener('visibilitychange', this.onVisibilityChange);
 		this.schedulePersist();
@@ -204,15 +248,17 @@ export class AppSession {
 			this.engine.mutate((app) => {
 				app.load_fcd(session.fcd);
 				app.set_view(session.zoom, session.panX, session.panY);
-				app.set_tool(session.tool);
+				app.set_tool(
+					session.tool === 'component' || session.tool === 'macro' ? 'select' : session.tool
+				);
 				app.set_layer(session.layer);
 				app.set_snap_enable(session.snapEnable);
 				app.set_show_grid(session.showGrid);
-				app.set_hide_macro_origin(session.hideMacroOrigin);
-				app.set_split_macros(session.splitMacros);
+				app.set_hide_component_origin(session.hideComponentOrigin);
+				app.set_split_components(session.splitComponents);
 			});
 			this.fileHandleName = session.name;
-			this.splitMacros = session.splitMacros;
+			this.splitComponents = session.splitComponents;
 			this.savedSnapshot = session.savedFcd;
 		} catch (err) {
 			this.error = String(err);
@@ -256,15 +302,20 @@ export class AppSession {
 			layer: status.layer,
 			snapEnable: status.snap_enable,
 			showGrid: status.show_grid,
-			hideMacroOrigin: status.hide_macro_origin,
-			splitMacros: this.splitMacros,
+			hideComponentOrigin: status.hide_component_origin,
+			splitComponents: this.splitComponents,
 			theme: this.theme,
 			locale: this.locale
 		});
+		saveLocalLibrary(this.engine.query((app) => app.local_library_fcl()));
 	};
 
 	onKey = (e: KeyboardEvent) => {
-		if (e.key === 'Escape' && this.dialogs.dialog?.kind === 'deleteLayer') {
+		if (
+			e.key === 'Escape' &&
+			(this.dialogs.dialog?.kind === 'deleteLayer' ||
+				this.dialogs.dialog?.kind === 'deleteComponent')
+		) {
 			this.dialogs.close();
 			e.preventDefault();
 			return;
@@ -372,19 +423,124 @@ export class AppSession {
 		});
 	};
 
-	toggleSplitMacros = () => {
-		this.splitMacros = !this.splitMacros;
+	toggleSplitComponents = () => {
+		this.splitComponents = !this.splitComponents;
 		this.engine?.query((app) => {
-			app.set_split_macros(this.splitMacros);
+			app.set_split_components(this.splitComponents);
 		});
 		this.schedulePersist();
 	};
 
-	pickMacro = (stem: string, key: string) => {
-		const name = stem === 'stdlib' ? key : `${stem}.${key}`;
+	pickComponent = (stem: string, key: string) => {
+		const name = componentFullName(stem, key);
 		this.engine?.mutate((app) => {
-			app.set_pending_macro(name);
+			app.set_pending_component(name);
 		});
+	};
+
+	revealLibraryItem = (stem: string, key: string) => {
+		this.rightCollapsed = false;
+		this.rightTab = 'library';
+		this.expandedUserLibs = { ...this.expandedUserLibs, [stem]: true };
+		this.libraryFocus = { stem, key };
+	};
+
+	createComponentFromSelection = (target: 'project' | 'local') => {
+		if (!this.engine) return;
+		const created = { stem: '', key: '' };
+		this.engine.mutate((app) => {
+			const json = app.create_component_from_selection(target, this.t.newComponent);
+			if (!json) return;
+			try {
+				const parsed = JSON.parse(json) as { stem?: string; key?: string };
+				if (parsed.stem && parsed.key) {
+					created.stem = parsed.stem;
+					created.key = parsed.key;
+				}
+			} catch {
+				/* ignore */
+			}
+		});
+		if (created.stem && created.key) this.revealLibraryItem(created.stem, created.key);
+	};
+
+	enterComponentEdit = (stem: string, key: string) => {
+		this.ui.ctxMenu = null;
+		this.engine?.mutate((app) => {
+			app.enter_component_edit(stem, key);
+		});
+	};
+
+	editSelectedComponent = () => {
+		this.engine?.mutate((app) => {
+			app.edit_selected_component();
+		});
+	};
+
+	saveComponentEdit = () => {
+		this.engine?.mutate((app) => {
+			app.save_component_edit();
+		});
+	};
+
+	cancelComponentEdit = () => {
+		this.engine?.mutate((app) => {
+			app.cancel_component_edit();
+		});
+	};
+
+	beginRenameComponent = (stem: string, key: string) => {
+		this.ui.ctxMenu = null;
+		this.ui.editingLibraryField = { stem, key, field: 'name' };
+		this.ui.libraryFocus = { stem, key };
+	};
+
+	beginEditComponentDescription = (stem: string, key: string) => {
+		this.ui.ctxMenu = null;
+		this.ui.editingLibraryField = { stem, key, field: 'description' };
+		this.ui.libraryFocus = { stem, key };
+	};
+
+	renameComponent = (stem: string, key: string, name: string) => {
+		this.engine?.mutate((app) => {
+			app.rename_component(stem, key, name);
+		});
+		this.editingLibraryField = null;
+	};
+
+	setComponentDescription = (stem: string, key: string, description: string) => {
+		this.engine?.mutate((app) => {
+			app.set_component_description(stem, key, description);
+		});
+		this.editingLibraryField = null;
+	};
+
+	moveComponent = (stem: string, key: string, destStem: string) => {
+		let destKey = key;
+		this.engine?.mutate((app) => {
+			const moved = app.move_component(stem, key, destStem);
+			if (moved) destKey = moved;
+		});
+		this.revealLibraryItem(destStem, destKey);
+	};
+
+	requestDeleteComponent = (stem: string, key: string) => {
+		this.ui.ctxMenu = null;
+		this.dialogs.open({ kind: 'deleteComponent', stem, key });
+	};
+
+	confirmDeleteComponent = (stem: string, key: string) => {
+		this.dialogs.close();
+		this.engine?.mutate((app) => {
+			app.delete_component(stem, key);
+		});
+		if (this.libraryFocus?.stem === stem && this.libraryFocus?.key === key) {
+			this.libraryFocus = null;
+		}
+	};
+
+	cancelDeleteComponent = () => {
+		if (this.dialogs.dialog?.kind === 'deleteComponent') this.dialogs.close();
 	};
 
 	getCursor = (name: string) => getCursor(this, name);
@@ -396,7 +552,7 @@ export class AppSession {
 			app.set_snap(v.snapX, v.snapY);
 			app.set_show_grid(v.showGrid);
 			app.set_snap_enable(v.snapEnable);
-			app.set_hide_macro_origin(v.hideMacroOrigin);
+			app.set_hide_component_origin(v.hideComponentOrigin);
 		});
 		this.dialogs.close();
 	};

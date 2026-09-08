@@ -1,8 +1,8 @@
 //! Interactive editor: view, history, tools, layers, and text edit.
 
+mod components;
 mod history;
 mod layers;
-mod macros;
 mod selection;
 mod text_edit;
 mod tools;
@@ -25,6 +25,8 @@ use crate::primitive::{
 };
 use crate::properties::{apply_selection_props, selection_props_form, PropPatch};
 
+use components::ComponentEditSession;
+use history::HistorySnapshot;
 use tools::{Draft, Drag};
 
 #[derive(Clone, Debug)]
@@ -43,13 +45,13 @@ pub struct Editor {
     pad_dy: i32,
     pad_hole: i32,
     pad_style: PadStyle,
-    pending_macro: Option<String>,
+    pending_component: Option<String>,
     pending_rotations: u8,
     pending_text: String,
     /// Primitive index whose glyphs are hidden while the UI overlay edits them.
     editing_text: Option<usize>,
-    undo: Vec<Document>,
-    redo: Vec<Document>,
+    undo: Vec<HistorySnapshot>,
+    redo: Vec<HistorySnapshot>,
     /// Pre-move / pre-handle snapshot; committed on pointer_up if the document changed.
     drag_checkpoint: Option<Document>,
     /// Layer index of an in-progress color drag; consecutive updates share one undo frame.
@@ -61,12 +63,15 @@ pub struct Editor {
     canvas_dark: bool,
     /// Original `m_bSnapEnable`. When false, coordinates are not quantized.
     snap_enable: bool,
-    /// Original `m_bHideMacroOrigin`. When true, skip the red origin handle on macros.
-    hide_macro_origin: bool,
+    /// When true, skip the red origin handle on components.
+    hide_component_origin: bool,
+    libs_rev: u32,
+    component_edit: Option<ComponentEditSession>,
 }
 
 impl Editor {
-    pub fn new(libs: LibrarySet) -> Self {
+    pub fn new(mut libs: LibrarySet) -> Self {
+        libs.ensure_user_libraries();
         Self {
             doc: Document::default(),
             libs,
@@ -75,14 +80,14 @@ impl Editor {
             selected: Vec::new(),
             zoom: 4.0,
             pan: (FIT_MARGIN, FIT_MARGIN),
-            split_nonstandard: true,
+            split_nonstandard: false,
             filled: false,
             track_width: DEFAULT_TRACK_WIDTH,
             pad_dx: DEFAULT_PAD_DX,
             pad_dy: DEFAULT_PAD_DY,
             pad_hole: DEFAULT_PAD_HOLE,
             pad_style: PadStyle::Oval,
-            pending_macro: None,
+            pending_component: None,
             pending_rotations: 0,
             pending_text: "TEXT".into(),
             editing_text: None,
@@ -95,7 +100,9 @@ impl Editor {
             hover: None,
             canvas_dark: false,
             snap_enable: true,
-            hide_macro_origin: true,
+            hide_component_origin: true,
+            libs_rev: 0,
+            component_edit: None,
         }
     }
 
@@ -130,6 +137,14 @@ impl Editor {
 
     pub fn libs(&self) -> &LibrarySet {
         &self.libs
+    }
+
+    pub fn libs_mut(&mut self) -> &mut LibrarySet {
+        &mut self.libs
+    }
+
+    pub fn libs_rev(&self) -> u32 {
+        self.libs_rev
     }
 
     pub fn tool(&self) -> Tool {
@@ -193,12 +208,12 @@ impl Editor {
         self.snap_enable = on;
     }
 
-    pub fn hide_macro_origin(&self) -> bool {
-        self.hide_macro_origin
+    pub fn hide_component_origin(&self) -> bool {
+        self.hide_component_origin
     }
 
-    pub fn set_hide_macro_origin(&mut self, on: bool) {
-        self.hide_macro_origin = on;
+    pub fn set_hide_component_origin(&mut self, on: bool) {
+        self.hide_component_origin = on;
     }
 
     pub fn split_nonstandard(&self) -> bool {
@@ -213,8 +228,8 @@ impl Editor {
         self.pending_rotations
     }
 
-    pub fn pending_macro(&self) -> Option<&str> {
-        self.pending_macro.as_deref()
+    pub fn pending_component(&self) -> Option<&str> {
+        self.pending_component.as_deref()
     }
 
     pub fn editing_text(&self) -> Option<usize> {
@@ -263,9 +278,9 @@ impl Editor {
         self.pending_text = text;
     }
 
-    /// Switch to the macro tool without cancelling an in-progress draft.
-    pub fn adopt_macro_tool(&mut self) {
-        self.tool = Tool::Macro;
+    /// Switch to the component tool without cancelling an in-progress draft.
+    pub fn adopt_component_tool(&mut self) {
+        self.tool = Tool::Component;
     }
 
     pub fn draft_points(&self) -> &[Point] {
@@ -364,8 +379,8 @@ impl Editor {
                     simple: false,
                 }));
             }
-            Tool::Macro => {
-                self.insert_pending_macro_at(pt);
+            Tool::Component => {
+                self.insert_pending_component_at(pt);
             }
             Tool::Zoom => {
                 self.zoom = (self.zoom * ZOOM_TOOL_FACTOR).min(ZOOM_MAX_WHEEL);
@@ -591,8 +606,10 @@ impl Editor {
     }
 
     pub fn load_text(&mut self, text: &str) -> Result<(), crate::parse::ParseError> {
-        let doc = crate::parse::parse_document(text)?;
+        let (doc, project) = crate::parse::parse_document_with_project_library(text)?;
         self.doc = doc;
+        self.set_project_library(project);
+        self.component_edit = None;
         self.clear_history();
         self.selected.clear();
         self.drag = None;

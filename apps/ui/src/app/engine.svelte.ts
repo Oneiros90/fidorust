@@ -8,18 +8,24 @@ export class Engine {
 	status = $state<Status>(defaultStatus());
 	layers = $state<LayersData>({ layers: [] });
 	libs = $state<LibraryEntry[]>([]);
+	libsRev = $state(0);
 	canvas: HTMLCanvasElement | null = null;
 	onRefresh: (() => void) | null = null;
 
 	constructor(app: WasmApp) {
 		this.app = app;
 		this.libs = JSON.parse(app.library_json());
+		this.libsRev = JSON.parse(app.status_json()).libs_rev ?? 0;
 		this.refresh();
 	}
 
 	refresh = () => {
 		this.status = JSON.parse(this.app.status_json());
 		this.layers = JSON.parse(this.app.layers_json());
+		if (this.status.libs_rev !== this.libsRev) {
+			this.libsRev = this.status.libs_rev;
+			this.libs = JSON.parse(this.app.library_json());
+		}
 		this.onRefresh?.();
 	};
 

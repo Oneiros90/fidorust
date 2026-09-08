@@ -1,8 +1,8 @@
-import type { MacroCursor } from './engineTypes';
+import type { ComponentCursor } from './engineTypes';
 
 export type Theme = 'light' | 'dark';
 
-export type LibGhost = MacroCursor & { x: number; y: number; scale: number; rot: number };
+export type LibGhost = ComponentCursor & { x: number; y: number; scale: number; rot: number };
 
 export const TOOLS = [
 	['select', 'select'],
@@ -15,6 +15,5 @@ export const TOOLS = [
 	['connection', 'connection'],
 	['pcb-track', 'pcbTrack'],
 	['pcb-pad', 'pcbPad'],
-	['macro', 'macro'],
 	['pan', 'pan']
 ] as const;

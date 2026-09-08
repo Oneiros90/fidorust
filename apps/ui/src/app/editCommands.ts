@@ -32,7 +32,7 @@ export function doMirror(s: AppSession) {
 
 export function doSplit(s: AppSession) {
 	s.engine?.mutate((app) => {
-		app.split_selected_macros();
+		app.split_selected_components();
 	});
 }
 

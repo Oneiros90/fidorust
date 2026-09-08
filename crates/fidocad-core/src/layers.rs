@@ -222,7 +222,7 @@ pub fn remap_after_reorder(id: u8, from: u8, to: u8) -> u8 {
 
 pub fn remap_primitive_layers(prims: &mut [Primitive], f: impl Fn(LayerId) -> LayerId) {
     for p in prims {
-        if p.is_macro() {
+        if p.is_component() {
             continue;
         }
         let next = f(p.layer());
@@ -235,7 +235,7 @@ pub fn remap_primitive_layers(prims: &mut [Primitive], f: impl Fn(LayerId) -> La
 pub fn count_on_layer(prims: &[Primitive], id: LayerId) -> usize {
     prims
         .iter()
-        .filter(|p| !p.is_macro() && p.layer() == id)
+        .filter(|p| !p.is_component() && p.layer() == id)
         .count()
 }
 

@@ -26,6 +26,18 @@
 
 <div class="shell">
 	<MenuBar />
+	{#if app.status.editing_component}
+		<div class="prefab-bar">
+			<button type="button" class="primary" onclick={app.saveComponentEdit}
+				>{app.t.saveComponent}</button
+			>
+			<button type="button" onclick={app.cancelComponentEdit}>{app.t.cancelComponentEdit}</button>
+			<span
+				>{app.t.editingComponent}: {app.status.editing_component_name ??
+					app.status.editing_component}</span
+			>
+		</div>
+	{/if}
 	<div class="body">
 		<ToolSidebar />
 		<CanvasHost />
@@ -45,5 +57,21 @@
 		flex: 1;
 		display: flex;
 		min-height: 0;
+	}
+	.prefab-bar {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 10px;
+		background: color-mix(in srgb, var(--accent) 16%, var(--bg-menu));
+		border-bottom: 1px solid var(--border);
+		font-size: 13px;
+	}
+	.prefab-bar span {
+		margin-left: 4px;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>

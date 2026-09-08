@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug)]
 pub struct SaveOptions {
-    pub split_nonstandard_macros: bool,
+    pub split_nonstandard_components: bool,
 }
 
 impl Default for SaveOptions {
     fn default() -> Self {
         Self {
-            split_nonstandard_macros: true,
+            split_nonstandard_components: true,
         }
     }
 }

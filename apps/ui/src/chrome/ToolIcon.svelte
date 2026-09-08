@@ -36,7 +36,7 @@
 	{:else if name === 'pcb-pad'}
 		<circle cx="12" cy="12" r="7" />
 		<circle cx="12" cy="12" r="2.7" />
-	{:else if name === 'macro'}
+	{:else if name === 'component'}
 		<rect x="7.4" y="5.4" width="9.2" height="13.2" rx="1" />
 		<path d="M4.2 9h3.2M4.2 12h3.2M4.2 15h3.2M16.6 9h3.2M16.6 12h3.2M16.6 15h3.2" />
 	{:else if name === 'pan'}

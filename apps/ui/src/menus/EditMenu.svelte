@@ -2,9 +2,11 @@
 	import { getAppSession } from '../app/appContext';
 	import MenuItem from './MenuItem.svelte';
 	import MenuSeparator from './MenuSeparator.svelte';
+	import MenuSubmenu from './MenuSubmenu.svelte';
 
 	const app = getAppSession();
 	const hasSelection = $derived(app.status.selected > 0);
+	const editing = $derived(!!app.status.editing_component);
 </script>
 
 <MenuItem
@@ -38,7 +40,30 @@
 <MenuSeparator />
 <MenuItem label={app.t.rotate} shortcut="R" disabled={!hasSelection} onclick={app.doRotate} />
 <MenuItem label={app.t.mirror} shortcut="S" disabled={!hasSelection} onclick={app.doMirror} />
-<MenuItem label={app.t.splitMacro} disabled={!hasSelection} onclick={app.doSplit} />
+<MenuSubmenu label={app.t.component}>
+	<MenuSubmenu label={app.t.createFromSelection} disabled={!hasSelection}>
+		<MenuItem
+			label={app.t.createInProject}
+			disabled={!hasSelection}
+			onclick={() => app.createComponentFromSelection('project')}
+		/>
+		<MenuItem
+			label={app.t.createOnDevice}
+			disabled={!hasSelection}
+			onclick={() => app.createComponentFromSelection('local')}
+		/>
+	</MenuSubmenu>
+	<MenuItem
+		label={app.t.splitComponent}
+		disabled={!app.status.can_split_component}
+		onclick={app.doSplit}
+	/>
+	<MenuItem
+		label={app.t.editComponent}
+		disabled={!app.status.can_edit_component || editing}
+		onclick={app.editSelectedComponent}
+	/>
+</MenuSubmenu>
 <MenuSeparator />
 <MenuItem label={app.t.selectAll} onclick={app.doSelectAll} />
 <MenuItem label={app.t.invertSelection} onclick={app.doInvert} />

@@ -124,7 +124,7 @@ impl Aabb {
     }
 }
 
-/// Affine-ish drawing transform used when expanding macros.
+/// Affine-ish drawing transform used when expanding components.
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
     pub origin: Point,
@@ -133,9 +133,9 @@ pub struct Transform {
 }
 
 impl Transform {
-    pub fn apply(&self, p: Point, macro_origin: Point) -> Point {
-        let xc = (p.x - macro_origin.x) as f64;
-        let yc = (p.y - macro_origin.y) as f64;
+    pub fn apply(&self, p: Point, component_origin: Point) -> Point {
+        let xc = (p.x - component_origin.x) as f64;
+        let yc = (p.y - component_origin.y) as f64;
         let (vx, vy) = if self.mirrored {
             match self.rotations {
                 0 => (-xc, yc),

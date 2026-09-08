@@ -4,7 +4,7 @@ use fidocad_core::geom::{bezier_point, Point};
 use fidocad_core::layers::{LayerId, LayerSet};
 use fidocad_core::library::LibrarySet;
 use fidocad_core::primitive::{
-    Bezier, Connection, Ellipse, Line, MacroRef, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
 use fidocad_core::Editor;
@@ -143,7 +143,7 @@ impl Tessellate for Text {
     }
 }
 
-impl Tessellate for MacroRef {
+impl Tessellate for ComponentRef {
     fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 4], _selected: bool) {}
 }
 
@@ -236,7 +236,7 @@ fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 4] {
 }
 
 fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool) {
-    if !layers.visible(p.layer()) && !p.is_macro() {
+    if !layers.visible(p.layer()) && !p.is_component() {
         return;
     }
     let rgb = color(layers, p, selected);
@@ -277,7 +277,7 @@ struct TessellateInput<'a> {
     libs: &'a LibrarySet,
     selected: &'a [usize],
     editing_text: Option<usize>,
-    hide_macro_origin: bool,
+    hide_component_origin: bool,
     zoom: f32,
     pan: (f32, f32),
     layer: LayerId,
@@ -295,13 +295,13 @@ impl<'a> TessellateInput<'a> {
             libs: ed.libs(),
             selected: ed.selected(),
             editing_text: ed.editing_text(),
-            hide_macro_origin: ed.hide_macro_origin(),
+            hide_component_origin: ed.hide_component_origin(),
             zoom: ed.zoom(),
             pan: ed.pan(),
             layer: ed.layer(),
             viewport,
             dark,
-            pending: ed.pending_macro_preview(),
+            pending: ed.pending_component_preview(),
             marquee: ed.marquee_screen_rect(),
         }
     }
@@ -314,7 +314,7 @@ pub fn tessellate_editor(ed: &Editor) -> Scene {
     )
 }
 
-/// Flattened document geometry for file export: no draft, selection, handles, or pending macros.
+/// Flattened document geometry for file export: no draft, selection, handles, or pending components.
 pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
     let expanded: Vec<Primitive> = ed
         .doc()
@@ -385,7 +385,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         if !input.selected.contains(&i) {
             continue;
         }
-        if input.hide_macro_origin && p.is_macro() {
+        if input.hide_component_origin && p.is_component() {
             continue;
         }
         for h in p.control_points() {

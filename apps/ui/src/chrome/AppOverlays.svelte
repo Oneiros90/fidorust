@@ -6,11 +6,13 @@
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import GridDialog from '../dialogs/GridDialog.svelte';
 	import DeleteLayerDialog from '../dialogs/DeleteLayerDialog.svelte';
+	import DeleteComponentDialog from '../dialogs/DeleteComponentDialog.svelte';
 	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import ExportPreviewDialog from '../dialogs/ExportPreviewDialog.svelte';
-	import MacroGhost from '../library/MacroGhost.svelte';
+	import ComponentGhost from '../library/ComponentGhost.svelte';
+	import LibraryItemContextMenu from '../library/LibraryItemContextMenu.svelte';
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
 	import LayerContextMenu from '../layers/LayerContextMenu.svelte';
@@ -30,15 +32,17 @@
 <input {@attach bindFilePicker} type="file" accept=".fcd,.txt" hidden onchange={app.onPickedFile} />
 
 {#if app.libGhost}
-	<MacroGhost {...app.libGhost} />
+	<ComponentGhost {...app.libGhost} />
 {/if}
 
 {#if app.ctxMenu}
 	<ContextMenu x={app.ctxMenu.x} y={app.ctxMenu.y} onClose={() => (app.ctxMenu = null)}>
 		{#if app.ctxMenu.kind === 'edit'}
 			<EditMenu />
-		{:else}
+		{:else if app.ctxMenu.kind === 'layer'}
 			<LayerContextMenu index={app.ctxMenu.index} />
+		{:else}
+			<LibraryItemContextMenu stem={app.ctxMenu.stem} componentKey={app.ctxMenu.key} />
 		{/if}
 	</ContextMenu>
 {/if}
@@ -49,6 +53,8 @@
 
 {#if dialog?.kind === 'deleteLayer'}
 	<DeleteLayerDialog index={dialog.index} />
+{:else if dialog?.kind === 'deleteComponent'}
+	<DeleteComponentDialog />
 {:else if dialog?.kind === 'about'}
 	<AboutDialog />
 {:else if dialog?.kind === 'technologies'}
@@ -63,7 +69,7 @@
 			snapY: app.status.snap_y,
 			showGrid: app.status.show_grid,
 			snapEnable: app.status.snap_enable,
-			hideMacroOrigin: app.status.hide_macro_origin
+			hideComponentOrigin: app.status.hide_component_origin
 		}}
 		onApply={app.applyGrid}
 		onCancel={() => app.dialogs.close()}

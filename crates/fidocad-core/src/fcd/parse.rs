@@ -3,10 +3,10 @@
 use crate::document::Document;
 use crate::geom::Point;
 use crate::layers::{LayerId, LayerInfo, LayerSet};
-use crate::library::{Library, LibrarySet, MacroDef};
+use crate::library::{ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM};
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, MacroRef, PadStyle, PcbPad, PcbTrack, Poly, Primitive, Rect,
-    Text, DEFAULT_FONT, MAX_POLY_VERTICES,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
 };
 use encoding_rs::WINDOWS_1252;
 use thiserror::Error;
@@ -221,7 +221,7 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
                 return None;
             }
             let standard = name.starts_with('~') || !name.contains('.');
-            Some(Primitive::Macro(MacroRef {
+            Some(Primitive::Component(ComponentRef {
                 pos: t.point(0)?,
                 rotations: (t.i32(2)? as u8) % 4,
                 mirrored: t.i32(3)? != 0,
@@ -282,8 +282,12 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
 }
 
 fn find_header(text: &str) -> Option<(DocKind, String, usize)> {
+    find_header_from(text, 0).map(|(kind, title, body_off, _)| (kind, title, body_off))
+}
+
+fn find_header_from(text: &str, from: usize) -> Option<(DocKind, String, usize, usize)> {
     let bytes = text.as_bytes();
-    let mut i = 0;
+    let mut i = from;
     while i < bytes.len() {
         if bytes[i] == b'[' {
             let rest = &text[i + 1..];
@@ -293,7 +297,7 @@ fn find_header(text: &str) -> Option<(DocKind, String, usize)> {
             } else if rest_trim.starts_with("FIDOLIB") {
                 Some(DocKind::Library)
             } else if rest_trim.starts_with("MACROCAD") {
-                Some(DocKind::Macro)
+                Some(DocKind::MacroCad)
             } else {
                 None
             };
@@ -301,7 +305,7 @@ fn find_header(text: &str) -> Option<(DocKind, String, usize)> {
                 let after_kw = match kind {
                     DocKind::Document => rest_trim.strip_prefix("FIDOCAD")?,
                     DocKind::Library => rest_trim.strip_prefix("FIDOLIB")?,
-                    DocKind::Macro => rest_trim.strip_prefix("MACROCAD")?,
+                    DocKind::MacroCad => rest_trim.strip_prefix("MACROCAD")?,
                 };
                 let after_kw = after_kw.trim_start();
                 let end = after_kw.find(']')?;
@@ -311,7 +315,7 @@ fn find_header(text: &str) -> Option<(DocKind, String, usize)> {
                 let rest_trim_start = rest_start + trim_pad;
                 let kw_and_space = rest_trim.len() - after_kw.len();
                 let body_off = rest_trim_start + kw_and_space + end + 1;
-                return Some((kind, title, body_off.min(text.len())));
+                return Some((kind, title, body_off.min(text.len()), i));
             }
         }
         i += 1;
@@ -319,27 +323,53 @@ fn find_header(text: &str) -> Option<(DocKind, String, usize)> {
     None
 }
 
+fn is_section_header(line: &str) -> bool {
+    let t = line.trim();
+    if !t.starts_with('[') {
+        return false;
+    }
+    let inner = t.trim_start_matches('[').trim_start().to_ascii_uppercase();
+    inner.starts_with("FIDOLIB") || inner.starts_with("FIDOCAD") || inner.starts_with("MACROCAD")
+}
+
 #[derive(Clone, Copy)]
 enum DocKind {
     Document,
     Library,
-    Macro,
+    MacroCad,
 }
 
 pub fn parse_document(text: &str) -> Result<Document, ParseError> {
+    parse_document_inner(text).map(|(doc, _)| doc)
+}
+
+pub fn parse_document_with_project_library(
+    text: &str,
+) -> Result<(Document, Option<Library>), ParseError> {
+    parse_document_inner(text)
+}
+
+fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), ParseError> {
     if text.trim().is_empty() {
         return Err(ParseError::Empty);
     }
     let mut doc = Document::default();
-    let body = if let Some((kind, title, off)) = find_header(text) {
+    let (body, trailing) = if let Some((kind, title, off, _)) = find_header_from(text, 0) {
         if matches!(kind, DocKind::Library) {
             return Err(ParseError::BadLibrary);
         }
         doc.title = title;
-        &text[off..]
+        if let Some((k, _, _, lib_start)) = find_header_from(text, off) {
+            if matches!(k, DocKind::Library) {
+                (&text[off..lib_start], Some(&text[lib_start..]))
+            } else {
+                (&text[off..], None)
+            }
+        } else {
+            (&text[off..], None)
+        }
     } else {
-        // Header optional: parse all primitive lines (forum paste).
-        text
+        (text, None)
     };
     let mut warnings = 0u32;
     let mut defined = Vec::new();
@@ -347,6 +377,9 @@ pub fn parse_document(text: &str) -> Result<Document, ParseError> {
         let line = raw.trim();
         if line.is_empty() {
             continue;
+        }
+        if is_section_header(line) {
+            break;
         }
         if skip_line(line) {
             continue;
@@ -366,7 +399,14 @@ pub fn parse_document(text: &str) -> Result<Document, ParseError> {
     }
     apply_layers(&mut doc, defined);
     doc.warnings = warnings;
-    Ok(doc)
+    let project = trailing.and_then(|t| {
+        let mut lib = parse_library(t).ok()?;
+        lib.file_stem = PROJECT_STEM.into();
+        lib.kind = LibraryKind::Project;
+        lib.standard = false;
+        Some(lib)
+    });
+    Ok((doc, project))
 }
 
 pub fn parse_library(text: &str) -> Result<Library, ParseError> {
@@ -380,15 +420,16 @@ pub fn parse_library(text: &str) -> Result<Library, ParseError> {
         name: title,
         file_stem: String::new(),
         standard: false,
-        macros: Vec::new(),
+        kind: LibraryKind::Builtin,
+        components: Vec::new(),
     };
     let mut category = String::new();
-    let mut current: Option<MacroDef> = None;
+    let mut current: Option<ComponentDef> = None;
 
-    let flush = |lib: &mut Library, current: &mut Option<MacroDef>| {
+    let flush = |lib: &mut Library, current: &mut Option<ComponentDef>| {
         if let Some(m) = current.take() {
             if !m.key.is_empty() {
-                lib.macros.push(m);
+                lib.components.push(m);
             }
         }
     };
@@ -397,6 +438,9 @@ pub fn parse_library(text: &str) -> Result<Library, ParseError> {
         let line = raw.trim();
         if line.is_empty() {
             continue;
+        }
+        if is_section_header(line) {
+            break;
         }
         if line.starts_with('{') && line.ends_with('}') {
             flush(&mut lib, &mut current);
@@ -410,12 +454,25 @@ pub fn parse_library(text: &str) -> Result<Library, ParseError> {
                 Some((k, n)) => (k.to_string(), n.trim().to_string()),
                 None => (inner.to_string(), inner.to_string()),
             };
-            current = Some(MacroDef {
+            current = Some(ComponentDef {
                 key,
                 name,
+                description: String::new(),
                 category: category.clone(),
                 primitives: Vec::new(),
             });
+            continue;
+        }
+        if line.len() >= 2 && line[..2].eq_ignore_ascii_case("DS") {
+            let rest = line[2..].trim_start();
+            if let Some(m) = current.as_mut() {
+                if m.description.is_empty() {
+                    m.description = rest.to_string();
+                } else {
+                    m.description.push('\n');
+                    m.description.push_str(rest);
+                }
+            }
             continue;
         }
         if let Some(prim) = parse_primitive_line(line) {
@@ -434,6 +491,11 @@ pub fn parse_library_set(named: &[(&str, &str)]) -> LibrarySet {
         if let Ok(mut lib) = parse_library(text) {
             lib.file_stem = (*stem).to_string();
             lib.standard = matches!(*stem, "stdlib" | "PCB");
+            lib.kind = match *stem {
+                PROJECT_STEM => LibraryKind::Project,
+                crate::library::LOCAL_STEM => LibraryKind::Local,
+                _ => LibraryKind::Builtin,
+            };
             set.add(lib);
         }
     }
@@ -444,7 +506,9 @@ pub fn builtin_libraries() -> LibrarySet {
     let stdlib = decode_bytes(include_bytes!("../../libraries/stdlib.fcl"));
     let pcb = decode_bytes(include_bytes!("../../libraries/PCB.fcl"));
     let lib1 = decode_bytes(include_bytes!("../../libraries/lib1.fcl"));
-    parse_library_set(&[("stdlib", &stdlib), ("PCB", &pcb), ("lib1", &lib1)])
+    let mut set = parse_library_set(&[("stdlib", &stdlib), ("PCB", &pcb), ("lib1", &lib1)]);
+    set.ensure_user_libraries();
+    set
 }
 
 #[cfg(test)]

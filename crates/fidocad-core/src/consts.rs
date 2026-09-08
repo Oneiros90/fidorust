@@ -18,8 +18,8 @@ pub const UNDO_CAP: usize = 64;
 pub const VIEW_CULL_MARGIN: i32 = 50;
 /// Extra expand on primitive AABB when testing viewport intersection.
 pub const AABB_CULL_EXPAND: i32 = 30;
-/// Nested-macro expansion depth (original FidoCAD).
-pub const MACRO_MAX_DEPTH: u8 = 8;
+/// Nested-component expansion depth (original FidoCAD).
+pub const COMPONENT_MAX_DEPTH: u8 = 8;
 /// Default `TY` font size inserted by the Text tool (`TE` parse uses 5 — keep both).
 pub const DEFAULT_TEXT_SY: i32 = 4;
 pub const DEFAULT_TEXT_SX: i32 = 3;
@@ -32,8 +32,8 @@ pub const DEFAULT_PAD_HOLE: i32 = 8;
 pub const HANDLE_RADIUS_PX: f32 = 6.0;
 /// Connection body hit radius².
 pub const CONNECTION_HIT_R2: f64 = 16.0;
-/// Unexpanded-macro origin hit radius² (fallback when children miss).
-pub const MACRO_HIT_R2: f64 = 64.0;
+/// Unexpanded-component origin hit radius² (fallback when children miss).
+pub const COMPONENT_HIT_R2: f64 = 64.0;
 /// Rect stroke hit half-width in LU.
 pub const RECT_EDGE_TOL: i32 = 3;
 /// Filled-ellipse inside threshold.

@@ -19,7 +19,7 @@ impl Editor {
     }
 
     /// Remove layer `index`. `move_to` relocates its objects; `None` deletes them.
-    /// Macros are never deleted (they have no layer of their own).
+    /// Components are never deleted (they have no layer of their own).
     pub fn delete_layer(&mut self, index: usize, move_to: Option<usize>) -> bool {
         let n = self.doc.layers.len();
         if n <= 1 || index >= n {
@@ -35,14 +35,14 @@ impl Editor {
         if let Some(dest) = move_to {
             let dest_id = LayerId(dest as u8);
             for p in &mut self.doc.primitives {
-                if !p.is_macro() && p.layer() == removed {
+                if !p.is_component() && p.layer() == removed {
                     p.set_layer(dest_id);
                 }
             }
         } else {
             self.doc
                 .primitives
-                .retain(|p| p.is_macro() || p.layer() != removed);
+                .retain(|p| p.is_component() || p.layer() != removed);
         }
         remap_primitive_layers(&mut self.doc.primitives, |id| {
             id.remap_after_remove(index as u8)

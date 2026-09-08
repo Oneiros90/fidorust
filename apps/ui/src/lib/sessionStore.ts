@@ -16,8 +16,8 @@ export type SessionState = {
 	layer: number;
 	snapEnable: boolean;
 	showGrid: boolean;
-	hideMacroOrigin: boolean;
-	splitMacros: boolean;
+	hideComponentOrigin: boolean;
+	splitComponents: boolean;
 	theme: Theme;
 	locale: Locale;
 };
@@ -43,22 +43,38 @@ export function saveSession(state: SessionState) {
 
 function isSessionState(v: unknown): v is SessionState {
 	if (!v || typeof v !== 'object') return false;
-	const s = v as SessionState;
-	return (
-		s.version === 1 &&
-		typeof s.fcd === 'string' &&
-		typeof s.name === 'string' &&
-		typeof s.savedFcd === 'string' &&
-		typeof s.zoom === 'number' &&
-		typeof s.panX === 'number' &&
-		typeof s.panY === 'number' &&
-		typeof s.tool === 'string' &&
-		typeof s.layer === 'number' &&
-		typeof s.snapEnable === 'boolean' &&
-		typeof s.showGrid === 'boolean' &&
-		typeof s.hideMacroOrigin === 'boolean' &&
-		typeof s.splitMacros === 'boolean' &&
-		(s.theme === 'light' || s.theme === 'dark') &&
-		(s.locale === 'it' || s.locale === 'en')
-	);
+	const s = v as Record<string, unknown>;
+	const hide =
+		typeof s.hideComponentOrigin === 'boolean'
+			? s.hideComponentOrigin
+			: typeof s.hideMacroOrigin === 'boolean'
+				? s.hideMacroOrigin
+				: null;
+	const split =
+		typeof s.splitComponents === 'boolean'
+			? s.splitComponents
+			: typeof s.splitMacros === 'boolean'
+				? s.splitMacros
+				: null;
+	if (hide === null || split === null) return false;
+	if (
+		s.version !== 1 ||
+		typeof s.fcd !== 'string' ||
+		typeof s.name !== 'string' ||
+		typeof s.savedFcd !== 'string' ||
+		typeof s.zoom !== 'number' ||
+		typeof s.panX !== 'number' ||
+		typeof s.panY !== 'number' ||
+		typeof s.tool !== 'string' ||
+		typeof s.layer !== 'number' ||
+		typeof s.snapEnable !== 'boolean' ||
+		typeof s.showGrid !== 'boolean' ||
+		(s.theme !== 'light' && s.theme !== 'dark') ||
+		(s.locale !== 'it' && s.locale !== 'en')
+	) {
+		return false;
+	}
+	(s as SessionState).hideComponentOrigin = hide;
+	(s as SessionState).splitComponents = split;
+	return true;
 }

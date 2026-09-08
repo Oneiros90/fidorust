@@ -4,8 +4,8 @@ use fidocad_core::parse::{builtin_libraries, parse_document, parse_library};
 use fidocad_core::properties::{apply_selection_props, selection_props_form, PropPatch};
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{
-    Bezier, Connection, Editor, Ellipse, LayerId, Line, MacroRef, PcbPad, PcbTrack, Point, Poly,
-    Primitive, Rect, SaveOptions, Text, Tool,
+    Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point,
+    Poly, Primitive, Rect, SaveOptions, Text, Tool,
 };
 
 fn roundtrip(src: &str) -> String {
@@ -38,7 +38,7 @@ fn snapshot_stdlib_expanded_macros() {
     let lib = parse_library(text).unwrap();
     let libs = builtin_libraries();
     let mut out = String::new();
-    for m in &lib.macros {
+    for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
             for q in fidocad_core::library::expand_primitive(p, &libs) {
@@ -55,7 +55,7 @@ fn snapshot_pcb_expanded_macros() {
     let lib = parse_library(&text).unwrap();
     let libs = builtin_libraries();
     let mut out = String::new();
-    for m in &lib.macros {
+    for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
             for q in fidocad_core::library::expand_primitive(p, &libs) {
@@ -72,7 +72,7 @@ fn snapshot_lib1_expanded_macros() {
     let lib = parse_library(text).unwrap();
     let libs = builtin_libraries();
     let mut out = String::new();
-    for m in &lib.macros {
+    for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
             for q in fidocad_core::library::expand_primitive(p, &libs) {
@@ -190,7 +190,7 @@ fn snapshot_primitive_json_shapes() {
             style: fidocad_core::PadStyle::RoundedRect,
             layer: LayerId(1),
         }),
-        Primitive::Macro(MacroRef {
+        Primitive::Component(ComponentRef {
             pos: Point::new(10, 20),
             rotations: 1,
             mirrored: true,
@@ -254,9 +254,9 @@ fn snapshot_editor_script() {
     ed.pointer_up(Point::new(90, 5));
     ed.pointer_down(Point::new(95, 0), (95.0, 0.0), false, false);
     ed.pointer_up(Point::new(95, 0));
-    ed.set_pending_macro(Some("080".into()));
-    ed.adopt_macro_tool();
-    ed.insert_pending_macro_at(Point::new(100, 20));
+    ed.set_pending_component(Some("080".into()));
+    ed.adopt_component_tool();
+    ed.insert_pending_component_at(Point::new(100, 20));
     ed.select_all();
     let clip = serialize_clipboard(
         &ed.selected()
@@ -266,7 +266,7 @@ fn snapshot_editor_script() {
     );
     ed.rotate_selected();
     ed.mirror_selected();
-    ed.split_selected_macros();
+    ed.split_selected_components();
     ed.undo();
     ed.redo();
     ed.set_selected(vec![0]);
@@ -289,7 +289,7 @@ fn snapshot_editor_script() {
     let out = serialize_document(
         ed.doc(),
         SaveOptions {
-            split_nonstandard_macros: true,
+            split_nonstandard_components: true,
         },
         Some(ed.libs()),
     );

@@ -4,19 +4,23 @@
 	let {
 		label,
 		side = 'right',
+		disabled = false,
 		children
 	}: {
 		label: string;
 		side?: 'left' | 'right';
+		disabled?: boolean;
 		children: Snippet;
 	} = $props();
 </script>
 
-<div class="sub">
-	<button type="button" class="sub-btn" aria-haspopup="menu">
+<div class={['sub', { disabled }]}>
+	<button type="button" class="sub-btn" aria-haspopup="menu" {disabled}>
 		{label}<span class="acc">›</span>
 	</button>
-	<div class={['flyout', { left: side === 'left' }]}>{@render children()}</div>
+	{#if !disabled}
+		<div class={['flyout', { left: side === 'left' }]}>{@render children()}</div>
+	{/if}
 </div>
 
 <style>
@@ -38,9 +42,12 @@
 		font-size: 13px;
 		color: inherit;
 	}
-	.sub:hover > .sub-btn,
-	.sub:focus-within > .sub-btn {
+	.sub:hover:not(.disabled) > .sub-btn,
+	.sub:focus-within:not(.disabled) > .sub-btn {
 		background: var(--bg-panel);
+	}
+	button:disabled {
+		opacity: 0.45;
 	}
 	.acc {
 		color: var(--fg-muted);

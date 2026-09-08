@@ -41,10 +41,10 @@ fn snapshot_tessellate_alimentatore() {
 fn snapshot_macro_svgs() {
     let libs = builtin_libraries();
     let (_, def) = libs.lookup("080").expect("resistor");
-    let prims = fidocad_core::library::expand_macro(
+    let prims = fidocad_core::library::expand_component(
         def,
         fidocad_core::geom::Transform {
-            origin: fidocad_core::MACRO_ORIGIN,
+            origin: fidocad_core::COMPONENT_ORIGIN,
             rotations: 0,
             mirrored: false,
         },
@@ -53,7 +53,7 @@ fn snapshot_macro_svgs() {
     );
     let scene = tessellate_primitives(&prims, &fidocad_core::LayerSet::default());
     common::assert_snapshot("macro_080_thumb.svg", &scene_to_thumb_svg(&scene, 40.0));
-    let cur = scene_to_cursor_svg(&scene, fidocad_core::MACRO_ORIGIN);
+    let cur = scene_to_cursor_svg(&scene, fidocad_core::COMPONENT_ORIGIN);
     common::assert_snapshot(
         "macro_080_cursor.txt",
         &format!(

@@ -22,8 +22,15 @@ export type Status = {
 	grid_y: number;
 	snap_enable: boolean;
 	show_grid: boolean;
-	hide_macro_origin: boolean;
-	pending_macro: string | null;
+	hide_component_origin: boolean;
+	pending_component: string | null;
+	can_create_component: boolean;
+	can_split_component: boolean;
+	can_edit_component: boolean;
+	editing_component: string | null;
+	editing_component_name: string | null;
+	editing_component_dirty: boolean;
+	libs_rev: number;
 };
 
 export type Layer = {
@@ -34,10 +41,26 @@ export type Layer = {
 
 export type LayersData = { layers: Layer[] };
 
+export type LibraryKind = 'builtin' | 'project' | 'local';
+
+export type LibraryComponent = {
+	key: string;
+	name: string;
+	description: string;
+};
+
 export type LibraryEntry = {
 	stem: string;
 	title: string;
-	categories: { name: string; macros: [string, string][] }[];
+	standard: boolean;
+	kind: LibraryKind;
+	writable: boolean;
+	categories: { name: string; components: LibraryComponent[] }[];
+};
+
+export type UserLibraryInfo = {
+	stem: string;
+	title: string;
 };
 
 export type TextEdit = {
@@ -53,7 +76,7 @@ export type TextEdit = {
 	zoom: number;
 };
 
-export type MacroCursor = {
+export type ComponentCursor = {
 	svg: string;
 	ox: number;
 	oy: number;
@@ -83,6 +106,13 @@ export const defaultStatus = (): Status => ({
 	grid_y: 5,
 	snap_enable: true,
 	show_grid: true,
-	hide_macro_origin: true,
-	pending_macro: null
+	hide_component_origin: true,
+	pending_component: null,
+	can_create_component: false,
+	can_split_component: false,
+	can_edit_component: false,
+	editing_component: null,
+	editing_component_name: null,
+	editing_component_dirty: false,
+	libs_rev: 0
 });

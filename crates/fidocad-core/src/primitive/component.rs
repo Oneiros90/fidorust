@@ -1,15 +1,16 @@
-//! Unexpanded macro instance.
+//! Unexpanded component instance (FidoCAD `MC` line).
 
 use serde::{Deserialize, Serialize};
 
+use crate::consts::COMPONENT_HIT_R2;
 use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{set_pos, Geometry, HitTest};
 
-/// Unexpanded macro instance. Body is expanded at draw/hit time.
+/// Unexpanded component instance. Body is expanded at draw/hit time.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MacroRef {
+pub struct ComponentRef {
     pub pos: Point,
     pub rotations: u8,
     pub mirrored: bool,
@@ -17,7 +18,7 @@ pub struct MacroRef {
     pub standard: bool,
 }
 
-impl Geometry for MacroRef {
+impl Geometry for ComponentRef {
     fn layer(&self) -> LayerId {
         LayerId(0)
     }
@@ -39,8 +40,8 @@ impl Geometry for MacroRef {
     }
 }
 
-impl HitTest for MacroRef {
+impl HitTest for ComponentRef {
     fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
-        self.pos.dist_sq(pt) as f64 <= 64.0
+        self.pos.dist_sq(pt) as f64 <= COMPONENT_HIT_R2
     }
 }

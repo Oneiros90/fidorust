@@ -18,7 +18,13 @@
 	];
 </script>
 
-<MenuItem label={app.t.splitMacros} closeOnClick={false} onclick={app.toggleSplitMacros} />
+<MenuItem
+	label={app.t.splitComponents}
+	closeOnClick={false}
+	checkable
+	active={app.splitComponents}
+	onclick={app.toggleSplitComponents}
+/>
 <MenuSubmenu label={app.t.language}>
 	{#each locales as loc (loc.id)}
 		<MenuItem

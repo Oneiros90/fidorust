@@ -39,7 +39,8 @@
 	<span>{Math.round(app.status.zoom * 100)}%</span>
 	<span>{app.status.n} obj</span>
 	{#if app.status.selected}<span>sel {app.status.selected}</span>{/if}
-	{#if app.status.pending_macro}<span>{app.t.macro}: {app.status.pending_macro}</span>{/if}
+	{#if app.status.pending_component}<span>{app.t.component}: {app.status.pending_component}</span
+		>{/if}
 	<span
 		>snap {app.status.snap}×{app.status.snap_y}{app.status.snap_enable ? '' : ' off'} / grid {app
 			.status.grid}×{app.status.grid_y}</span

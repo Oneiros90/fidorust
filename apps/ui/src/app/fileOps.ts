@@ -21,6 +21,7 @@ export function download(name: string, content: string | Blob, mime: string) {
 
 export function isDirty(s: AppSession): boolean {
 	if (!s.engine) return false;
+	if (s.status.editing_component_dirty) return true;
 	return s.engine.query((app) => app.save_fcd()) !== s.savedSnapshot;
 }
 
@@ -109,10 +110,14 @@ export function newDoc(s: AppSession) {
 
 export function saveFile(s: AppSession) {
 	if (!s.engine) return;
+	if (s.status.editing_component) {
+		s.saveComponentEdit();
+		return;
+	}
 	const name = s.fileHandleName.endsWith('.fcd') ? s.fileHandleName : 'drawing.fcd';
 	download(
 		name,
-		s.engine.query((app) => app.save_fcd()),
+		s.engine.query((app) => (s.splitComponents ? app.save_portable_fcd() : app.save_fcd())),
 		'text/plain'
 	);
 	s.fileHandleName = name;

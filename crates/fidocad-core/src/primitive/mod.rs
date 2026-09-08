@@ -1,10 +1,10 @@
 //! Graphic primitives of FidoCAD 0.96.
 
 mod bezier;
+mod component;
 mod connection;
 mod ellipse;
 mod line;
-mod macro_ref;
 mod pad;
 mod pcb_pad;
 mod pcb_track;
@@ -14,10 +14,10 @@ mod text;
 mod traits;
 
 pub use bezier::Bezier;
+pub use component::ComponentRef;
 pub use connection::Connection;
 pub use ellipse::Ellipse;
 pub use line::Line;
-pub use macro_ref::MacroRef;
 pub use pad::PadStyle;
 pub use pcb_pad::PcbPad;
 pub use pcb_track::PcbTrack;
@@ -31,7 +31,7 @@ pub use traits::{Geometry, HitTest};
 
 use crate::geom::{Point, Transform};
 use crate::layers::LayerId;
-use crate::MACRO_ORIGIN;
+use crate::COMPONENT_ORIGIN;
 use serde::{Deserialize, Serialize};
 
 pub const MAX_POLY_VERTICES: usize = 10;
@@ -50,7 +50,7 @@ pub enum Primitive {
     Connection(Connection),
     PcbTrack(PcbTrack),
     PcbPad(PcbPad),
-    Macro(MacroRef),
+    Component(ComponentRef),
 }
 
 #[macro_export]
@@ -66,7 +66,7 @@ macro_rules! dispatch_primitive {
             $crate::primitive::Primitive::Connection($p) => $body,
             $crate::primitive::Primitive::PcbTrack($p) => $body,
             $crate::primitive::Primitive::PcbPad($p) => $body,
-            $crate::primitive::Primitive::Macro($p) => $body,
+            $crate::primitive::Primitive::Component($p) => $body,
         }
     };
 }
@@ -115,12 +115,12 @@ impl Primitive {
     pub fn pcb_pad(pad: PcbPad) -> Self {
         Self::PcbPad(pad)
     }
-    pub fn macro_ref(m: MacroRef) -> Self {
-        Self::Macro(m)
+    pub fn component_ref(m: ComponentRef) -> Self {
+        Self::Component(m)
     }
 
-    pub fn is_macro(&self) -> bool {
-        matches!(self, Self::Macro(_))
+    pub fn is_component(&self) -> bool {
+        matches!(self, Self::Component(_))
     }
 
     pub fn layer(&self) -> LayerId {
@@ -136,8 +136,8 @@ impl Primitive {
     }
 
     pub fn apply_transform(&mut self, xf: Transform) {
-        self.transform(|p| xf.apply(p, MACRO_ORIGIN));
-        if let Self::Macro(m) = self {
+        self.transform(|p| xf.apply(p, COMPONENT_ORIGIN));
+        if let Self::Component(m) = self {
             m.rotations = (m.rotations + xf.rotations) % 4;
             if xf.mirrored {
                 m.mirrored = !m.mirrored;

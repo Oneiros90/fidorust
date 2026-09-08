@@ -59,7 +59,7 @@ You do not need to memorise these. They are listed so that a pasted block looks 
 | `TY` | Normal text (size, angle, font, layer) |
 | `PL` | PCB track (with width) |
 | `PA` | PCB pad |
-| `MC` | Library symbol (macro) |
+| `MC` | Library component (FidoCAD opcode; historically called a “macro”) |
 
 A small complete example:
 
@@ -77,7 +77,28 @@ This is a resistor from the standard library, a wire, two junctions, and the lab
 
 ### Libraries (`.fcl`)
 
-Symbol collections are separate `.fcl` files. They also use the same drawing commands inside each symbol definition. When you place a symbol, the `.fcd` usually stores only a short reference (`MC …`), not the whole symbol artwork—unless you save with “split non-standard macros”, which expands custom symbols into ordinary lines and shapes so others can open the drawing without your private libraries.
+Component collections are separate `.fcl` files (`[FIDOLIB]` header, `[key Display name]` entries). They use the same drawing commands inside each component definition. When you place a component, the `.fcd` usually stores only a short reference (`MC x y rot mir name`), not the whole artwork—unless you save with “split non-standard components”, which expands custom components into ordinary lines and shapes so others can open the drawing without your private libraries.
+
+FidoRust also keeps two user libraries:
+
+- **Project library** — stored in the `.fcd` itself as a trailing `[FIDOLIB project]` block.
+- **Local library** — stored on this device (not in the file).
+
+A project-library block looks like this:
+
+```text
+[FIDOCAD]
+LI 20 20 40 20
+MC 20 20 0 0 project.C01
+[FIDOLIB project]
+[C01 New component]
+DS optional description
+LI 100 100 120 100
+```
+
+`DS` is a FidoRust extension for the component description. Classic FidoCAD ignores unknown lines.
+
+The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. With “split non-standard components” on (the default), `project.*`, `local.*`, and other non-standard instances are expanded in the written drawing; the `[FIDOLIB project]` block is still written so FidoRust keeps the definitions. Older tools skip the unknown header.
 
 ---
 

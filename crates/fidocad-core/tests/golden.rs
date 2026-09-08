@@ -1,7 +1,7 @@
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
-    Connection, Document, Editor, LayerId, Line, MacroRef, PcbPad, PcbTrack, Point, Poly,
+    ComponentRef, Connection, Document, Editor, LayerId, Line, PcbPad, PcbTrack, Point, Poly,
     Primitive, PropPatch, Rect, SaveOptions, Text, Tool,
 };
 
@@ -36,7 +36,7 @@ fn parse_website_sample() {
     let macros = doc
         .primitives
         .iter()
-        .filter(|p| matches!(p, Primitive::Macro(MacroRef { .. })))
+        .filter(|p| matches!(p, Primitive::Component(ComponentRef { .. })))
         .count();
     assert_eq!(macros, 4);
     let texts = doc
@@ -99,7 +99,7 @@ fn builtin_stdlib_has_resistor() {
 #[test]
 fn macro_transform_matches_fidocad() {
     use fidocad_core::geom::{Point, Transform};
-    use fidocad_core::MACRO_ORIGIN;
+    use fidocad_core::COMPONENT_ORIGIN;
 
     let xf = |origin, rotations, mirrored| Transform {
         origin,
@@ -109,25 +109,25 @@ fn macro_transform_matches_fidocad() {
 
     // FidoCadJ MapCoordinates: local (110, 100) at MC 105 30 0 0 → (115, 30)
     assert_eq!(
-        xf(Point::new(105, 30), 0, false).apply(Point::new(110, 100), MACRO_ORIGIN),
+        xf(Point::new(105, 30), 0, false).apply(Point::new(110, 100), COMPONENT_ORIGIN),
         Point::new(115, 30)
     );
 
     // MC 105 30 1 0 210 — diode tip at macro (110, 90)
     assert_eq!(
-        xf(Point::new(105, 30), 1, false).apply(Point::new(110, 90), MACRO_ORIGIN),
+        xf(Point::new(105, 30), 1, false).apply(Point::new(110, 90), COMPONENT_ORIGIN),
         Point::new(115, 40)
     );
 
     // MC 115 80 3 0 210
     assert_eq!(
-        xf(Point::new(115, 80), 3, false).apply(Point::new(110, 90), MACRO_ORIGIN),
+        xf(Point::new(115, 80), 3, false).apply(Point::new(110, 90), COMPONENT_ORIGIN),
         Point::new(105, 70)
     );
 
     // Mirrored macro 300 at (195, 100) 0 1
     assert_eq!(
-        xf(Point::new(195, 100), 0, true).apply(Point::new(110, 100), MACRO_ORIGIN),
+        xf(Point::new(195, 100), 0, true).apply(Point::new(110, 100), COMPONENT_ORIGIN),
         Point::new(185, 100)
     );
 }
@@ -228,10 +228,10 @@ fn marquee_rect_while_dragging() {
 }
 
 #[test]
-fn right_click_rotates_pending_macro() {
+fn right_click_rotates_pending_component() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.set_tool(Tool::Macro);
-    ed.set_pending_macro(Some("080".into()));
+    ed.set_tool(Tool::Component);
+    ed.set_pending_component(Some("080".into()));
     assert!(ed.right_click(Point::new(20, 20)));
     assert_eq!(ed.pending_rotations(), 1);
     assert!(ed.right_click(Point::new(20, 20)));

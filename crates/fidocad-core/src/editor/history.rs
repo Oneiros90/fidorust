@@ -3,14 +3,49 @@
 use super::Editor;
 use crate::consts::UNDO_CAP;
 use crate::document::Document;
+use crate::library::Library;
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct HistorySnapshot {
+    pub doc: Document,
+    pub project: Library,
+    pub local: Library,
+}
 
 impl Editor {
-    pub(super) fn push_undo(&mut self) {
-        self.layer_color_edit = None;
-        self.push_undo_snapshot(self.doc.clone());
+    pub(super) fn capture_snapshot(&self) -> HistorySnapshot {
+        HistorySnapshot {
+            doc: self.doc.clone(),
+            project: self
+                .libs
+                .project()
+                .cloned()
+                .unwrap_or_else(Library::empty_project),
+            local: self
+                .libs
+                .local()
+                .cloned()
+                .unwrap_or_else(Library::empty_local),
+        }
     }
 
-    fn push_undo_snapshot(&mut self, snapshot: Document) {
+    pub(super) fn apply_snapshot(&mut self, snap: HistorySnapshot) {
+        let libs_changed =
+            self.libs.project() != Some(&snap.project) || self.libs.local() != Some(&snap.local);
+        self.doc = snap.doc;
+        self.libs.set_project(snap.project);
+        self.libs.set_local(snap.local);
+        if libs_changed {
+            self.bump_libs_rev();
+        }
+    }
+
+    pub(super) fn push_undo(&mut self) {
+        self.layer_color_edit = None;
+        self.push_undo_snapshot(self.capture_snapshot());
+    }
+
+    fn push_undo_snapshot(&mut self, snapshot: HistorySnapshot) {
         self.undo.push(snapshot);
         if self.undo.len() > UNDO_CAP {
             self.undo.remove(0);
@@ -29,7 +64,9 @@ impl Editor {
             return;
         };
         if checkpoint != self.doc {
-            self.push_undo_snapshot(checkpoint);
+            let mut snap = self.capture_snapshot();
+            snap.doc = checkpoint;
+            self.push_undo_snapshot(snap);
         }
     }
 
@@ -45,8 +82,8 @@ impl Editor {
         self.layer_color_edit = None;
         self.drag = None;
         if let Some(prev) = self.undo.pop() {
-            self.redo.push(self.doc.clone());
-            self.doc = prev;
+            self.redo.push(self.capture_snapshot());
+            self.apply_snapshot(prev);
             self.selected.clear();
         }
     }
@@ -56,8 +93,8 @@ impl Editor {
         self.layer_color_edit = None;
         self.drag = None;
         if let Some(next) = self.redo.pop() {
-            self.undo.push(self.doc.clone());
-            self.doc = next;
+            self.undo.push(self.capture_snapshot());
+            self.apply_snapshot(next);
             self.selected.clear();
         }
     }

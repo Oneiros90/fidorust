@@ -27,7 +27,11 @@
 		{/each}
 	</MenuSubmenu>
 </MenuSubmenu>
-<MenuItem label={app.t.save} shortcut="Ctrl+S" onclick={app.saveFile} />
+<MenuItem
+	label={app.status.editing_component ? app.t.saveComponent : app.t.save}
+	shortcut="Ctrl+S"
+	onclick={app.saveFile}
+/>
 <MenuItem label={app.t.export} onclick={() => app.openExport('svg')} />
 <MenuSubmenu label={app.t.share}>
 	<MenuItem label={app.t.shareLink} onclick={() => void app.openShareLink()} />

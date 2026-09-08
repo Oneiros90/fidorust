@@ -3,7 +3,7 @@
 use super::Editor;
 use crate::geom::Point;
 use crate::layers::LayerId;
-use crate::primitive::{MacroRef, Primitive};
+use crate::primitive::{ComponentRef, Primitive};
 
 impl Editor {
     pub fn delete_selected(&mut self) {
@@ -40,7 +40,7 @@ impl Editor {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
                 p.transform(|q| q.rotate90_cw(origin));
-                if let Primitive::Macro(MacroRef { rotations, .. }) = p {
+                if let Primitive::Component(ComponentRef { rotations, .. }) = p {
                     *rotations = (*rotations + 1) % 4;
                 }
             }
@@ -65,7 +65,7 @@ impl Editor {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
                 p.transform(|q| q.mirror_vertical(origin));
-                if let Primitive::Macro(MacroRef { mirrored, .. }) = p {
+                if let Primitive::Component(ComponentRef { mirrored, .. }) = p {
                     *mirrored = !*mirrored;
                 }
             }

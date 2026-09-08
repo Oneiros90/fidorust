@@ -158,7 +158,7 @@ pub fn export_svg(
     let expanded: Vec<Primitive> = prims
         .iter()
         .flat_map(|p| expand_primitive(p, libs))
-        .filter(|p| !p.is_macro() && layers.visible(p.layer()))
+        .filter(|p| !p.is_component() && layers.visible(p.layer()))
         .collect();
     let Some((minx, miny, maxx, maxy)) = prims_bounds(&expanded) else {
         return EMPTY_EXPORT.into();
@@ -302,7 +302,7 @@ fn write_prim(out: &mut String, p: &Primitive, color: &str) {
         Primitive::Connection(c) => write_connection_prim(out, c, color),
         Primitive::PcbTrack(t) => write_track_prim(out, t, color),
         Primitive::PcbPad(pad) => write_pad_prim(out, pad, color),
-        Primitive::Macro(_) => {}
+        Primitive::Component(_) => {}
     }
 }
 

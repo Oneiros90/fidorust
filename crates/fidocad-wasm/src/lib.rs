@@ -3,16 +3,18 @@
 mod json;
 mod render_backend;
 
-use fidocad_core::parse::builtin_libraries;
-use fidocad_core::serialize::{serialize_clipboard, serialize_document};
-use fidocad_core::{Editor, EditorError, PropPatch, SaveOptions, Tool};
+use fidocad_core::parse::{builtin_libraries, parse_library};
+use fidocad_core::serialize::{serialize_clipboard, serialize_document, serialize_library};
+use fidocad_core::{Editor, EditorError, PropPatch, SaveOptions, Tool, UserLibraryTarget};
 use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
-use json::{text_edit_json, to_json, ExportSvgOpts, MacroCursorDto, StatusDto};
+use json::{
+    text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts, StatusDto,
+};
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&err.to_string())
@@ -97,9 +99,22 @@ impl App {
     #[wasm_bindgen]
     pub fn save_fcd(&self) -> String {
         serialize_document(
-            self.editor.doc(),
+            self.editor.persistent_doc(),
             SaveOptions {
-                split_nonstandard_macros: self.editor.split_nonstandard(),
+                split_nonstandard_components: false,
+            },
+            Some(self.editor.libs()),
+        )
+    }
+
+    /// Like `save_fcd`, but expands components whose definition cannot be recovered from the file
+    /// when the “split non-standard components” option is on (local library, unresolved refs).
+    #[wasm_bindgen]
+    pub fn save_portable_fcd(&self) -> String {
+        serialize_document(
+            self.editor.persistent_doc(),
+            SaveOptions {
+                split_nonstandard_components: self.editor.split_nonstandard(),
             },
             Some(self.editor.libs()),
         )
@@ -116,7 +131,9 @@ impl App {
         if prims.is_empty() {
             serialize_document(
                 self.editor.doc(),
-                SaveOptions::default(),
+                SaveOptions {
+                    split_nonstandard_components: false,
+                },
                 Some(self.editor.libs()),
             )
         } else {
@@ -288,8 +305,8 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_hide_macro_origin(&mut self, on: bool) {
-        self.editor.set_hide_macro_origin(on);
+    pub fn set_hide_component_origin(&mut self, on: bool) {
+        self.editor.set_hide_component_origin(on);
     }
 
     #[wasm_bindgen]
@@ -323,23 +340,23 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_split_macros(&mut self, on: bool) {
+    pub fn set_split_components(&mut self, on: bool) {
         self.editor.set_split_nonstandard(on);
     }
 
     #[wasm_bindgen]
-    pub fn set_pending_macro(&mut self, name: &str) {
-        self.editor.set_pending_macro(Some(name.to_string()));
-        self.editor.adopt_macro_tool();
+    pub fn set_pending_component(&mut self, name: &str) {
+        self.editor.set_pending_component(Some(name.to_string()));
+        self.editor.adopt_component_tool();
         self.editor.clear_hover();
     }
 
     #[wasm_bindgen]
-    pub fn place_macro_at(&mut self, name: &str, sx: f32, sy: f32) {
-        self.editor.set_pending_macro(Some(name.to_string()));
-        self.editor.adopt_macro_tool();
+    pub fn place_component_at(&mut self, name: &str, sx: f32, sy: f32) {
+        self.editor.set_pending_component(Some(name.to_string()));
+        self.editor.adopt_component_tool();
         let w = self.editor.screen_to_world(sx, sy);
-        self.editor.insert_pending_macro_at(w);
+        self.editor.insert_pending_component_at(w);
     }
 
     #[wasm_bindgen]
@@ -360,8 +377,8 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn split_selected_macros(&mut self) {
-        self.editor.split_selected_macros();
+    pub fn split_selected_components(&mut self) {
+        self.editor.split_selected_components();
     }
 
     #[wasm_bindgen]
@@ -375,19 +392,19 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn macro_preview_svg(&self, name: &str) -> String {
-        let scene = self.macro_scene(name);
+    pub fn component_preview_svg(&self, name: &str) -> String {
+        let scene = self.component_scene(name);
         scene_to_thumb_svg(&scene, 40.0)
     }
 
     #[wasm_bindgen]
-    pub fn macro_cursor_json(&self, name: &str) -> String {
-        use fidocad_core::MACRO_ORIGIN;
+    pub fn component_cursor_json(&self, name: &str) -> String {
+        use fidocad_core::COMPONENT_ORIGIN;
         use fidocad_gpu::scene_to_cursor_svg;
-        let scene = self.macro_scene(name);
-        let cur = scene_to_cursor_svg(&scene, MACRO_ORIGIN);
+        let scene = self.component_scene(name);
+        let cur = scene_to_cursor_svg(&scene, COMPONENT_ORIGIN);
         to_json(
-            &MacroCursorDto {
+            &ComponentCursorDto {
                 svg: cur.svg,
                 ox: cur.ox,
                 oy: cur.oy,
@@ -398,17 +415,17 @@ impl App {
         )
     }
 
-    fn macro_scene(&self, name: &str) -> fidocad_gpu::Scene {
+    fn component_scene(&self, name: &str) -> fidocad_gpu::Scene {
         use fidocad_core::geom::Transform;
-        use fidocad_core::library::expand_macro;
-        use fidocad_core::MACRO_ORIGIN;
+        use fidocad_core::library::expand_component;
+        use fidocad_core::COMPONENT_ORIGIN;
         let Some((_, def)) = self.editor.libs().lookup(name) else {
             return fidocad_gpu::Scene::default();
         };
-        let prims = expand_macro(
+        let prims = expand_component(
             def,
             Transform {
-                origin: MACRO_ORIGIN,
+                origin: COMPONENT_ORIGIN,
                 rotations: 0,
                 mirrored: false,
             },
@@ -458,7 +475,11 @@ impl App {
 
     #[wasm_bindgen]
     pub fn new_doc(&mut self) {
+        let local = self.editor.libs().local().cloned();
         self.editor = Editor::new(builtin_libraries());
+        if let Some(local) = local {
+            self.editor.load_local_library(local);
+        }
         self.backend.apply_theme(&mut self.editor, &self.theme);
     }
 
@@ -521,6 +542,96 @@ impl App {
     #[wasm_bindgen]
     pub fn library_json(&self) -> String {
         to_json(&self.editor.libs().tree(), "[]")
+    }
+
+    #[wasm_bindgen]
+    pub fn user_libraries_json(&self) -> String {
+        to_json(&self.editor.libs().user_library_list(), "[]")
+    }
+
+    #[wasm_bindgen]
+    pub fn create_component_from_selection(&mut self, target: &str, display_name: &str) -> String {
+        let Some(target) = UserLibraryTarget::from_stem(target) else {
+            return String::new();
+        };
+        match self
+            .editor
+            .create_component_from_selection(target, display_name)
+        {
+            Some((stem, key)) => to_json(&CreatedComponentDto { stem, key }, "{}"),
+            None => String::new(),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn enter_component_edit(&mut self, stem: &str, key: &str) -> bool {
+        let ok = self.editor.enter_component_edit(stem, key);
+        if ok {
+            self.editor.fit_view(self.width, self.height);
+        }
+        ok
+    }
+
+    #[wasm_bindgen]
+    pub fn edit_selected_component(&mut self) -> bool {
+        let Some((stem, key)) = self.editor.selected_editable_component() else {
+            return false;
+        };
+        self.enter_component_edit(&stem, &key)
+    }
+
+    #[wasm_bindgen]
+    pub fn save_component_edit(&mut self) -> bool {
+        self.editor.save_component_edit()
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_component_edit(&mut self) -> bool {
+        self.editor.cancel_component_edit()
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_component(&mut self, stem: &str, key: &str, name: &str) -> bool {
+        self.editor.rename_component(stem, key, name)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_component_description(&mut self, stem: &str, key: &str, description: &str) -> bool {
+        self.editor
+            .set_component_description(stem, key, description)
+    }
+
+    #[wasm_bindgen]
+    pub fn delete_component(&mut self, stem: &str, key: &str) -> bool {
+        self.editor.delete_component(stem, key)
+    }
+
+    #[wasm_bindgen]
+    pub fn move_component(&mut self, stem: &str, key: &str, dest_stem: &str) -> String {
+        self.editor
+            .move_component(stem, key, dest_stem)
+            .unwrap_or_default()
+    }
+
+    #[wasm_bindgen]
+    pub fn load_local_library(&mut self, text: &str) {
+        if text.trim().is_empty() {
+            return;
+        }
+        if let Ok(mut lib) = parse_library(text) {
+            lib.file_stem = fidocad_core::LOCAL_STEM.into();
+            lib.kind = fidocad_core::LibraryKind::Local;
+            lib.standard = false;
+            self.editor.load_local_library(lib);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn local_library_fcl(&self) -> String {
+        match self.editor.libs().local() {
+            Some(lib) if !lib.components.is_empty() => serialize_library(lib),
+            _ => String::new(),
+        }
     }
 
     #[wasm_bindgen]

@@ -30,13 +30,23 @@ pub struct StatusDto {
     pub grid_y: i32,
     pub snap_enable: bool,
     pub show_grid: bool,
-    pub hide_macro_origin: bool,
-    pub pending_macro: Option<String>,
+    pub hide_component_origin: bool,
+    pub pending_component: Option<String>,
+    pub can_create_component: bool,
+    pub can_split_component: bool,
+    pub can_edit_component: bool,
+    pub editing_component: Option<String>,
+    pub editing_component_name: Option<String>,
+    pub editing_component_dirty: bool,
+    pub libs_rev: u32,
 }
 
 impl StatusDto {
     pub fn from_editor(ed: &Editor, show_grid: bool) -> Self {
         let hover = ed.hover().unwrap_or(fidocad_core::Point::new(0, 0));
+        let editing = ed
+            .editing_component()
+            .map(|(stem, key)| format!("{stem}.{key}"));
         Self {
             tool: ed.tool().id().into(),
             layer: ed.layer().0,
@@ -59,12 +69,19 @@ impl StatusDto {
             grid_y: ed.doc().grid_y,
             snap_enable: ed.snap_enable(),
             show_grid,
-            hide_macro_origin: ed.hide_macro_origin(),
-            pending_macro: if ed.tool() == Tool::Macro {
-                ed.pending_macro().map(str::to_string)
+            hide_component_origin: ed.hide_component_origin(),
+            pending_component: if ed.tool() == Tool::Component {
+                ed.pending_component().map(str::to_string)
             } else {
                 None
             },
+            can_create_component: ed.can_create_component(),
+            can_split_component: ed.can_split_component(),
+            can_edit_component: ed.can_edit_component(),
+            editing_component: editing,
+            editing_component_name: ed.editing_component_name(),
+            editing_component_dirty: ed.editing_component_dirty(),
+            libs_rev: ed.libs_rev(),
         }
     }
 }
@@ -92,12 +109,18 @@ pub fn text_edit_json(ed: &Editor, session: TextEditSession) -> String {
 }
 
 #[derive(Serialize)]
-pub struct MacroCursorDto {
+pub struct ComponentCursorDto {
     pub svg: String,
     pub ox: f32,
     pub oy: f32,
     pub w: f32,
     pub h: f32,
+}
+
+#[derive(Serialize)]
+pub struct CreatedComponentDto {
+    pub stem: String,
+    pub key: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

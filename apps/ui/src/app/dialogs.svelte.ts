@@ -3,6 +3,7 @@ import type { ExportFormat } from '../lib/exportOptions';
 
 export type DialogState =
 	| { kind: 'deleteLayer'; index: number }
+	| { kind: 'deleteComponent'; stem: string; key: string }
 	| { kind: 'about' }
 	| { kind: 'technologies' }
 	| { kind: 'grid' }

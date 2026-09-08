@@ -2,9 +2,9 @@
 
 use crate::document::{Document, SaveOptions};
 use crate::layers::LayerInfo;
-use crate::library::LibrarySet;
+use crate::library::{Library, LibraryKind, LibrarySet};
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, MacroRef, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
 
 use super::tokens::{font_token, push_layer};
@@ -119,7 +119,7 @@ pub fn serialize_primitive(p: &Primitive) -> String {
                 ));
             }
         }
-        Primitive::Macro(MacroRef {
+        Primitive::Component(ComponentRef {
             pos,
             rotations,
             mirrored,
@@ -139,11 +139,23 @@ pub fn serialize_primitive(p: &Primitive) -> String {
     s
 }
 
-fn is_standard_macro(name: &str, libs: Option<&LibrarySet>) -> bool {
+fn is_standard_component(name: &str, libs: Option<&LibrarySet>) -> bool {
     if let Some(libs) = libs {
         return libs.is_standard(name);
     }
     !name.contains('.')
+}
+
+/// Keep an `MC` reference when the definition will still be available after load.
+/// Local-library defs are not stored in the FCD, so they are not recoverable from the file alone.
+fn component_ref_recoverable(name: &str, libs: Option<&LibrarySet>) -> bool {
+    let Some(libs) = libs else {
+        return !name.contains('.');
+    };
+    match libs.lookup(name) {
+        Some((lib, _)) => lib.kind != LibraryKind::Local,
+        None => false,
+    }
 }
 
 pub fn serialize_layer(info: &LayerInfo) -> String {
@@ -175,8 +187,11 @@ pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&Libra
     }
     for p in &doc.primitives {
         let expanded = match p {
-            Primitive::Macro(MacroRef { name, standard, .. })
-                if opts.split_nonstandard_macros && !is_standard_macro(name, libs) && !standard =>
+            Primitive::Component(ComponentRef { name, standard, .. })
+                if opts.split_nonstandard_components
+                    && !standard
+                    && !is_standard_component(name, libs)
+                    && !component_ref_recoverable(name, libs) =>
             {
                 libs.map(|libs| crate::library::expand_primitive(p, libs))
                     .unwrap_or_else(|| vec![p.clone()])
@@ -185,6 +200,55 @@ pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&Libra
         };
         for q in expanded {
             out.push_str(&serialize_primitive(&q));
+        }
+    }
+    if let Some(libs) = libs {
+        if let Some(project) = libs.project() {
+            if !project.components.is_empty() {
+                out.push_str(&serialize_library(project));
+            }
+        }
+    }
+    out
+}
+
+pub fn serialize_library(lib: &Library) -> String {
+    let mut out = String::new();
+    let header = if lib.file_stem.is_empty() {
+        lib.name.as_str()
+    } else {
+        lib.file_stem.as_str()
+    };
+    out.push_str("[FIDOLIB ");
+    out.push_str(header);
+    out.push_str("]\r\n");
+    let mut last_cat: Option<&str> = None;
+    for c in &lib.components {
+        let cat = if c.category.is_empty() {
+            None
+        } else {
+            Some(c.category.as_str())
+        };
+        if cat != last_cat {
+            if let Some(cat) = cat {
+                out.push('{');
+                out.push_str(cat);
+                out.push_str("}\r\n");
+            }
+            last_cat = cat;
+        }
+        out.push('[');
+        out.push_str(&c.key);
+        out.push(' ');
+        out.push_str(&c.name);
+        out.push_str("]\r\n");
+        if !c.description.is_empty() {
+            out.push_str("DS ");
+            out.push_str(&c.description);
+            out.push_str("\r\n");
+        }
+        for p in &c.primitives {
+            out.push_str(&serialize_primitive(p));
         }
     }
     out

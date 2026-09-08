@@ -2,8 +2,8 @@
 
 use crate::layers::LayerId;
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, MacroRef, PadStyle, PcbPad, PcbTrack, Poly, Primitive, Rect,
-    Text, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED, STYLE_UNDERLINE,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED, STYLE_UNDERLINE,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -58,7 +58,7 @@ pub struct PropFormField {
     pub id: PropField,
     pub kind: PropFieldKind,
     pub value: PropFieldValue,
-    /// When true the field is shown but cannot be applied (e.g. layer on macros).
+    /// When true the field is shown but cannot be applied (e.g. layer on components).
     #[serde(default)]
     pub read_only: bool,
 }
@@ -371,7 +371,7 @@ impl PropSource for Text {
     }
 }
 
-impl PropSource for MacroRef {
+impl PropSource for ComponentRef {
     fn fields() -> &'static [PropField] {
         &[]
     }
@@ -397,7 +397,7 @@ fn attrib_order(first: &Primitive) -> &'static [PropField] {
         Primitive::Connection(_) => Connection::fields(),
         Primitive::PcbTrack(_) => PcbTrack::fields(),
         Primitive::PcbPad(_) => PcbPad::fields(),
-        Primitive::Macro(_) => MacroRef::fields(),
+        Primitive::Component(_) => ComponentRef::fields(),
     }
 }
 
@@ -472,9 +472,9 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
 
     // Layer always appended (FidoCAD).
     let mut layer_val = read_field(first, PropField::Layer).unwrap_or(PropFieldValue::Unset);
-    let all_macro = primitives
+    let all_component = primitives
         .iter()
-        .all(|p| matches!(p, Primitive::Macro(MacroRef { .. })));
+        .all(|p| matches!(p, Primitive::Component(ComponentRef { .. })));
     for p in &primitives[1..] {
         if let Some(v) = read_field(p, PropField::Layer) {
             if layer_val != v {
@@ -486,7 +486,7 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
         id: PropField::Layer,
         kind: PropFieldKind::Layer,
         value: layer_val,
-        read_only: all_macro,
+        read_only: all_component,
     });
 
     fields

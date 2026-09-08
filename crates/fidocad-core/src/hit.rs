@@ -48,7 +48,7 @@ pub fn hit_test(
     for (index, p) in prims.iter().enumerate().rev() {
         let expanded = crate::library::expand_primitive(p, libs);
         for q in &expanded {
-            if !layers.visible(q.layer()) && !p.is_macro() {
+            if !layers.visible(q.layer()) && !p.is_component() {
                 continue;
             }
             if let Some(h) = hit_prim(q, pt, tol2, handle_r2) {
@@ -60,7 +60,7 @@ pub fn hit_test(
                 return Some(Hit { index, handle });
             }
         }
-        if let Primitive::Macro(m) = p {
+        if let Primitive::Component(m) = p {
             if m.pos.dist_sq(pt) as f64 <= handle_r2 {
                 return Some(Hit {
                     index,

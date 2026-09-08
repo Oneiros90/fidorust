@@ -27,7 +27,7 @@
 			snapY: clampInt(edit.snapY, 1, 20),
 			showGrid: edit.showGrid,
 			snapEnable: edit.snapEnable,
-			hideMacroOrigin: edit.hideMacroOrigin
+			hideComponentOrigin: edit.hideComponentOrigin
 		});
 	}
 </script>
@@ -65,8 +65,8 @@
 			{t.enableSnap}
 		</label>
 		<label class="chk full">
-			<input type="checkbox" bind:checked={edit.hideMacroOrigin} />
-			{t.hideMacroOrigin}
+			<input type="checkbox" bind:checked={edit.hideComponentOrigin} />
+			{t.hideComponentOrigin}
 		</label>
 		<div class="dialog-actions">
 			<button type="button" class="primary" onclick={apply}>{t.ok}</button>

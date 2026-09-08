@@ -15,7 +15,7 @@ pub enum Tool {
     Connection,
     PcbTrack,
     PcbPad,
-    Macro,
+    Component,
     Zoom,
     Pan,
 }
@@ -37,7 +37,7 @@ impl Tool {
             Self::Connection => "connection",
             Self::PcbTrack => "pcb-track",
             Self::PcbPad => "pcb-pad",
-            Self::Macro => "macro",
+            Self::Component => "component",
             Self::Zoom => "zoom",
             Self::Pan => "pan",
         }
@@ -58,7 +58,7 @@ impl std::str::FromStr for Tool {
             "connection" => Self::Connection,
             "pcb-track" => Self::PcbTrack,
             "pcb-pad" => Self::PcbPad,
-            "macro" => Self::Macro,
+            "component" | "macro" => Self::Component,
             "zoom" => Self::Zoom,
             "pan" => Self::Pan,
             "select" => Self::Select,
