@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
 	import AboutDialog from '../dialogs/AboutDialog.svelte';
+	import TechnologiesDialog from '../dialogs/TechnologiesDialog.svelte';
 	import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import GridDialog from '../dialogs/GridDialog.svelte';
@@ -50,6 +51,8 @@
 	<DeleteLayerDialog index={dialog.index} />
 {:else if dialog?.kind === 'about'}
 	<AboutDialog />
+{:else if dialog?.kind === 'technologies'}
+	<TechnologiesDialog />
 {:else if dialog?.kind === 'grid'}
 	<GridDialog
 		t={app.t}

@@ -1,6 +1,6 @@
 #version 300 es
 precision highp float;
-in vec3 v_color;
+in vec4 v_color;
 in vec2 v_uv;
 in vec2 v_radii;
 in float v_inner;
@@ -33,5 +33,5 @@ void main() {
         a = outer * hole;
     }
     if (a < 0.004) discard;
-    frag = vec4(v_color, a);
+    frag = vec4(v_color.rgb, v_color.a * a);
 }

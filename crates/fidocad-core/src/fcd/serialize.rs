@@ -147,14 +147,18 @@ fn is_standard_macro(name: &str, libs: Option<&LibrarySet>) -> bool {
 }
 
 pub fn serialize_layer(info: &LayerInfo) -> String {
-    format!(
-        "LD {} {} {} {} {}\r\n",
-        info.color[0],
-        info.color[1],
-        info.color[2],
-        if info.show { 1 } else { 0 },
-        info.name
-    )
+    let vis = if info.show { 1 } else { 0 };
+    if info.color[3] == 255 {
+        format!(
+            "LD {} {} {} {} {}\r\n",
+            info.color[0], info.color[1], info.color[2], vis, info.name
+        )
+    } else {
+        format!(
+            "LD {} {} {} {} {} {}\r\n",
+            info.color[0], info.color[1], info.color[2], vis, info.color[3], info.name
+        )
+    }
 }
 
 pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&LibrarySet>) -> String {

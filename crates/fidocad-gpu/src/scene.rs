@@ -20,6 +20,7 @@ pub struct LineInstance {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+    pub a: f32,
     pub selected: f32,
 }
 
@@ -31,6 +32,7 @@ pub struct FillVertexGpu {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+    pub a: f32,
     pub selected: f32,
 }
 
@@ -46,6 +48,7 @@ pub struct CircleInstance {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+    pub a: f32,
     pub selected: f32,
 }
 
@@ -110,7 +113,7 @@ impl Scene {
         &items[start..end]
     }
 
-    pub fn push_line(&mut self, a: Point, b: Point, w: f32, rgb: [f32; 3], selected: bool) {
+    pub fn push_line(&mut self, a: Point, b: Point, w: f32, rgb: [f32; 4], selected: bool) {
         self.push_line_f(
             a.x as f32, a.y as f32, b.x as f32, b.y as f32, w, rgb, selected,
         );
@@ -124,7 +127,7 @@ impl Scene {
         bx: f32,
         by: f32,
         w: f32,
-        rgb: [f32; 3],
+        rgb: [f32; 4],
         selected: bool,
     ) {
         self.lines.push(LineInstance {
@@ -136,6 +139,7 @@ impl Scene {
             r: rgb[0],
             g: rgb[1],
             b: rgb[2],
+            a: rgb[3],
             selected: Self::flag(selected),
         });
     }
@@ -149,7 +153,7 @@ impl Scene {
         ry: f32,
         inner: f32,
         stroke: f32,
-        rgb: [f32; 3],
+        rgb: [f32; 4],
         selected: bool,
     ) {
         self.circles.push(CircleInstance {
@@ -162,6 +166,7 @@ impl Scene {
             r: rgb[0],
             g: rgb[1],
             b: rgb[2],
+            a: rgb[3],
             selected: Self::flag(selected),
         });
     }
@@ -172,7 +177,7 @@ impl Scene {
         b: Point,
         filled: bool,
         stroke_w: f32,
-        rgb: [f32; 3],
+        rgb: [f32; 4],
         selected: bool,
     ) {
         let cx = (a.x + b.x) as f32 / 2.0;
@@ -186,7 +191,7 @@ impl Scene {
         }
     }
 
-    pub fn stroke_poly(&mut self, pts: &[Point], closed: bool, w: f32, rgb: [f32; 3], sel: bool) {
+    pub fn stroke_poly(&mut self, pts: &[Point], closed: bool, w: f32, rgb: [f32; 4], sel: bool) {
         for wdw in pts.windows(2) {
             self.push_line(wdw[0], wdw[1], w, rgb, sel);
         }
@@ -195,7 +200,7 @@ impl Scene {
         }
     }
 
-    pub fn fill_polygon(&mut self, pts: &[Point], rgb: [f32; 3], selected: bool) {
+    pub fn fill_polygon(&mut self, pts: &[Point], rgb: [f32; 4], selected: bool) {
         let mut builder = Path::builder();
         builder.begin(point(pts[0].x as f32, pts[0].y as f32));
         for p in &pts[1..] {
@@ -205,7 +210,7 @@ impl Scene {
         self.fill_path(&builder.build(), FillRule::NonZero, rgb, selected);
     }
 
-    pub fn fill_path(&mut self, path: &Path, fill_rule: FillRule, rgb: [f32; 3], selected: bool) {
+    pub fn fill_path(&mut self, path: &Path, fill_rule: FillRule, rgb: [f32; 4], selected: bool) {
         let mut buffers: VertexBuffers<FillVertexGpu, u16> = VertexBuffers::new();
         let mut tess = FillTessellator::new();
         let _ = tess.tessellate_path(
@@ -217,6 +222,7 @@ impl Scene {
                 r: rgb[0],
                 g: rgb[1],
                 b: rgb[2],
+                a: rgb[3],
                 selected: Self::flag(selected),
             }),
         );

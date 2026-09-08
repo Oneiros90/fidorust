@@ -43,7 +43,7 @@ fn skip_line(line: &str) -> bool {
         || line.starts_with('*')
 }
 
-/// `LD <r> <g> <b> <visible> <name…>`
+/// `LD <r> <g> <b> <visible> [a] <name…>` — `a` is optional (0–255, default 255).
 pub fn parse_ld_line(line: &str) -> Option<LayerInfo> {
     let line = line.trim();
     if line.len() < 2 || !line[..2].eq_ignore_ascii_case("LD") {
@@ -61,10 +61,14 @@ pub fn parse_ld_line(line: &str) -> Option<LayerInfo> {
     let g = t.i32(1)?.clamp(0, 255) as u8;
     let b = t.i32(2)?.clamp(0, 255) as u8;
     let show = t.i32(3)? != 0;
-    let name = extract_string(rest, 4);
+    let (a, name_skip) = match t.i32(4) {
+        Some(v) if (0..=255).contains(&v) => (v as u8, 5),
+        _ => (255, 4),
+    };
+    let name = extract_string(rest, name_skip);
     Some(LayerInfo {
         name,
-        color: [r, g, b],
+        color: [r, g, b, a],
         show,
     })
 }

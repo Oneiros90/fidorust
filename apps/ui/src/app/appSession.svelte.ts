@@ -302,6 +302,7 @@ export class AppSession {
 	};
 
 	openAbout = () => this.dialogs.open({ kind: 'about' });
+	openTechnologies = () => this.dialogs.open({ kind: 'technologies' });
 	openGrid = () => this.dialogs.open({ kind: 'grid' });
 
 	openProperties = () => {
@@ -444,9 +445,9 @@ export class AppSession {
 		if (this.dialogs.dialog?.kind === 'deleteLayer') this.dialogs.close();
 	};
 
-	setLayerColor = (i: number, r: number, g: number, b: number) => {
+	setLayerColor = (i: number, r: number, g: number, b: number, a = 255) => {
 		this.engine?.mutate((app) => {
-			app.set_layer_color(i, r, g, b);
+			app.set_layer_color(i, r, g, b, a);
 		});
 	};
 

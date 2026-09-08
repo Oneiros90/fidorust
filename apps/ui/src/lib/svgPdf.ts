@@ -1,6 +1,6 @@
 import { A4_PT, LETTER_PT, PDF_MAX_PT, PT_PER_LU } from './constants';
 import type { PdfPage } from './exportOptions';
-import { parseSvgPrims, parseSvgViewBox, type SvgPrim } from './svgGeom';
+import { parseSvgPrims, parseSvgViewBox, type Rgba, type SvgPrim } from './svgGeom';
 
 function concat(parts: Uint8Array[]): Uint8Array {
 	let len = 0;
@@ -84,14 +84,30 @@ function ellipseOps(
 	];
 }
 
+function gs(a: number): string {
+	return `/A${Math.max(0, Math.min(255, Math.round(a)))} gs`;
+}
+
+function colorAlpha(c: Rgba | null | undefined): number | null {
+	return c ? c[3] : null;
+}
+
+function primAlpha(prim: SvgPrim): number {
+	if (prim.kind === 'hole') return 255;
+	if (prim.kind === 'line' || prim.kind === 'bezier') return prim.a;
+	if (prim.kind === 'text') return prim.fill[3];
+	return colorAlpha(prim.fill) ?? colorAlpha(prim.stroke) ?? 255;
+}
+
 function paintPath(
 	parts: string[],
-	fill: [number, number, number] | null,
-	stroke: [number, number, number] | null,
+	fill: Rgba | null,
+	stroke: Rgba | null,
 	strokeWidth: number,
 	scale: number,
 	close: boolean
 ) {
+	parts.push(gs(colorAlpha(fill) ?? colorAlpha(stroke) ?? 255));
 	if (fill) parts.push(`${rgb(fill[0], fill[1], fill[2])} rg`);
 	if (stroke) {
 		parts.push(`${rgb(stroke[0], stroke[1], stroke[2])} RG`);
@@ -119,6 +135,7 @@ function emitPrim(
 	}
 	if (prim.kind === 'line') {
 		const w = Math.max(prim.width * scale, 0.2);
+		parts.push(gs(prim.a));
 		parts.push(`${rgb(prim.r, prim.g, prim.b)} RG`);
 		parts.push(`${n(w)} w`);
 		parts.push(`${n(px(prim.x1))} ${n(py(prim.y1))} m ${n(px(prim.x2))} ${n(py(prim.y2))} l S`);
@@ -136,6 +153,7 @@ function emitPrim(
 		return;
 	}
 	if (prim.kind === 'bezier') {
+		parts.push(gs(prim.a));
 		parts.push(`${rgb(prim.r, prim.g, prim.b)} RG`);
 		parts.push(`${n(Math.max(prim.width * scale, 0.2))} w`);
 		parts.push(
@@ -149,6 +167,7 @@ function emitPrim(
 		emitPdfText(parts, prim, px, py, scale);
 		return;
 	}
+	parts.push(gs(255));
 	parts.push('1 1 1 rg');
 	parts.push(...ellipseOps(prim.cx, prim.cy, prim.r, prim.r, px, py), 'h f');
 }
@@ -224,6 +243,7 @@ function emitPdfText(
 		prim.textLength > 0 && prim.content.length > 0
 			? ((prim.textLength * scale) / (prim.content.length * size * 0.6)) * 100
 			: 100;
+	parts.push(gs(prim.fill[3]));
 	parts.push(`${rgb(prim.fill[0], prim.fill[1], prim.fill[2])} rg`);
 	parts.push('BT');
 	parts.push('/F1 1 Tf');
@@ -233,23 +253,33 @@ function emitPdfText(
 	parts.push('ET');
 }
 
-function svgToContentStream(svg: string, layout: PdfLayout): string {
+function svgToContentStream(
+	svg: string,
+	layout: PdfLayout
+): { content: string; alphas: number[] } {
 	const box = parseSvgViewBox(svg);
 	const { pageW, pageH, scale, ox, oy } = layout;
 	const px = (x: number) => ox + (x - box.x) * scale;
 	const py = (y: number) => pageH - (oy + (y - box.y) * scale);
-	const parts: string[] = ['1 1 1 rg', `0 0 ${n(pageW)} ${n(pageH)} re`, 'f', '1 J', '1 j'];
-	for (const prim of parseSvgPrims(svg)) emitPrim(prim, parts, px, py, scale);
-	return parts.join('\n') + '\n';
+	const prims = parseSvgPrims(svg);
+	const parts: string[] = ['1 1 1 rg', `0 0 ${n(pageW)} ${n(pageH)} re`, 'f', '1 J', '1 j', gs(255)];
+	for (const prim of prims) emitPrim(prim, parts, px, py, scale);
+	const alphas = new Set<number>([255]);
+	for (const prim of prims) alphas.add(primAlpha(prim));
+	return { content: parts.join('\n') + '\n', alphas: [...alphas] };
 }
 
-function wrapPdf(pageW: number, pageH: number, content: Uint8Array): Uint8Array {
+function wrapPdf(pageW: number, pageH: number, content: Uint8Array, alphas: number[]): Uint8Array {
 	const enc = new TextEncoder();
 	const header = enc.encode('%PDF-1.4\n%\x80\x80\x80\x80\n');
 	const obj1 = enc.encode('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 	const obj2 = enc.encode('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+	const gsDict = [...new Set(alphas)]
+		.sort((a, b) => a - b)
+		.map((a) => `/A${a} << /Type /ExtGState /ca ${n(a / 255)} /CA ${n(a / 255)} >>`)
+		.join(' ');
 	const obj3 = enc.encode(
-		`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(pageW)} ${n(pageH)}] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> >> >>\nendobj\n`
+		`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n(pageW)} ${n(pageH)}] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Courier >> >> /ExtGState << ${gsDict} >> >> >>\nendobj\n`
 	);
 	const obj4 = concat([
 		enc.encode(`4 0 obj\n<< /Length ${content.length} >>\nstream\n`),
@@ -282,8 +312,9 @@ function wrapPdf(pageW: number, pageH: number, content: Uint8Array): Uint8Array 
 
 export function svgToPdfBlob(svg: string, opts: PdfExportOpts = {}): Blob {
 	const layout = pdfLayout(svg, opts);
-	const content = new TextEncoder().encode(svgToContentStream(svg, layout));
-	const pdf = wrapPdf(layout.pageW, layout.pageH, content);
+	const { content, alphas } = svgToContentStream(svg, layout);
+	const bytes = new TextEncoder().encode(content);
+	const pdf = wrapPdf(layout.pageW, layout.pageH, bytes, alphas);
 	const copy = new Uint8Array(pdf.byteLength);
 	copy.set(pdf);
 	return new Blob([copy.buffer], { type: 'application/pdf' });

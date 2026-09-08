@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { Dict } from '../i18n';
 	import type { LayersData } from '../app/engineTypes';
-	import { rgbToHex } from '../lib/color';
+	import { rgbaCss } from '../lib/color';
 	import { clampInt } from '../lib/num';
 	import {
 		editStateToPatch,
@@ -35,7 +35,7 @@
 	function layerColor(i: number): string {
 		const l = layers.layers[i];
 		if (!l) return '#888';
-		return rgbToHex(l.color);
+		return rgbaCss(l.color);
 	}
 
 	function apply() {

@@ -352,7 +352,7 @@ fn file_without_ld_uses_four_fidocad_layers() {
     assert_eq!(doc.layers.len(), 4);
     assert_eq!(doc.layers.get(0).unwrap().name, "Schema");
     assert_eq!(doc.layers.get(1).unwrap().name, "PCB lato rame");
-    assert_eq!(doc.layers.get(1).unwrap().color, [0, 0, 192]);
+    assert_eq!(doc.layers.get(1).unwrap().color, [0, 0, 192, 255]);
 }
 
 #[test]
@@ -372,7 +372,7 @@ fn ld_lines_replace_defaults() {
     let doc = parse_document(src).unwrap();
     assert_eq!(doc.layers.len(), 2);
     assert_eq!(doc.layers.get(0).unwrap().name, "Bottom copper");
-    assert_eq!(doc.layers.get(0).unwrap().color, [10, 20, 30]);
+    assert_eq!(doc.layers.get(0).unwrap().color, [10, 20, 30, 255]);
     assert!(!doc.layers.get(0).unwrap().show);
     assert_eq!(doc.layers.get(1).unwrap().name, "Top");
     assert!(doc.layers.get(1).unwrap().show);
@@ -410,6 +410,17 @@ fn serialize_writes_ld_and_roundtrips() {
         doc2.layers.get(0).unwrap().show
     );
     assert_eq!(doc.primitives.len(), doc2.primitives.len());
+}
+
+#[test]
+fn ld_optional_alpha_roundtrips() {
+    let src = "[FIDOCAD]\nLD 10 20 30 1 128 Overlay\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.layers.get(0).unwrap().color, [10, 20, 30, 128]);
+    let out = serialize_document(&doc, SaveOptions::default(), None);
+    assert!(out.contains("LD 10 20 30 1 128 Overlay"));
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc2.layers.get(0).unwrap().color, [10, 20, 30, 128]);
 }
 
 #[test]
@@ -503,6 +514,18 @@ fn cannot_delete_last_layer() {
     }
     assert!(!ed.delete_layer(0, None));
     assert_eq!(ed.doc_mut().layers.len(), 1);
+}
+
+#[test]
+fn layer_color_drag_is_one_undo() {
+    let mut ed = Editor::new(builtin_libraries());
+    let original = ed.doc().layers.get(0).unwrap().color;
+    assert!(ed.set_layer_color(0, [1, 2, 3, 128]));
+    assert!(ed.set_layer_color(0, [4, 5, 6, 64]));
+    assert_eq!(ed.doc().layers.get(0).unwrap().color, [4, 5, 6, 64]);
+    ed.undo();
+    assert_eq!(ed.doc().layers.get(0).unwrap().color, original);
+    assert!(!ed.can_undo());
 }
 
 #[test]

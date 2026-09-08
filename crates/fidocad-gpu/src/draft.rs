@@ -24,7 +24,7 @@ impl<'a> DraftParams<'a> {
     }
 }
 
-pub(crate) fn add_draft(scene: &mut Scene, params: &DraftParams<'_>, preview: [f32; 3]) {
+pub(crate) fn add_draft(scene: &mut Scene, params: &DraftParams<'_>, preview: [f32; 4]) {
     let pts = params.points;
     if pts.is_empty() {
         return;

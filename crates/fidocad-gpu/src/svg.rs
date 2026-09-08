@@ -9,7 +9,7 @@ use fidocad_core::primitive::{
 };
 
 use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene, DEFAULT_STROKE_W};
-use crate::theme::Rgb;
+use crate::theme::css_color;
 
 struct SvgWriter<F> {
     tx: F,
@@ -64,8 +64,8 @@ impl<F: Fn(f32, f32) -> (f32, f32)> SvgWriter<F> {
     }
 }
 
-fn fill_rgb(r: f32, g: f32, b: f32) -> String {
-    Rgb([r, g, b]).to_svg()
+fn fill_rgb(r: f32, g: f32, b: f32, a: f32) -> String {
+    css_color(r, g, b, a)
 }
 
 fn write_polygon(out: &mut String, tx: &impl Fn(f32, f32) -> (f32, f32), tri: &[FillVertexGpu]) {
@@ -74,7 +74,7 @@ fn write_polygon(out: &mut String, tx: &impl Fn(f32, f32) -> (f32, f32), tri: &[
     let (x3, y3) = tx(tri[2].x, tri[2].y);
     out.push_str(&format!(
         r#"<polygon points="{x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="{}"/>"#,
-        fill_rgb(tri[0].r, tri[0].g, tri[0].b),
+        fill_rgb(tri[0].r, tri[0].g, tri[0].b, tri[0].a),
     ));
 }
 
@@ -88,7 +88,7 @@ fn write_line(
 ) {
     let (x1, y1) = tx(l.ax, l.ay);
     let (x2, y2) = tx(l.bx, l.by);
-    let stroke = fill_rgb(l.r, l.g, l.b);
+    let stroke = fill_rgb(l.r, l.g, l.b, l.a);
     let width = (l.width * scale).max(min_stroke);
     // Export (`emit_circles == false`) used `stroke-width="{}"`; thumb/cursor used `{:.2}`.
     if emit_circles {
@@ -113,7 +113,7 @@ fn write_circle(
     let (cx, cy) = tx(c.x, c.y);
     let rx = (c.rx * scale).max(min_radius);
     let ry = (c.ry * scale).max(min_radius);
-    let stroke = fill_rgb(c.r, c.g, c.b);
+    let stroke = fill_rgb(c.r, c.g, c.b, c.a);
     if c.stroke > 0.001 {
         out.push_str(&format!(
             r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="none" stroke="{stroke}" stroke-width="{:.2}"/>"#,
@@ -217,8 +217,13 @@ fn pad_hole(pad: &PcbPad) -> Option<PadHole> {
     })
 }
 
-fn rgb_u8(c: [u8; 3]) -> String {
-    format!("rgb({},{},{})", c[0], c[1], c[2])
+fn rgb_u8(c: [u8; 4]) -> String {
+    css_color(
+        c[0] as f32 / 255.0,
+        c[1] as f32 / 255.0,
+        c[2] as f32 / 255.0,
+        c[3] as f32 / 255.0,
+    )
 }
 
 fn write_export_hole_defs(

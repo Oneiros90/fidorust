@@ -1,5 +1,5 @@
 import { MM_PER_LU } from './constants';
-import { parseSvgPrims, parseSvgViewBox, type SvgPrim } from './svgGeom';
+import { parseSvgPrims, parseSvgViewBox, type Rgba, type SvgPrim } from './svgGeom';
 
 const EMR_HEADER = 1;
 const EMR_POLYBEZIER = 5;
@@ -169,8 +169,8 @@ export function svgToEmf(svg: string, scale = 1): Uint8Array {
 
 	const emitPoly = (
 		pts: [number, number][],
-		fill: [number, number, number] | null,
-		stroke: [number, number, number] | null,
+		fill: Rgba | null,
+		stroke: Rgba | null,
 		strokeWidth: number
 	) => {
 		if (pts.length < 2) return;

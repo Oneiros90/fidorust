@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
 	import { queryExportSvg } from '../app/fileOps';
-	import { rgbToHex } from '../lib/color';
+	import { rgbaCss } from '../lib/color';
 	import { parseSvgElement } from '../lib/attachSvg';
 	import {
 		defaultExportOpts,
@@ -223,11 +223,22 @@
 	}
 
 	function layerSwatch(i: number): string {
-		const src = app.layers.layers[i]?.color ?? [0, 0, 0];
-		let c = [...src];
-		if (opts.layers[i]?.invert && !opts.bw) c = c.map((v) => 255 - v);
-		if (opts.bw) c = [0, 0, 0];
-		return rgbToHex(c);
+		const src = app.layers.layers[i]?.color ?? [0, 0, 0, 255];
+		let r = src[0] ?? 0;
+		let g = src[1] ?? 0;
+		let b = src[2] ?? 0;
+		const a = src[3] ?? 255;
+		if (opts.layers[i]?.invert && !opts.bw) {
+			r = 255 - r;
+			g = 255 - g;
+			b = 255 - b;
+		}
+		if (opts.bw) {
+			r = 0;
+			g = 0;
+			b = 0;
+		}
+		return rgbaCss([r, g, b, a]);
 	}
 
 	function confirm() {

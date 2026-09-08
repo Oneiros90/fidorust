@@ -25,17 +25,17 @@ pub use crate::svg::{
 const PCB_TRACK_CAP_SEGS: u32 = 24;
 
 trait Tessellate {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool);
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool);
 }
 
 impl Tessellate for Line {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         scene.push_line(self.a, self.b, DEFAULT_STROKE_W, rgb, selected);
     }
 }
 
 impl Tessellate for Bezier {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         let (x0, y0) = (self.p0.x as f32, self.p0.y as f32);
         let mut prev_x = x0;
         let mut prev_y = y0;
@@ -50,7 +50,7 @@ impl Tessellate for Bezier {
 }
 
 impl Tessellate for Rect {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         let pts = rect_corners(self.a, self.b);
         if self.filled {
             scene.fill_polygon(&pts, rgb, selected);
@@ -61,7 +61,7 @@ impl Tessellate for Rect {
 }
 
 impl Tessellate for Poly {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         if self.filled && self.pts.len() >= 3 {
             scene.fill_polygon(&self.pts, rgb, selected);
         } else {
@@ -71,13 +71,13 @@ impl Tessellate for Poly {
 }
 
 impl Tessellate for Ellipse {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         scene.push_ellipse(self.a, self.b, self.filled, DEFAULT_STROKE_W, rgb, selected);
     }
 }
 
 impl Tessellate for Connection {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         scene.push_circle(
             self.pos.x as f32,
             self.pos.y as f32,
@@ -92,13 +92,13 @@ impl Tessellate for Connection {
 }
 
 impl Tessellate for PcbTrack {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         add_pcb_track(scene, self.a, self.b, self.width, rgb, selected);
     }
 }
 
 impl Tessellate for PcbPad {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         add_pcb_pad(
             scene, self.pos, self.dx, self.dy, self.hole, self.style, rgb, selected,
         );
@@ -106,7 +106,7 @@ impl Tessellate for PcbPad {
 }
 
 impl Tessellate for Text {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 3], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
         let h = (self.sy as f32).max(2.0);
         let wch = (self.sx as f32).max(1.5);
         let mirrored = self.style & STYLE_MIRRORED != 0;
@@ -132,6 +132,7 @@ impl Tessellate for Text {
                     r: rgb[0],
                     g: rgb[1],
                     b: rgb[2],
+                    a: rgb[3],
                     selected: sel_f,
                 });
             }
@@ -141,14 +142,14 @@ impl Tessellate for Text {
 }
 
 impl Tessellate for MacroRef {
-    fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 3], _selected: bool) {}
+    fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 4], _selected: bool) {}
 }
 
 fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
     (x * cos - y * sin, x * sin + y * cos)
 }
 
-fn add_pcb_track(scene: &mut Scene, a: Point, b: Point, width: i32, rgb: [f32; 3], selected: bool) {
+fn add_pcb_track(scene: &mut Scene, a: Point, b: Point, width: i32, rgb: [f32; 4], selected: bool) {
     let ax = a.x as f32;
     let ay = a.y as f32;
     let bx = b.x as f32;
@@ -198,7 +199,7 @@ fn add_pcb_pad(
     dy: i32,
     hole: i32,
     style: fidocad_core::PadStyle,
-    rgb: [f32; 3],
+    rgb: [f32; 4],
     selected: bool,
 ) {
     let cx = pos.x as f32;
@@ -225,11 +226,11 @@ fn add_pcb_pad(
     scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
 }
 
-fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 3] {
+fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 4] {
     if selected {
-        return Rgb::SELECTION.0;
+        return Rgb::SELECTION.rgba(1.0);
     }
-    Rgb::from_u8(layers.color(p.layer())).0
+    Rgb::from_rgba_u8(layers.color(p.layer()))
 }
 
 fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool) {
@@ -343,7 +344,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     });
     let mut scene = Scene::default();
     let layers = input.layers;
-    let preview = Rgb::preview(input.dark).0;
+    let preview = Rgb::preview(input.dark).rgba(1.0);
     let expanded: Vec<(bool, Primitive)> = input
         .primitives
         .iter()
@@ -385,7 +386,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         if input.hide_macro_origin && p.is_macro() {
             continue;
         }
-        let sel = Rgb::SELECTION.0;
+        let sel = Rgb::SELECTION.rgba(1.0);
         for h in p.control_points() {
             scene.handles.push(CircleInstance {
                 x: h.x as f32,
@@ -397,13 +398,14 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 r: sel[0],
                 g: sel[1],
                 b: sel[2],
+                a: sel[3],
                 selected: Scene::flag(true),
             });
         }
     }
     if let Some((x0, y0, x1, y1)) = input.marquee {
         scene.marquee = Some([x0, y0, x1, y1]);
-        scene.marquee_color = preview;
+        scene.marquee_color = [preview[0], preview[1], preview[2]];
     }
     scene
 }

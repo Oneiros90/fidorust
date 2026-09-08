@@ -7,7 +7,7 @@ export class UiState {
 		| { kind: 'layer'; x: number; y: number; index: number }
 		| null
 	>(null);
-	rightTab = $state<'layers' | 'library'>('library');
+	rightTab = $state<'layers' | 'library'>('layers');
 	rightCollapsed = $state(
 		typeof matchMedia === 'function' && matchMedia(RIGHT_PANEL_COLLAPSE_QUERY).matches
 	);

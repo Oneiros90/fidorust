@@ -23,9 +23,9 @@ const MARQUEE_FS: &str = include_str!("shaders/marquee.frag.glsl");
 /// `(location, component count, byte offset)` within one instance (or vertex).
 type AttribLayout = [(u32, i32, i32)];
 
-const LINE_LAYOUT: &AttribLayout = &[(1, 4, 0), (2, 1, 16), (3, 3, 20)];
-const FILL_LAYOUT: &AttribLayout = &[(0, 2, 0), (1, 3, 8)];
-const CIRC_LAYOUT: &AttribLayout = &[(1, 2, 0), (2, 2, 8), (3, 2, 16), (4, 3, 24)];
+const LINE_LAYOUT: &AttribLayout = &[(1, 4, 0), (2, 1, 16), (3, 4, 20)];
+const FILL_LAYOUT: &AttribLayout = &[(0, 2, 0), (1, 4, 8)];
+const CIRC_LAYOUT: &AttribLayout = &[(1, 2, 0), (2, 2, 8), (3, 2, 16), (4, 4, 24)];
 const HOLE_LAYOUT: &AttribLayout = &[(1, 3, 0)];
 
 fn compile(gl: &Context, vs: &str, fs: &str) -> Result<glow::Program, String> {

@@ -53,7 +53,7 @@ export class App {
     set_grid(x: number, y: number): void;
     set_hide_macro_origin(on: boolean): void;
     set_layer(n: number): void;
-    set_layer_color(n: number, r: number, g: number, b: number): void;
+    set_layer_color(n: number, r: number, g: number, b: number, a: number): void;
     set_layer_name(n: number, name: string): void;
     set_layer_show(n: number, show: boolean): void;
     set_locale(loc: string): void;
@@ -123,7 +123,7 @@ export interface InitOutput {
     readonly app_set_grid: (a: number, b: number, c: number) => void;
     readonly app_set_hide_macro_origin: (a: number, b: number) => void;
     readonly app_set_layer: (a: number, b: number) => void;
-    readonly app_set_layer_color: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly app_set_layer_color: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly app_set_layer_name: (a: number, b: number, c: number, d: number) => void;
     readonly app_set_layer_show: (a: number, b: number, c: number) => void;
     readonly app_set_locale: (a: number, b: number, c: number) => void;

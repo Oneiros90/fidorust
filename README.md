@@ -1,6 +1,6 @@
 # FidoRust
 
-FidoRust aims to be the spiritual successor to [FidoCAD](https://www.enetsystems.com/~lorenzo/fidocad.asp): a modern, capable, and efficient schematic editor available everywhere (desktop and web) without losing the simplicity and directness that made the original program legendary. Built with Rust, Tauri 2, and Svelte 5.
+FidoRust aims to be the spiritual successor to [FidoCAD](https://www.enetsystems.com/~lorenzo/fidocad.asp): a modern, capable, and efficient schematic editor available everywhere (desktop and web) without losing the simplicity and directness that made the original program legendary.
 
 Heartfelt thanks to **Lorenzo Lutti**, the original author of FidoCAD, for a tool that shaped generations of hobbyists and professionals. My heartfelt thanks also to **Bruno Valente** for his advice, supervision, and testing.
 
@@ -13,6 +13,13 @@ Web app: [oneiros90.github.io/fidorust](https://oneiros90.github.io/fidorust/)
 - Desktop (Windows / macOS / Linux) and web
 - Italian/English i18n, light/dark themes
 - Standard `stdlib` and `PCB` libraries included
+
+## Technologies
+
+- [Rust](https://www.rust-lang.org/) — editor core, compiled to WebAssembly
+- [Tauri](https://v2.tauri.app/) 2 — desktop app (Windows, macOS, Linux)
+- [Svelte](https://svelte.dev/) 5 — user interface
+- [svelte-awesome-color-picker](https://github.com/Ennoriel/svelte-awesome-color-picker) — layer color picker
 
 ## Development
 

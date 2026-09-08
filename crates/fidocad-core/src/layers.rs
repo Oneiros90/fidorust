@@ -1,8 +1,27 @@
 //! Drawing layers stored in the document (`.fcd` `LD` lines).
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::primitive::Primitive;
+
+/// Opaque RGB (`alpha = 255`).
+pub const fn rgb(r: u8, g: u8, b: u8) -> [u8; 4] {
+    [r, g, b, 255]
+}
+
+fn deserialize_rgba<'de, D>(deserializer: D) -> Result<[u8; 4], D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vals = Vec::<u8>::deserialize(deserializer)?;
+    match vals.as_slice() {
+        [r, g, b] => Ok([*r, *g, *b, 255]),
+        [r, g, b, a] => Ok([*r, *g, *b, *a]),
+        _ => Err(serde::de::Error::custom(
+            "color must be [r,g,b] or [r,g,b,a]",
+        )),
+    }
+}
 
 /// 127 µm per logical unit (0.96 `DEFAULT_MICRON_PER_LU`).
 pub const MICRON_PER_LU: i32 = 127;
@@ -37,12 +56,13 @@ impl LayerId {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LayerInfo {
     pub name: String,
-    pub color: [u8; 3],
+    #[serde(deserialize_with = "deserialize_rgba")]
+    pub color: [u8; 4],
     pub show: bool,
 }
 
 impl LayerInfo {
-    pub fn new(name: impl Into<String>, color: [u8; 3], show: bool) -> Self {
+    pub fn new(name: impl Into<String>, color: [u8; 4], show: bool) -> Self {
         Self {
             name: name.into(),
             color,
@@ -55,16 +75,16 @@ impl LayerInfo {
     }
 }
 
-fn palette_color(index: usize) -> [u8; 3] {
-    const PALETTE: [[u8; 3]; 8] = [
-        [0, 0, 0],
-        [0, 0, 192],
-        [0, 192, 0],
-        [0, 150, 150],
-        [192, 0, 0],
-        [160, 0, 160],
-        [192, 128, 0],
-        [80, 80, 80],
+fn palette_color(index: usize) -> [u8; 4] {
+    const PALETTE: [[u8; 4]; 8] = [
+        rgb(0, 0, 0),
+        rgb(0, 0, 192),
+        rgb(0, 192, 0),
+        rgb(0, 150, 150),
+        rgb(192, 0, 0),
+        rgb(160, 0, 160),
+        rgb(192, 128, 0),
+        rgb(80, 80, 80),
     ];
     PALETTE[index % PALETTE.len()]
 }
@@ -72,10 +92,10 @@ fn palette_color(index: usize) -> [u8; 3] {
 /// The four classic FidoCAD layers used for new documents and files without `LD`.
 pub fn fidocad_fallback() -> Vec<LayerInfo> {
     vec![
-        LayerInfo::new("Schema", [0, 0, 0], true),
-        LayerInfo::new("PCB lato rame", [0, 0, 192], true),
-        LayerInfo::new("PCB lato componenti", [0, 192, 0], true),
-        LayerInfo::new("Serigrafie", [0, 150, 150], true),
+        LayerInfo::new("Schema", rgb(0, 0, 0), true),
+        LayerInfo::new("PCB lato rame", rgb(0, 0, 192), true),
+        LayerInfo::new("PCB lato componenti", rgb(0, 192, 0), true),
+        LayerInfo::new("Serigrafie", rgb(0, 150, 150), true),
     ]
 }
 
@@ -136,11 +156,11 @@ impl LayerSet {
         self.layers.get(id.index()).map(|l| l.show).unwrap_or(true)
     }
 
-    pub fn color(&self, id: LayerId) -> [u8; 3] {
+    pub fn color(&self, id: LayerId) -> [u8; 4] {
         self.layers
             .get(id.index())
             .map(|l| l.color)
-            .unwrap_or([0, 0, 0])
+            .unwrap_or(rgb(0, 0, 0))
     }
 
     pub fn ensure_len(&mut self, n: usize) {

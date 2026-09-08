@@ -52,6 +52,8 @@ pub struct Editor {
     redo: Vec<Document>,
     /// Pre-move / pre-handle snapshot; committed on pointer_up if the document changed.
     drag_checkpoint: Option<Document>,
+    /// Layer index of an in-progress color drag; consecutive updates share one undo frame.
+    layer_color_edit: Option<usize>,
     draft: Option<Draft>,
     drag: Option<Drag>,
     hover: Option<Point>,
@@ -87,6 +89,7 @@ impl Editor {
             undo: Vec::new(),
             redo: Vec::new(),
             drag_checkpoint: None,
+            layer_color_edit: None,
             draft: None,
             drag: None,
             hover: None,

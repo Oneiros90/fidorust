@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
-	import { hexToRgb, rgbToHex } from '../lib/color';
+	import LayerColorPicker from './LayerColorPicker.svelte';
 
 	const app = getAppSession();
 
@@ -96,17 +96,7 @@
 						<circle cx="10" cy="12" r="1.2" fill="currentColor" />
 					</svg>
 				</button>
-				<input
-					type="color"
-					value={rgbToHex(l.color)}
-					title={app.t.layer}
-					aria-label={app.t.layer}
-					onclick={() => app.setLayer(i)}
-					onchange={(e) => {
-						const [r, g, b] = hexToRgb(e.currentTarget.value);
-						app.setLayerColor(i, r, g, b);
-					}}
-				/>
+				<LayerColorPicker index={i} color={l.color} label={app.t.layer} />
 				{#if app.editingLayerName === i}
 					<input
 						class="name"
@@ -211,7 +201,7 @@
 		display: flex;
 		align-items: center;
 		gap: 2px;
-		padding: 2px 4px;
+		padding: 3px 4px;
 		border-radius: 6px;
 	}
 	.row.current {
@@ -254,14 +244,14 @@
 		color: var(--danger);
 		border-color: var(--danger);
 	}
-	input[type='color'] {
-		width: 22px;
-		height: 22px;
-		padding: 0;
-		border: 1px solid var(--border);
-		background: transparent;
-		flex-shrink: 0;
-		cursor: pointer;
+	ul:has(:global(.is-open)) {
+		overflow: visible;
+		position: relative;
+		z-index: var(--z-flyout);
+	}
+	.row:has(:global(.is-open)) {
+		position: relative;
+		z-index: 2;
 	}
 	.name {
 		flex: 1;

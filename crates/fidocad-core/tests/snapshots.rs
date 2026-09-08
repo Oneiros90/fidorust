@@ -275,7 +275,7 @@ fn snapshot_editor_script() {
     ed.reorder_layer(0, 1);
     ed.set_layer_name(0, "Renamed".into());
     ed.set_layer_show(0, false);
-    ed.set_layer_color(1, [9, 8, 7]);
+    ed.set_layer_color(1, [9, 8, 7, 255]);
     let patch = PropPatch {
         layer: Some(2),
         ..Default::default()

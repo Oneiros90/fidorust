@@ -3,11 +3,11 @@ precision highp float;
 layout(location=0) in vec2 corner;
 layout(location=1) in vec4 ab;
 layout(location=2) in float width;
-layout(location=3) in vec3 color;
+layout(location=3) in vec4 color;
 uniform vec2 u_pan;
 uniform float u_zoom;
 uniform vec2 u_res;
-out vec3 v_color;
+out vec4 v_color;
 out vec2 v_uv;
 out float v_len;
 void main() {

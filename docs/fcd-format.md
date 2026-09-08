@@ -86,11 +86,12 @@ Symbol collections are separate `.fcl` files. They also use the same drawing com
 FidoRust writes one `LD` line per layer, immediately under the `[FIDOCAD]` header, before any drawing commands.
 
 ```text
-LD <r> <g> <b> <visible> <name…>
+LD <r> <g> <b> <visible> [a] <name…>
 ```
 
 - `r`, `g`, `b`: colour components, 0–255
 - `visible`: `1` shown on screen, `0` hidden
+- `a`: optional alpha, 0–255. Omitted means fully opaque (`255`). Written only when the layer is translucent.
 - `name`: the rest of the line (spaces allowed)
 - the layer **index** is the order of the `LD` lines (the first is 0, drawn underneath)
 
@@ -139,6 +140,6 @@ Programs that do not know `LD` typically skip the unknown line and still load th
 
 1. **Sharing schematics** still works as copy-and-paste of FidoCAD text.
 2. **Objects keep their layer numbers** in every `.fcd` file.
-3. **Names, colours, and visibility** travel with the drawing as `LD` lines under the header.
+3. **Names, colours (including RGBA), and visibility** travel with the drawing as `LD` lines under the header.
 4. **A file without `LD`** opens with the four classic layers (plus extras if needed).
 5. FidoRust always writes `LD` when you save, so the next person sees the same layer table.

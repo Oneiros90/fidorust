@@ -94,8 +94,20 @@ impl Editor {
         self.update_layer(index, |l| l.name = name)
     }
 
-    pub fn set_layer_color(&mut self, index: usize, color: [u8; 3]) -> bool {
-        self.update_layer(index, |l| l.color = color)
+    pub fn set_layer_color(&mut self, index: usize, color: [u8; 4]) -> bool {
+        let Some(before) = self.doc.layers.get(index).cloned() else {
+            return false;
+        };
+        if before.color == color {
+            return false;
+        }
+        let coalesce = self.layer_color_edit == Some(index);
+        if !coalesce {
+            self.push_undo();
+        }
+        self.layer_color_edit = Some(index);
+        self.doc.layers.update(index, |l| l.color = color);
+        true
     }
 
     pub(super) fn clamp_current_layer(&mut self) {

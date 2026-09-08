@@ -134,7 +134,7 @@ impl App {
                 for i in 0..layers.len() {
                     layers.update(i, |info| {
                         if info.show {
-                            info.color = [0, 0, 0];
+                            info.color = [0, 0, 0, info.color[3]];
                         }
                     });
                 }
@@ -144,12 +144,13 @@ impl App {
                 layers.update(i, |info| {
                     info.show = overlay.show;
                     if opts.bw {
-                        info.color = [0, 0, 0];
+                        info.color = [0, 0, 0, info.color[3]];
                     } else if overlay.invert {
                         info.color = [
                             255 - info.color[0],
                             255 - info.color[1],
                             255 - info.color[2],
+                            info.color[3],
                         ];
                     }
                 });
@@ -483,8 +484,8 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_layer_color(&mut self, n: u8, r: u8, g: u8, b: u8) {
-        let _ = self.editor.set_layer_color(n as usize, [r, g, b]);
+    pub fn set_layer_color(&mut self, n: u8, r: u8, g: u8, b: u8, a: u8) {
+        let _ = self.editor.set_layer_color(n as usize, [r, g, b, a]);
     }
 
     #[wasm_bindgen]

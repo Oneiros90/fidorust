@@ -1,13 +1,13 @@
 export type SvgBox = { x: number; y: number; w: number; h: number };
 
-export type Rgb = [number, number, number];
+export type Rgba = [number, number, number, number];
 
 export type SvgPrim =
 	| {
 			kind: 'polygon';
 			pts: [number, number][];
-			fill: Rgb | null;
-			stroke: Rgb | null;
+			fill: Rgba | null;
+			stroke: Rgba | null;
 			strokeWidth: number;
 	  }
 	| {
@@ -20,6 +20,7 @@ export type SvgPrim =
 			r: number;
 			g: number;
 			b: number;
+			a: number;
 	  }
 	| {
 			kind: 'ellipse';
@@ -27,8 +28,8 @@ export type SvgPrim =
 			cy: number;
 			rx: number;
 			ry: number;
-			fill: Rgb | null;
-			stroke: Rgb | null;
+			fill: Rgba | null;
+			stroke: Rgba | null;
 			strokeWidth: number;
 	  }
 	| {
@@ -39,8 +40,8 @@ export type SvgPrim =
 			h: number;
 			rx: number;
 			ry: number;
-			fill: Rgb | null;
-			stroke: Rgb | null;
+			fill: Rgba | null;
+			stroke: Rgba | null;
 			strokeWidth: number;
 	  }
 	| {
@@ -57,6 +58,7 @@ export type SvgPrim =
 			r: number;
 			g: number;
 			b: number;
+			a: number;
 	  }
 	| {
 			kind: 'text';
@@ -65,7 +67,7 @@ export type SvgPrim =
 			content: string;
 			fontSize: number;
 			fontFamily: string;
-			fill: Rgb;
+			fill: Rgba;
 			italic: boolean;
 			bold: boolean;
 			angle: number;
@@ -112,12 +114,22 @@ function attr(tag: string, name: string): string | undefined {
 	return tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
 }
 
-function rgbAttr(tag: string, name: string): [number, number, number] | null {
+function rgbAttr(tag: string, name: string): Rgba | null {
 	const v = attr(tag, name);
 	if (!v || v === 'none') return null;
+	const rgba = v.match(/rgba\((\d+),(\d+),(\d+),([0-9.]+)\)/);
+	if (rgba) {
+		const a = Math.round(Number(rgba[4]) * 255);
+		return [
+			+rgba[1],
+			+rgba[2],
+			+rgba[3],
+			Number.isFinite(a) ? Math.max(0, Math.min(255, a)) : 255
+		];
+	}
 	const m = v.match(/rgb\((\d+),(\d+),(\d+)\)/);
 	if (!m) return null;
-	return [+m[1], +m[2], +m[3]];
+	return [+m[1], +m[2], +m[3], 255];
 }
 
 export function parseSvgPrims(svg: string): SvgPrim[] {
@@ -169,7 +181,8 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 				width,
 				r: stroke[0],
 				g: stroke[1],
-				b: stroke[2]
+				b: stroke[2],
+				a: stroke[3]
 			});
 			continue;
 		}
@@ -223,7 +236,8 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 				width,
 				r: stroke[0],
 				g: stroke[1],
-				b: stroke[2]
+				b: stroke[2],
+				a: stroke[3]
 			});
 			continue;
 		}

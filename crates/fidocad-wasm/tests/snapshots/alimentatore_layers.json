@@ -4,7 +4,8 @@
       "color": [
         0,
         0,
-        0
+        0,
+        255
       ],
       "name": "Schema",
       "show": true
@@ -13,7 +14,8 @@
       "color": [
         0,
         0,
-        192
+        192,
+        255
       ],
       "name": "PCB lato rame",
       "show": true
@@ -22,7 +24,8 @@
       "color": [
         0,
         192,
-        0
+        0,
+        255
       ],
       "name": "PCB lato componenti",
       "show": true
@@ -31,7 +34,8 @@
       "color": [
         0,
         150,
-        150
+        150,
+        255
       ],
       "name": "Serigrafie",
       "show": true

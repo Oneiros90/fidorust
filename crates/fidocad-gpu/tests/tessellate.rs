@@ -1,6 +1,6 @@
 use fidocad_core::parse::{builtin_libraries, parse_document};
 use fidocad_core::{Editor, Ellipse, Line, PcbPad, PcbTrack, Point, Text, Tool};
-use fidocad_gpu::tessellate_editor;
+use fidocad_gpu::{tessellate_editor, tessellate_primitives};
 
 #[test]
 fn tessellate_alimentatore_has_strokes() {
@@ -345,4 +345,12 @@ fn editing_text_hides_glyphs() {
     assert!(before > 0);
     ed.set_editing_text(Some(0));
     assert!(tessellate_editor(&ed).fills.is_empty());
+}
+
+#[test]
+fn tessellate_layer_alpha() {
+    let doc = parse_document("[FIDOCAD]\nLD 0 80 200 1 128 Copper\nLI 0 0 10 10\n").unwrap();
+    let scene = tessellate_primitives(&doc.primitives, &doc.layers);
+    assert_eq!(scene.lines.len(), 1);
+    assert!((scene.lines[0].a - 128.0 / 255.0).abs() < 0.001);
 }
