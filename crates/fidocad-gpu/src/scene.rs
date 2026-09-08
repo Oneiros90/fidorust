@@ -61,12 +61,20 @@ pub struct PadHole {
     pub r: f32,
 }
 
+/// Selection handle: world-space centre, drawn at a fixed screen-space radius.
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct HandleInstance {
+    pub x: f32,
+    pub y: f32,
+}
+
 #[derive(Default)]
 pub struct Scene {
     pub lines: Vec<LineInstance>,
     pub fills: Vec<FillVertexGpu>,
     pub circles: Vec<CircleInstance>,
-    pub handles: Vec<CircleInstance>,
+    pub handles: Vec<HandleInstance>,
     pub marquee: Option<[f32; 4]>,
     pub marquee_color: [f32; 3],
     pub pad_holes: Vec<PadHole>,

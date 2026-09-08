@@ -28,8 +28,8 @@ pub const DEFAULT_TRACK_WIDTH: i32 = 4;
 pub const DEFAULT_PAD_DX: i32 = 18;
 pub const DEFAULT_PAD_DY: i32 = 18;
 pub const DEFAULT_PAD_HOLE: i32 = 8;
-/// Handle hit-test: `tol2 * HANDLE_TOL_SCALE`.
-pub const HANDLE_TOL_SCALE: f64 = 4.0;
+/// Selection-handle radius in canvas pixels (screen-space, independent of zoom).
+pub const HANDLE_RADIUS_PX: f32 = 6.0;
 /// Connection body hit radius².
 pub const CONNECTION_HIT_R2: f64 = 16.0;
 /// Unexpanded-macro origin hit radius² (fallback when children miss).

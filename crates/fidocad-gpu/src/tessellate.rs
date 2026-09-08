@@ -17,7 +17,9 @@ use crate::scene::DEFAULT_STROKE_W;
 use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
 use crate::theme::Rgb;
 
-pub use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
+pub use crate::scene::{
+    CircleInstance, FillVertexGpu, HandleInstance, LineInstance, PadHole, Scene,
+};
 pub use crate::svg::{
     export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg,
 };
@@ -386,20 +388,10 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         if input.hide_macro_origin && p.is_macro() {
             continue;
         }
-        let sel = Rgb::SELECTION.rgba(1.0);
         for h in p.control_points() {
-            scene.handles.push(CircleInstance {
+            scene.handles.push(HandleInstance {
                 x: h.x as f32,
                 y: h.y as f32,
-                rx: 2.4,
-                ry: 2.4,
-                inner: 0.0,
-                stroke: 0.0,
-                r: sel[0],
-                g: sel[1],
-                b: sel[2],
-                a: sel[3],
-                selected: Scene::flag(true),
             });
         }
     }

@@ -354,3 +354,23 @@ fn tessellate_layer_alpha() {
     assert_eq!(scene.lines.len(), 1);
     assert!((scene.lines[0].a - 128.0 / 255.0).abs() < 0.001);
 }
+
+#[test]
+fn selection_handles_store_world_centers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(fidocad_core::Primitive::Line(Line {
+        a: Point::new(10, 20),
+        b: Point::new(40, 20),
+        layer: fidocad_core::LayerId(0),
+    }));
+    ed.set_selected(vec![0]);
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.handles.len(), 2);
+    let pts: Vec<(i32, i32)> = scene
+        .handles
+        .iter()
+        .map(|h| (h.x.round() as i32, h.y.round() as i32))
+        .collect();
+    assert!(pts.contains(&(10, 20)));
+    assert!(pts.contains(&(40, 20)));
+}

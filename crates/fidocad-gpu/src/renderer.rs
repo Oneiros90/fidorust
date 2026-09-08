@@ -2,8 +2,9 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
-use crate::theme::Theme;
+use crate::scene::{CircleInstance, FillVertexGpu, HandleInstance, LineInstance, PadHole, Scene};
+use crate::theme::{Rgb, Theme};
+use fidocad_core::consts::HANDLE_RADIUS_PX;
 use glow::{Context, HasContext};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;
@@ -19,6 +20,8 @@ const HOLE_FS: &str = include_str!("shaders/hole.frag.glsl");
 const GRID_VS: &str = include_str!("shaders/grid.vert.glsl");
 const GRID_FS: &str = include_str!("shaders/grid.frag.glsl");
 const MARQUEE_FS: &str = include_str!("shaders/marquee.frag.glsl");
+const HANDLE_VS: &str = include_str!("shaders/handle.vert.glsl");
+const HANDLE_FS: &str = include_str!("shaders/handle.frag.glsl");
 
 /// `(location, component count, byte offset)` within one instance (or vertex).
 type AttribLayout = [(u32, i32, i32)];
@@ -27,6 +30,7 @@ const LINE_LAYOUT: &AttribLayout = &[(1, 4, 0), (2, 1, 16), (3, 4, 20)];
 const FILL_LAYOUT: &AttribLayout = &[(0, 2, 0), (1, 4, 8)];
 const CIRC_LAYOUT: &AttribLayout = &[(1, 2, 0), (2, 2, 8), (3, 2, 16), (4, 4, 24)];
 const HOLE_LAYOUT: &AttribLayout = &[(1, 3, 0)];
+const HANDLE_LAYOUT: &AttribLayout = &[(1, 2, 0)];
 
 fn compile(gl: &Context, vs: &str, fs: &str) -> Result<glow::Program, String> {
     unsafe {
@@ -67,17 +71,20 @@ pub struct Renderer {
     grid_prog: glow::Program,
     hole_prog: glow::Program,
     marquee_prog: glow::Program,
+    handle_prog: glow::Program,
     quad: glow::Buffer,
     line_inst: glow::Buffer,
     fill_buf: glow::Buffer,
     circ_inst: glow::Buffer,
     hole_inst: glow::Buffer,
+    handle_inst: glow::Buffer,
     vao_line: glow::VertexArray,
     vao_fill: glow::VertexArray,
     vao_circ: glow::VertexArray,
     vao_grid: glow::VertexArray,
     vao_hole: glow::VertexArray,
     vao_marquee: glow::VertexArray,
+    vao_handle: glow::VertexArray,
     bg: [f32; 3],
     grid: [f32; 3],
 }
@@ -100,6 +107,7 @@ impl Renderer {
             let grid_prog = compile(&gl, GRID_VS, GRID_FS)?;
             let hole_prog = compile(&gl, HOLE_VS, HOLE_FS)?;
             let marquee_prog = compile(&gl, GRID_VS, MARQUEE_FS)?;
+            let handle_prog = compile(&gl, HANDLE_VS, HANDLE_FS)?;
 
             let quad_data: [f32; 12] = [
                 -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
@@ -116,6 +124,7 @@ impl Renderer {
             let fill_buf = gl.create_buffer().map_err(|e| e.to_string())?;
             let circ_inst = gl.create_buffer().map_err(|e| e.to_string())?;
             let hole_inst = gl.create_buffer().map_err(|e| e.to_string())?;
+            let handle_inst = gl.create_buffer().map_err(|e| e.to_string())?;
 
             let vao_line = gl.create_vertex_array().map_err(|e| e.to_string())?;
             gl.bind_vertex_array(Some(vao_line));
@@ -158,6 +167,16 @@ impl Renderer {
             gl.bind_vertex_array(Some(vao_marquee));
             bind_quad_corners(&gl, quad);
 
+            let vao_handle = gl.create_vertex_array().map_err(|e| e.to_string())?;
+            gl.bind_vertex_array(Some(vao_handle));
+            bind_quad_corners(&gl, quad);
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(handle_inst));
+            setup_instanced(
+                &gl,
+                HANDLE_LAYOUT,
+                std::mem::size_of::<HandleInstance>() as i32,
+            );
+
             gl.bind_vertex_array(None);
 
             Ok(Self {
@@ -168,17 +187,20 @@ impl Renderer {
                 grid_prog,
                 hole_prog,
                 marquee_prog,
+                handle_prog,
                 quad,
                 line_inst,
                 fill_buf,
                 circ_inst,
                 hole_inst,
+                handle_inst,
                 vao_line,
                 vao_fill,
                 vao_circ,
                 vao_grid,
                 vao_hole,
                 vao_marquee,
+                vao_handle,
                 bg: Theme::LIGHT.bg,
                 grid: Theme::LIGHT.grid,
             })
@@ -368,19 +390,14 @@ impl Renderer {
         }
         unsafe {
             let gl = &self.gl;
-            gl.use_program(Some(self.circ_prog));
-            set2(gl, self.circ_prog, "u_pan", pan);
-            set1(gl, self.circ_prog, "u_zoom", zoom);
-            set2(gl, self.circ_prog, "u_res", res);
-            bind_instances(
-                gl,
-                self.vao_circ,
-                self.circ_inst,
-                0,
-                std::mem::size_of::<CircleInstance>() as i32,
-                CIRC_LAYOUT,
-            );
-            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.circ_inst));
+            gl.use_program(Some(self.handle_prog));
+            set2(gl, self.handle_prog, "u_pan", pan);
+            set1(gl, self.handle_prog, "u_zoom", zoom);
+            set2(gl, self.handle_prog, "u_res", res);
+            set1(gl, self.handle_prog, "u_radius", HANDLE_RADIUS_PX);
+            set3(gl, self.handle_prog, "u_color", Rgb::SELECTION.0);
+            gl.bind_vertex_array(Some(self.vao_handle));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.handle_inst));
             gl.buffer_data_u8_slice(
                 glow::ARRAY_BUFFER,
                 bytemuck::cast_slice(&scene.handles),
@@ -479,17 +496,20 @@ impl Drop for Renderer {
             self.gl.delete_program(self.grid_prog);
             self.gl.delete_program(self.hole_prog);
             self.gl.delete_program(self.marquee_prog);
+            self.gl.delete_program(self.handle_prog);
             self.gl.delete_buffer(self.quad);
             self.gl.delete_buffer(self.line_inst);
             self.gl.delete_buffer(self.fill_buf);
             self.gl.delete_buffer(self.circ_inst);
             self.gl.delete_buffer(self.hole_inst);
+            self.gl.delete_buffer(self.handle_inst);
             self.gl.delete_vertex_array(self.vao_line);
             self.gl.delete_vertex_array(self.vao_fill);
             self.gl.delete_vertex_array(self.vao_circ);
             self.gl.delete_vertex_array(self.vao_grid);
             self.gl.delete_vertex_array(self.vao_hole);
             self.gl.delete_vertex_array(self.vao_marquee);
+            self.gl.delete_vertex_array(self.vao_handle);
         }
     }
 }
