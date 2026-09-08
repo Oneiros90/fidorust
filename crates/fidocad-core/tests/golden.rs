@@ -709,11 +709,13 @@ fn apply_props_and_grid_are_undoable() {
     ed.undo();
     assert!(!ed.doc().pcb_mode);
 
-    let mut custom = fidocad_core::ProjectSettings::default();
-    custom.grid = 12;
-    custom.stroke_hundredths = 80;
-    custom.default_filled = true;
-    custom.show_grid = false;
+    let custom = fidocad_core::ProjectSettings {
+        grid: 12,
+        stroke_hundredths: 80,
+        default_filled: true,
+        show_grid: false,
+        ..Default::default()
+    };
     ed.apply_project_settings(custom);
     assert!(ed.can_undo());
     assert_eq!(ed.doc().grid, 12);
