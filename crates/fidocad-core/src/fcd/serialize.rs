@@ -186,13 +186,15 @@ pub enum SaveLibraryPolicy {
     ExplodeUser,
 }
 
-impl SaveLibraryPolicy {
-    pub fn from_str(s: &str) -> Self {
-        match s {
+impl std::str::FromStr for SaveLibraryPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
             "fold" | "project" => Self::FoldIntoProject,
             "explode" | "split" => Self::ExplodeUser,
             _ => Self::Keep,
-        }
+        })
     }
 }
 

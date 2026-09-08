@@ -651,7 +651,7 @@ fn collect_used_user_defs(
 }
 
 /// Copy used user-library defs into the project library (clone). Rewrites MC names.
-pub fn fold_user_components_into_project(doc_prims: &mut Vec<Primitive>, libs: &mut LibrarySet) {
+pub fn fold_user_components_into_project(doc_prims: &mut [Primitive], libs: &mut LibrarySet) {
     libs.ensure_user_libraries();
     let mut used = Vec::new();
     collect_used_user_defs(doc_prims, libs, &mut used);

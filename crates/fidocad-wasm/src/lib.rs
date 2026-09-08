@@ -111,7 +111,7 @@ impl App {
         serialize_document_with_policy(
             self.editor.persistent_doc(),
             self.editor.libs(),
-            SaveLibraryPolicy::from_str(policy),
+            SaveLibraryPolicy::from_str(policy).unwrap_or_default(),
         )
     }
 
