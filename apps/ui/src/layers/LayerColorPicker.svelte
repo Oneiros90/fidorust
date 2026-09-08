@@ -136,7 +136,7 @@
 		--alpha-grid-bg: inherit;
 		display: inline-flex;
 	}
-	.picker :global(input[type="color"]) {
+	.picker :global(input[type='color']) {
 		cursor: pointer;
 	}
 	.picker :global(.wrapper) {

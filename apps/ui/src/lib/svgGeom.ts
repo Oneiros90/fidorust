@@ -120,12 +120,7 @@ function rgbAttr(tag: string, name: string): Rgba | null {
 	const rgba = v.match(/rgba\((\d+),(\d+),(\d+),([0-9.]+)\)/);
 	if (rgba) {
 		const a = Math.round(Number(rgba[4]) * 255);
-		return [
-			+rgba[1],
-			+rgba[2],
-			+rgba[3],
-			Number.isFinite(a) ? Math.max(0, Math.min(255, a)) : 255
-		];
+		return [+rgba[1], +rgba[2], +rgba[3], Number.isFinite(a) ? Math.max(0, Math.min(255, a)) : 255];
 	}
 	const m = v.match(/rgb\((\d+),(\d+),(\d+)\)/);
 	if (!m) return null;

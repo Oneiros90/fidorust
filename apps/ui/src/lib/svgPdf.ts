@@ -253,16 +253,20 @@ function emitPdfText(
 	parts.push('ET');
 }
 
-function svgToContentStream(
-	svg: string,
-	layout: PdfLayout
-): { content: string; alphas: number[] } {
+function svgToContentStream(svg: string, layout: PdfLayout): { content: string; alphas: number[] } {
 	const box = parseSvgViewBox(svg);
 	const { pageW, pageH, scale, ox, oy } = layout;
 	const px = (x: number) => ox + (x - box.x) * scale;
 	const py = (y: number) => pageH - (oy + (y - box.y) * scale);
 	const prims = parseSvgPrims(svg);
-	const parts: string[] = ['1 1 1 rg', `0 0 ${n(pageW)} ${n(pageH)} re`, 'f', '1 J', '1 j', gs(255)];
+	const parts: string[] = [
+		'1 1 1 rg',
+		`0 0 ${n(pageW)} ${n(pageH)} re`,
+		'f',
+		'1 J',
+		'1 j',
+		gs(255)
+	];
 	for (const prim of prims) emitPrim(prim, parts, px, py, scale);
 	const alphas = new Set<number>([255]);
 	for (const prim of prims) alphas.add(primAlpha(prim));
