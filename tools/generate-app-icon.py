@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate FidoCAD app icon: copper plate with a minimal circuit.
+"""Generate FidoCAD app icon: copper plate with a schematic letter F.
 
 Windows/Linux/web keep a full-bleed superellipse. macOS does not remask
 .icns — the Dock draws whatever silhouette is in the file — so the Mac
@@ -39,6 +39,26 @@ MAC_SMOOTHING = 0.7  # 0 = circular arc; 0.7 matches Apple's continuous corner
 MAC_SHADOW_ALPHA = 0.26
 MAC_SHADOW_BLUR = 16.0
 MAC_SHADOW_DY = 6.0
+
+# Schematic F in 1024 design space: same trace/via language as before.
+# Stem on the left, full top bar, shorter mid bar, stem continuing below.
+# Pad only at trace endpoints (the mid bar Tees into the stem with no via).
+STROKE = 58
+VIA_R = 54
+VIA_HOLE = 22
+STEM_X, TOP_END_X, MID_END_X = 300, 724, 580
+TOP_Y, MID_Y, BOT_Y = 290, 512, 734
+TRACES = [
+    [(STEM_X, TOP_Y), (TOP_END_X, TOP_Y)],
+    [(STEM_X, TOP_Y), (STEM_X, BOT_Y)],
+    [(STEM_X, MID_Y), (MID_END_X, MID_Y)],
+]
+PADS = [
+    (STEM_X, TOP_Y),
+    (TOP_END_X, TOP_Y),
+    (MID_END_X, MID_Y),
+    (STEM_X, BOT_Y),
+]
 
 
 def superellipse(cx: float, cy: float, rx: float, ry: float, n: float, steps: int = 720):
@@ -194,18 +214,8 @@ def write_svg(path: Path) -> None:
     cx = cy = s / 2
     shape = superellipse(cx, cy, rx, ry, N, 256)
 
-    stroke = 58
-    pads = [(300, 338), (724, 338), (512, 560), (724, 560)]
-    traces = [
-        [(300, 338), (724, 338)],
-        [(512, 338), (512, 560)],
-        [(512, 560), (724, 560)],
-    ]
-    via_r = 54
-    via_hole = 22
-
     traces_d = []
-    for t in traces:
+    for t in TRACES:
         segs = [f"M {t[0][0]} {t[0][1]}"] + [f"L {x} {y}" for x, y in t[1:]]
         traces_d.append(" ".join(segs))
 
@@ -222,12 +232,12 @@ def write_svg(path: Path) -> None:
     </clipPath>
   </defs>
   <path d="{svg_path(shape)}" fill="url(#copper)"/>
-  <g clip-path="url(#squircle)" fill="none" stroke="#2C160C" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round">
+  <g clip-path="url(#squircle)" fill="none" stroke="#2C160C" stroke-width="{STROKE}" stroke-linecap="round" stroke-linejoin="round">
     {"".join(f'<path d="{d}"/>' for d in traces_d)}
   </g>
   <g clip-path="url(#squircle)">
-    {"".join(f'<circle cx="{x}" cy="{y}" r="{via_r}" fill="#2C160C"/>' for x, y in pads)}
-    {"".join(f'<circle cx="{x}" cy="{y}" r="{via_hole}" fill="#A05A2A"/>' for x, y in pads)}
+    {"".join(f'<circle cx="{x}" cy="{y}" r="{VIA_R}" fill="#2C160C"/>' for x, y in PADS)}
+    {"".join(f'<circle cx="{x}" cy="{y}" r="{VIA_HOLE}" fill="#A05A2A"/>' for x, y in PADS)}
   </g>
 </svg>
 '''
@@ -254,24 +264,18 @@ def render_square_artwork(out_size: int) -> Image.Image:
 
     circuit = Image.new("RGBA", (hi, hi), (0, 0, 0, 0))
     draw = ImageDraw.Draw(circuit)
-    sw = int(58 * scale)
+    sw = int(STROKE * scale)
     dark = (44, 22, 12, 255)
     hole = (160, 90, 42, 255)
 
     def P(x: float, y: float) -> tuple[int, int]:
         return (int(x * scale), int(y * scale))
 
-    traces = [
-        [P(300, 338), P(724, 338)],
-        [P(512, 338), P(512, 560)],
-        [P(512, 560), P(724, 560)],
-    ]
-    for tline in traces:
-        draw.line(tline, fill=dark, width=sw, joint="curve")
-    pads = [P(300, 338), P(724, 338), P(512, 560), P(724, 560)]
-    r = int(54 * scale)
-    rh = int(22 * scale)
-    for px, py in pads:
+    for tline in TRACES:
+        draw.line([P(*p) for p in tline], fill=dark, width=sw, joint="curve")
+    r = int(VIA_R * scale)
+    rh = int(VIA_HOLE * scale)
+    for px, py in (P(*p) for p in PADS):
         draw.ellipse((px - r, py - r, px + r, py + r), fill=dark)
         draw.ellipse((px - rh, py - rh, px + rh, py + rh), fill=hole)
 
@@ -336,31 +340,37 @@ def write_icns(master: Image.Image, path: Path) -> None:
     import subprocess
     import tempfile
 
-    tmp = Path(tempfile.mkdtemp())
-    iconset = tmp / "icon.iconset"
-    iconset.mkdir()
-    mapping = {
-        "icon_16x16.png": 16,
-        "icon_16x16@2x.png": 32,
-        "icon_32x32.png": 32,
-        "icon_32x32@2x.png": 64,
-        "icon_128x128.png": 128,
-        "icon_128x128@2x.png": 256,
-        "icon_256x256.png": 256,
-        "icon_256x256@2x.png": 512,
-        "icon_512x512.png": 512,
-        "icon_512x512@2x.png": 1024,
-    }
-    for name, size in mapping.items():
-        dest = iconset / name
-        master.resize((size, size), Image.Resampling.LANCZOS).save(dest, "PNG")
-        subprocess.run(
-            ["sips", "-s", "format", "png", str(dest), "--out", str(dest)],
-            check=True,
-            capture_output=True,
-        )
-    subprocess.run(["iconutil", "-c", "icns", "-o", str(path), str(iconset)], check=True)
-    shutil.rmtree(tmp)
+    if shutil.which("iconutil") and shutil.which("sips"):
+        tmp = Path(tempfile.mkdtemp())
+        iconset = tmp / "icon.iconset"
+        iconset.mkdir()
+        mapping = {
+            "icon_16x16.png": 16,
+            "icon_16x16@2x.png": 32,
+            "icon_32x32.png": 32,
+            "icon_32x32@2x.png": 64,
+            "icon_128x128.png": 128,
+            "icon_128x128@2x.png": 256,
+            "icon_256x256.png": 256,
+            "icon_256x256@2x.png": 512,
+            "icon_512x512.png": 512,
+            "icon_512x512@2x.png": 1024,
+        }
+        for name, size in mapping.items():
+            dest = iconset / name
+            master.resize((size, size), Image.Resampling.LANCZOS).save(dest, "PNG")
+            subprocess.run(
+                ["sips", "-s", "format", "png", str(dest), "--out", str(dest)],
+                check=True,
+                capture_output=True,
+            )
+        subprocess.run(["iconutil", "-c", "icns", "-o", str(path), str(iconset)], check=True)
+        shutil.rmtree(tmp)
+        return
+
+    sizes = [16, 32, 64, 128, 256, 512, 1024]
+    frames = [master.resize((s, s), Image.Resampling.LANCZOS) for s in sizes]
+    frames[0].save(path, format="ICNS", append_images=frames[1:])
 
 
 def main() -> None:
