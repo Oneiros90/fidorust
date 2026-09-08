@@ -2,7 +2,11 @@ import { version as packageVersion } from '../../package.json';
 
 const GITHUB_REPO = 'Oneiros90/fidorust';
 const LATEST_RELEASE_API = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
-const RELEASE_PATH = `/${GITHUB_REPO}/releases/`;
+const REPO_PATH = `/${GITHUB_REPO}/`;
+const RELEASE_PATH = `${REPO_PATH}releases/`;
+
+export const NEW_ISSUE_URL = `https://github.com/${GITHUB_REPO}/issues/new`;
+export const LATEST_RELEASE_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 
 export const appVersion = packageVersion;
 
@@ -36,14 +40,23 @@ export function isNewerVersion(remote: string, current: string): boolean {
 	return false;
 }
 
-export function isReleaseUrl(url: string): boolean {
+export function isGitHubRepoUrl(url: string): boolean {
 	try {
 		const parsed = new URL(url);
 		return (
 			parsed.protocol === 'https:' &&
 			parsed.hostname === 'github.com' &&
-			parsed.pathname.startsWith(RELEASE_PATH)
+			parsed.pathname.startsWith(REPO_PATH)
 		);
+	} catch {
+		return false;
+	}
+}
+
+export function isReleaseUrl(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		return isGitHubRepoUrl(url) && parsed.pathname.startsWith(RELEASE_PATH);
 	} catch {
 		return false;
 	}
@@ -83,12 +96,17 @@ export async function checkDesktopUpdate(current: string): Promise<LatestRelease
 	return latest;
 }
 
-export async function openReleasePage(url: string): Promise<void> {
-	if (!isReleaseUrl(url)) return;
+export async function openGitHubUrl(url: string): Promise<void> {
+	if (!isGitHubRepoUrl(url)) return;
 	try {
 		const { openUrl } = await import('@tauri-apps/plugin-opener');
 		await openUrl(url);
 	} catch {
 		window.open(url, '_blank', 'noopener,noreferrer');
 	}
+}
+
+export async function openReleasePage(url: string): Promise<void> {
+	if (!isReleaseUrl(url)) return;
+	await openGitHubUrl(url);
 }

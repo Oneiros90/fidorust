@@ -51,7 +51,9 @@ export const en = {
 	light: 'Light',
 	dark: 'Dark',
 	help: 'Help',
-	about: 'About FidoRust',
+	about: 'About',
+	reportIssue: 'Report an issue',
+	downloadDesktop: 'Download desktop app',
 	aboutContent: `<p><b>FidoRust</b> aims to be the spiritual successor to <a href="https://www.enetsystems.com/~lorenzo/fidocad.asp" target="_blank" rel="noopener noreferrer">FidoCAD</a>: a modern, more capable, and efficient schematic editor available everywhere (desktop and web) without losing the simplicity and directness that made the original program legendary.</p>
 <p>Heartfelt thanks to <b>Lorenzo Lutti</b>, the original author of FidoCAD, for a tool that shaped generations of hobbyists and professionals.</p>
 <p>My heartfelt thanks also to <b>Bruno Valente</b> for his advice, supervision, and testing.</p>

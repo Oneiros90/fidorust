@@ -53,7 +53,9 @@ export const it: typeof en = {
 	light: 'Chiaro',
 	dark: 'Scuro',
 	help: 'Aiuto',
-	about: 'Informazioni su FidoRust',
+	about: 'Informazioni',
+	reportIssue: 'Segnala un problema',
+	downloadDesktop: 'Scarica app desktop',
 	aboutContent: `<p><b>FidoRust</b> nasce con l'ambizione di essere l'erede spirituale di <a href="https://www.enetsystems.com/~lorenzo/fidocad.asp" target="_blank" rel="noopener noreferrer">FidoCAD</a>: un editor di schemi moderno, più ricco, efficiente e disponibile ovunque (desktop e web) senza perdere la semplicità e la immediatezza che hanno reso mitico il programma originale.</p>
 <p>Un sentito ringraziamento a <b>Lorenzo Lutti</b>, autore originale di FidoCAD, per uno strumento che ha segnato intere generazioni di appassionati e professionisti.</p>
 <p>Ringrazio di cuore anche <b>Bruno Valente</b> per i consigli, la supervisione e il testing.</p>
