@@ -352,8 +352,15 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn set_pending_follow(&mut self, on: bool) {
+        self.editor.set_pending_follow(on);
+    }
+
+    #[wasm_bindgen]
     pub fn place_component_at(&mut self, name: &str, sx: f32, sy: f32) {
-        self.editor.set_pending_component(Some(name.to_string()));
+        if self.editor.pending_component() != Some(name) {
+            self.editor.set_pending_component(Some(name.to_string()));
+        }
         self.editor.adopt_component_tool();
         let w = self.editor.screen_to_world(sx, sy);
         self.editor.insert_pending_component_at(w);

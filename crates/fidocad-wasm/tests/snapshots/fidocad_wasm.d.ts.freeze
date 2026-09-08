@@ -75,6 +75,7 @@ export class App {
     set_locale(loc: string): void;
     set_pcb_mode(on: boolean): void;
     set_pending_component(name: string): void;
+    set_pending_follow(on: boolean): void;
     set_pending_text(text: string): void;
     set_show_grid(on: boolean): void;
     set_snap(x: number, y: number): void;
@@ -158,6 +159,7 @@ export interface InitOutput {
     readonly app_set_locale: (a: number, b: number, c: number) => void;
     readonly app_set_pcb_mode: (a: number, b: number) => void;
     readonly app_set_pending_component: (a: number, b: number, c: number) => void;
+    readonly app_set_pending_follow: (a: number, b: number) => void;
     readonly app_set_pending_text: (a: number, b: number, c: number) => void;
     readonly app_set_show_grid: (a: number, b: number) => void;
     readonly app_set_snap: (a: number, b: number, c: number) => void;

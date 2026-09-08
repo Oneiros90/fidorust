@@ -232,10 +232,29 @@ fn right_click_rotates_pending_component() {
     let mut ed = Editor::new(builtin_libraries());
     ed.set_tool(Tool::Component);
     ed.set_pending_component(Some("080".into()));
+    ed.set_pending_follow(true);
     assert!(ed.right_click(Point::new(20, 20)));
     assert_eq!(ed.pending_rotations(), 1);
     assert!(ed.right_click(Point::new(20, 20)));
     assert_eq!(ed.pending_rotations(), 2);
+}
+
+#[test]
+fn right_click_on_selected_component_does_not_rotate() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Component);
+    ed.set_pending_component(Some("080".into()));
+    assert!(!ed.right_click(Point::new(20, 20)));
+    assert_eq!(ed.pending_rotations(), 0);
+}
+
+#[test]
+fn click_places_pending_component_without_follow() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Component);
+    ed.set_pending_component(Some("080".into()));
+    ed.pointer_down(Point::new(20, 20), (20.0, 20.0), false, false);
+    assert_eq!(ed.doc().primitives.len(), 1);
 }
 
 #[test]

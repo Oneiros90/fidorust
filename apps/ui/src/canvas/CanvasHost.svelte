@@ -11,7 +11,18 @@
 	let canvas: HTMLCanvasElement | undefined;
 	let wrap: HTMLDivElement | undefined;
 	let space = $state(false);
+	let panning = $state(false);
 	let textEdit = $state.raw<TextEdit | null>(null);
+
+	const canvasCursor = $derived(
+		panning
+			? 'grabbing'
+			: space || app.status.tool === 'pan'
+				? 'grab'
+				: app.status.tool === 'select'
+					? 'default'
+					: 'crosshair'
+	);
 
 	function resizeCanvas() {
 		if (!canvas || !wrap || !engine) return;
@@ -81,6 +92,7 @@
 		}
 		if (!engine || !canvas || textEdit) return;
 		canvas.setPointerCapture(e.pointerId);
+		if (space || e.button === 1 || app.status.tool === 'pan') panning = true;
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
@@ -106,6 +118,7 @@
 
 	function up(e: PointerEvent) {
 		if (e.button === 2 || !engine || textEdit) return;
+		panning = false;
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
@@ -201,9 +214,11 @@
 		onpointerdown={down}
 		onpointermove={move}
 		onpointerup={up}
+		onpointercancel={() => (panning = false)}
 		ondblclick={dblclick}
 		onwheel={wheel}
 		oncontextmenu={onCtx}
+		style:cursor={canvasCursor}
 	></canvas>
 	{#if overlay}
 		<TextEditor
@@ -234,6 +249,5 @@
 		width: 100%;
 		height: 100%;
 		touch-action: none;
-		cursor: crosshair;
 	}
 </style>

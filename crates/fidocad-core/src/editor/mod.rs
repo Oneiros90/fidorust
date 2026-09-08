@@ -47,6 +47,8 @@ pub struct Editor {
     pad_style: PadStyle,
     pending_component: Option<String>,
     pending_rotations: u8,
+    /// Ghost-at-cursor and RMB rotate only while a library drag is in progress.
+    pending_follow: bool,
     pending_text: String,
     /// Primitive index whose glyphs are hidden while the UI overlay edits them.
     editing_text: Option<usize>,
@@ -89,6 +91,7 @@ impl Editor {
             pad_style: PadStyle::Oval,
             pending_component: None,
             pending_rotations: 0,
+            pending_follow: false,
             pending_text: "TEXT".into(),
             editing_text: None,
             undo: Vec::new(),
@@ -109,6 +112,10 @@ impl Editor {
     pub fn set_tool(&mut self, tool: Tool) {
         self.tool = tool;
         self.cancel_draft();
+        if tool != Tool::Component {
+            self.pending_component = None;
+            self.pending_follow = false;
+        }
     }
 
     pub fn set_filled(&mut self, on: bool) {
@@ -120,6 +127,7 @@ impl Editor {
         self.layer = LayerId(n.min(max));
         if !self.selected.is_empty() {
             self.set_selected_layer(self.layer);
+            self.selected.clear();
         }
     }
 

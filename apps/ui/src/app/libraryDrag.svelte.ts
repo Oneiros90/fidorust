@@ -22,6 +22,11 @@ export class LibraryDragSession {
 			ac.abort();
 			document.body.classList.remove('lib-dragging');
 			s.libGhost = null;
+			s.engine?.query((app) => {
+				app.set_pending_follow(false);
+				app.clear_hover();
+				app.render();
+			});
 		};
 
 		const move = (ev: PointerEvent) => {
@@ -30,6 +35,9 @@ export class LibraryDragSession {
 				if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < DRAG_THRESHOLD_PX) return;
 				active = true;
 				document.body.classList.add('lib-dragging');
+				s.engine.query((app) => {
+					app.set_pending_follow(true);
+				});
 			}
 			const canvas = s.engine.canvas;
 			if (canvas) {
@@ -82,6 +90,7 @@ export class LibraryDragSession {
 		};
 
 		const onCtx = (ev: MouseEvent) => {
+			if (!active) return;
 			ev.preventDefault();
 			ev.stopPropagation();
 			if (!s.engine) return;

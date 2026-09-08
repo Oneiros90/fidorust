@@ -292,11 +292,25 @@ fn pending_macro_ghost_appears_at_hover() {
     let mut ed = Editor::new(builtin_libraries());
     ed.set_tool(Tool::Component);
     ed.set_pending_component(Some("080".into()));
+    ed.set_pending_follow(true);
     ed.set_hover(Some(fidocad_core::Point::new(40, 40)));
     let scene = tessellate_editor(&ed);
     assert!(
         !scene.lines.is_empty() || !scene.circles.is_empty() || !scene.fills.is_empty(),
         "expected ghost geometry for pending macro"
+    );
+}
+
+#[test]
+fn pending_component_without_follow_has_no_ghost() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Component);
+    ed.set_pending_component(Some("080".into()));
+    ed.set_hover(Some(fidocad_core::Point::new(40, 40)));
+    let scene = tessellate_editor(&ed);
+    assert!(
+        scene.lines.is_empty() && scene.circles.is_empty() && scene.fills.is_empty(),
+        "selected-but-not-dragged component must not follow the cursor"
     );
 }
 

@@ -342,6 +342,7 @@ export class AppSession {
 		this.engine?.query((app) => {
 			app.set_tool(id);
 		});
+		if (id !== 'component') this.libraryFocus = null;
 		if (id === 'text') {
 			const txt = prompt(this.t.textPrompt, 'TEXT');
 			if (txt)

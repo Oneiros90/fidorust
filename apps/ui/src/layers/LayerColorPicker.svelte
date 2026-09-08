@@ -28,13 +28,17 @@
 	let rgb = $state.raw<RgbaColor>({ r: 0, g: 0, b: 0, a: 1 });
 	let isOpen = $state(false);
 
+	function setOpen(open: boolean) {
+		isOpen = open;
+		if (open) app.setLayer(index);
+	}
+
 	$effect.pre(() => {
 		if (!isOpen) rgb = toRgba(color);
 	});
 
 	$effect(() => {
 		if (!isOpen) return;
-		app.setLayer(index);
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') e.stopImmediatePropagation();
 		};
@@ -84,7 +88,7 @@
 <div class="picker">
 	<ColorPicker
 		bind:rgb
-		bind:isOpen
+		bind:isOpen={() => isOpen, setOpen}
 		{components}
 		{label}
 		{texts}

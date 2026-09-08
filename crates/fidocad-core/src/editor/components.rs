@@ -131,7 +131,7 @@ impl Editor {
             self.cancel_draft();
             return true;
         }
-        if self.tool == Tool::Component && self.pending_component.is_some() {
+        if self.tool == Tool::Component && self.pending_follow && self.pending_component.is_some() {
             self.pending_rotations = (self.pending_rotations + 1) % 4;
             true
         } else {
@@ -157,7 +157,7 @@ impl Editor {
     }
 
     pub fn pending_component_preview(&self) -> Vec<Primitive> {
-        if self.tool != Tool::Component {
+        if self.tool != Tool::Component || !self.pending_follow {
             return Vec::new();
         }
         let Some(name) = self.pending_component.as_deref() else {
@@ -204,6 +204,11 @@ impl Editor {
     pub fn set_pending_component(&mut self, name: Option<String>) {
         self.pending_component = name;
         self.pending_rotations = 0;
+        self.pending_follow = false;
+    }
+
+    pub fn set_pending_follow(&mut self, on: bool) {
+        self.pending_follow = on && self.pending_component.is_some();
     }
 
     pub fn create_component_from_selection(

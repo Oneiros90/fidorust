@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import { defaultStatus, type LayersData, type LibraryEntry, type Status } from './engineTypes';
 
@@ -20,13 +21,16 @@ export class Engine {
 	}
 
 	refresh = () => {
-		this.status = JSON.parse(this.app.status_json());
-		this.layers = JSON.parse(this.app.layers_json());
-		if (this.status.libs_rev !== this.libsRev) {
-			this.libsRev = this.status.libs_rev;
-			this.libs = JSON.parse(this.app.library_json());
-		}
-		this.onRefresh?.();
+		untrack(() => {
+			const status: Status = JSON.parse(this.app.status_json());
+			this.status = status;
+			this.layers = JSON.parse(this.app.layers_json());
+			if (status.libs_rev !== this.libsRev) {
+				this.libsRev = status.libs_rev;
+				this.libs = JSON.parse(this.app.library_json());
+			}
+			this.onRefresh?.();
+		});
 	};
 
 	mutate = (fn: (app: WasmApp) => void, opts?: MutateOpts) => {

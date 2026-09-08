@@ -6,6 +6,7 @@ export type LibGhost = ComponentCursor & { x: number; y: number; scale: number; 
 
 export const TOOLS = [
 	['select', 'select'],
+	['pan', 'pan'],
 	['line', 'line'],
 	['rect', 'rect'],
 	['ellipse', 'ellipse'],
@@ -14,6 +15,5 @@ export const TOOLS = [
 	['text', 'text'],
 	['connection', 'connection'],
 	['pcb-track', 'pcbTrack'],
-	['pcb-pad', 'pcbPad'],
-	['pan', 'pan']
+	['pcb-pad', 'pcbPad']
 ] as const;
