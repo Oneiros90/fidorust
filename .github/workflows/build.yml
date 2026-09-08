@@ -51,6 +51,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: node tools/bump.mjs "${{ github.ref_name }}" --files-only
 
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
+
       - name: Run core tests
         run: cargo test --workspace
 
@@ -78,6 +82,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -102,6 +117,10 @@ jobs:
         working-directory: apps/ui
         run: npm ci
 
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
+
       - name: Run core tests
         run: cargo test --workspace
 
@@ -123,6 +142,62 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: apps/ui/dist
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/ui/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: apps/ui
+        run: npm ci
+
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace
+
+      - name: svelte-check
+        working-directory: apps/ui
+        run: npm run check
+
+      - name: prettier
+        working-directory: apps/ui
+        run: npm run format:check
 
   release:
     needs: [build, wasm]
