@@ -51,6 +51,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: node tools/bump.mjs "${{ github.ref_name }}" --files-only
 
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
+
       - name: Run core tests
         run: cargo test --workspace
 
@@ -113,6 +117,10 @@ jobs:
         working-directory: apps/ui
         run: npm ci
 
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
+
       - name: Run core tests
         run: cargo test --workspace
 
@@ -169,6 +177,10 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/ui
         run: npm ci
+
+      - name: Create frontend dist placeholder
+        shell: bash
+        run: mkdir -p apps/ui/dist
 
       - name: cargo fmt
         run: cargo fmt --all --check
