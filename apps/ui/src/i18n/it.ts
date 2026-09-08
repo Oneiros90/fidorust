@@ -123,8 +123,12 @@ export const it: typeof en = {
 	deleteComponentBody: 'Le istanze nel disegno verranno splittate.',
 	newComponent: 'Nuovo componente',
 	builtinLibraries: 'Librerie built-in',
+	builtinLibrariesHint: 'Librerie in sola lettura fornite con FidoRust.',
 	userLibraries: 'Librerie utente',
+	userLibrariesHint:
+		'Librerie salvate su questa macchina, non scritte nel disegno salvo scelta al salvataggio.',
 	projectLibrary: 'Libreria di progetto',
+	projectLibraryHint: 'Componenti salvati nel file FCD e disponibili solo in questo disegno.',
 	createLibrary: 'Crea libreria',
 	exportLibrary: 'Esporta',
 	deleteLibrary: 'Elimina',

@@ -122,8 +122,12 @@ export const en = {
 		'Instances in the drawing will be split. This cannot be undone from the library.',
 	newComponent: 'New component',
 	builtinLibraries: 'Built-in libraries',
+	builtinLibrariesHint: 'Read-only libraries shipped with FidoRust.',
 	userLibraries: 'User libraries',
+	userLibrariesHint:
+		'Libraries stored on this machine, not written into the drawing unless you choose so when saving.',
 	projectLibrary: 'Project library',
+	projectLibraryHint: 'Components saved in the FCD file and available only in this drawing.',
 	createLibrary: 'Create library',
 	exportLibrary: 'Export',
 	deleteLibrary: 'Delete',

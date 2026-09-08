@@ -1,17 +1,14 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
+	import type { LibraryEntry } from '../app/engineTypes';
 	import { componentFullName } from '../lib/libraryDrag';
 	import LibraryItem from './LibraryItem.svelte';
 
 	const app = getAppSession();
+	const project = $derived(app.libs.find((l) => l.kind === 'project') ?? null);
+	const user = $derived(app.libs.filter((l) => l.kind === 'local'));
 	const builtin = $derived(app.libs.filter((l) => l.kind === 'builtin'));
-	const user = $derived(app.libs.filter((l) => l.kind !== 'builtin'));
 	let skipRenameCommit = false;
-
-	function titleFor(stem: string, fallback: string) {
-		if (stem === 'project') return app.t.projectLibrary;
-		return fallback;
-	}
 
 	function focusAndSelect(node: HTMLInputElement) {
 		queueMicrotask(() => {
@@ -50,10 +47,192 @@
 	}
 </script>
 
+{#snippet writableItems(lib: LibraryEntry)}
+	{#each lib.categories as cat (`${lib.stem}:${cat.name}`)}
+		{#each cat.components as item (`${lib.stem}:${item.key}`)}
+			<LibraryItem
+				engine={app.engine}
+				stem={lib.stem}
+				componentKey={item.key}
+				label={item.name}
+				description={item.description}
+				writable={lib.writable}
+				selected={app.status.pending_component === componentFullName(lib.stem, item.key) ||
+					(app.libraryFocus?.stem === lib.stem && app.libraryFocus?.key === item.key)}
+				theme={app.theme}
+				onPick={app.pickComponent}
+				onArmDrag={app.armLibraryDrag}
+			/>
+		{/each}
+	{/each}
+{/snippet}
+
+{#snippet exportBtn(stem: string, inSummary: boolean)}
+	<button
+		type="button"
+		class="icon"
+		title={app.t.exportLibrary}
+		aria-label={app.t.exportLibrary}
+		onmousedown={inSummary ? stopToggle : undefined}
+		onclick={(e) => {
+			if (inSummary) stopToggle(e);
+			app.exportLibrary(stem);
+		}}
+	>
+		<svg viewBox="0 0 16 16" aria-hidden="true">
+			<path
+				d="M8 2v8M5 8l3 3 3-3M3 13h10"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			/>
+		</svg>
+	</button>
+{/snippet}
+
+{#snippet deleteBtn(stem: string, inSummary: boolean)}
+	<button
+		type="button"
+		class="icon danger"
+		title={app.t.deleteLibrary}
+		aria-label={app.t.deleteLibrary}
+		onmousedown={inSummary ? stopToggle : undefined}
+		onclick={(e) => {
+			if (inSummary) stopToggle(e);
+			app.requestDeleteLibrary(stem);
+		}}
+	>
+		<svg viewBox="0 0 16 16" aria-hidden="true">
+			<path
+				d="M3 5h10M6 5V3.5h4V5M5.5 5v8h5V5"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			/>
+		</svg>
+	</button>
+{/snippet}
+
 <div class="panel">
 	<div class="tree" id="library-tree">
 		<section class="group">
-			<h2 class="group-title">{app.t.builtinLibraries}</h2>
+			<div class="group-head">
+				<h2
+					class="group-title"
+					title={app.t.projectLibraryHint}
+					oncontextmenu={(e) => onFolderContextMenu(e, 'project')}
+				>
+					{app.t.projectLibrary}
+				</h2>
+				<span class="group-actions">
+					{@render exportBtn('project', false)}
+					{@render deleteBtn('project', false)}
+				</span>
+			</div>
+			<div class="group-body">
+				{#if project}
+					{@render writableItems(project)}
+				{/if}
+			</div>
+		</section>
+		<section class="group">
+			<div class="group-head">
+				<h2 class="group-title" title={app.t.userLibrariesHint}>{app.t.userLibraries}</h2>
+				<span class="group-actions">
+					<button
+						type="button"
+						class="icon"
+						title={app.t.createLibrary}
+						aria-label={app.t.createLibrary}
+						onclick={app.createUserLibrary}
+					>
+						<svg viewBox="0 0 16 16" aria-hidden="true">
+							<path
+								d="M8 3v10M3 8h10"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+								stroke-linecap="round"
+							/>
+						</svg>
+					</button>
+					<button
+						type="button"
+						class="icon"
+						title={app.t.importLibrary}
+						aria-label={app.t.importLibrary}
+						onclick={app.importLibrary}
+					>
+						<svg viewBox="0 0 16 16" aria-hidden="true">
+							<path
+								d="M8 14V6M5 9l3-3 3 3M3 3h10"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+						</svg>
+					</button>
+				</span>
+			</div>
+			<div class="group-body">
+				{#each user as lib (lib.stem)}
+					<details
+						class="node"
+						open={app.expandedUserLibs[lib.stem] ?? false}
+						ontoggle={(e) => {
+							app.expandedUserLibs = {
+								...app.expandedUserLibs,
+								[lib.stem]: (e.currentTarget as HTMLDetailsElement).open
+							};
+						}}
+					>
+						<summary
+							class="node-label folder"
+							oncontextmenu={(e) => onFolderContextMenu(e, lib.stem)}
+						>
+							{#if app.editingLibraryTitle === lib.stem}
+								<input
+									class="rename"
+									value={lib.title}
+									{@attach focusAndSelect}
+									onmousedown={stopBubble}
+									onclick={stopBubble}
+									onblur={(e) => commitRename(lib.stem, e.currentTarget.value)}
+									onkeydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											e.currentTarget.blur();
+										} else if (e.key === 'Escape') {
+											e.preventDefault();
+											cancelRename();
+										}
+									}}
+								/>
+							{:else}
+								<span class="title">{lib.title}</span>
+							{/if}
+							<span class="lib-actions">
+								{@render exportBtn(lib.stem, true)}
+								{@render deleteBtn(lib.stem, true)}
+							</span>
+						</summary>
+						<div class="kids">
+							{@render writableItems(lib)}
+						</div>
+					</details>
+				{/each}
+			</div>
+		</section>
+		<section class="group">
+			<h2 class="group-title standalone" title={app.t.builtinLibrariesHint}>
+				{app.t.builtinLibraries}
+			</h2>
 			<div class="group-body">
 				{#each builtin as lib (lib.stem)}
 					<details class="node" open={lib.stem === 'stdlib'}>
@@ -86,120 +265,6 @@
 				{/each}
 			</div>
 		</section>
-		<section class="group">
-			<h2 class="group-title">{app.t.userLibraries}</h2>
-			<div class="group-body">
-				{#each user as lib (lib.stem)}
-					<details
-						class="node"
-						open={app.expandedUserLibs[lib.stem] ?? lib.stem === 'project'}
-						ontoggle={(e) => {
-							app.expandedUserLibs = {
-								...app.expandedUserLibs,
-								[lib.stem]: (e.currentTarget as HTMLDetailsElement).open
-							};
-						}}
-					>
-						<summary
-							class="node-label folder"
-							oncontextmenu={(e) => onFolderContextMenu(e, lib.stem)}
-						>
-							{#if app.editingLibraryTitle === lib.stem}
-								<input
-									class="rename"
-									value={titleFor(lib.stem, lib.title)}
-									{@attach focusAndSelect}
-									onmousedown={stopBubble}
-									onclick={stopBubble}
-									onblur={(e) => commitRename(lib.stem, e.currentTarget.value)}
-									onkeydown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											e.currentTarget.blur();
-										} else if (e.key === 'Escape') {
-											e.preventDefault();
-											cancelRename();
-										}
-									}}
-								/>
-							{:else}
-								<span class="title">{titleFor(lib.stem, lib.title)}</span>
-							{/if}
-							<span class="lib-actions">
-								<button
-									type="button"
-									class="icon"
-									title={app.t.exportLibrary}
-									aria-label={app.t.exportLibrary}
-									onmousedown={stopToggle}
-									onclick={(e) => {
-										stopToggle(e);
-										app.exportLibrary(lib.stem);
-									}}
-								>
-									<svg viewBox="0 0 16 16" aria-hidden="true">
-										<path
-											d="M8 2v8M5 8l3 3 3-3M3 13h10"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.5"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-										/>
-									</svg>
-								</button>
-								<button
-									type="button"
-									class="icon danger"
-									title={app.t.deleteLibrary}
-									aria-label={app.t.deleteLibrary}
-									onmousedown={stopToggle}
-									onclick={(e) => {
-										stopToggle(e);
-										app.requestDeleteLibrary(lib.stem);
-									}}
-								>
-									<svg viewBox="0 0 16 16" aria-hidden="true">
-										<path
-											d="M3 5h10M6 5V3.5h4V5M5.5 5v8h5V5"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.5"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-										/>
-									</svg>
-								</button>
-							</span>
-						</summary>
-						<div class="kids">
-							{#each lib.categories as cat (`${lib.stem}:${cat.name}`)}
-								{#each cat.components as item (`${lib.stem}:${item.key}`)}
-									<LibraryItem
-										engine={app.engine}
-										stem={lib.stem}
-										componentKey={item.key}
-										label={item.name}
-										description={item.description}
-										writable={lib.writable}
-										selected={app.status.pending_component ===
-											componentFullName(lib.stem, item.key) ||
-											(app.libraryFocus?.stem === lib.stem && app.libraryFocus?.key === item.key)}
-										theme={app.theme}
-										onPick={app.pickComponent}
-										onArmDrag={app.armLibraryDrag}
-									/>
-								{/each}
-							{/each}
-						</div>
-					</details>
-				{/each}
-			</div>
-		</section>
-	</div>
-	<div class="footer">
-		<button type="button" class="add" onclick={app.createUserLibrary}>{app.t.createLibrary}</button>
-		<button type="button" class="add" onclick={app.importLibrary}>{app.t.importLibrary}</button>
 	</div>
 </div>
 
@@ -220,15 +285,37 @@
 	.group + .group {
 		margin-top: 16px;
 	}
-	.group-title {
+	.group-head {
+		display: flex;
+		align-items: center;
+		gap: 4px;
 		margin: 0 6px 8px;
 		padding: 0 0 6px;
 		border-bottom: 1px solid var(--border);
+	}
+	.group-title {
+		margin: 0;
+		padding: 0;
+		border: none;
 		font: inherit;
 		font-size: 13px;
 		font-weight: 700;
 		line-height: 1.3;
 		color: var(--fg);
+		min-width: 0;
+		flex: 1;
+	}
+	.group-title.standalone {
+		margin: 0 6px 8px;
+		padding: 0 0 6px;
+		border-bottom: 1px solid var(--border);
+		flex: none;
+	}
+	.group-actions {
+		display: flex;
+		align-items: center;
+		margin-left: auto;
+		flex-shrink: 0;
 	}
 	.group-body {
 		display: flex;
@@ -314,6 +401,9 @@
 		height: 14px;
 		display: block;
 	}
+	.icon:hover:not(:disabled) {
+		color: var(--fg);
+	}
 	.icon.danger:hover:not(:disabled) {
 		color: var(--danger);
 		border-color: var(--danger);
@@ -325,15 +415,5 @@
 		padding-inline-start: 14px;
 		margin-inline-start: 7px;
 		border-inline-start: 1px solid var(--border);
-	}
-	.footer {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		padding: 0 8px 10px;
-		flex-shrink: 0;
-	}
-	.add {
-		width: 100%;
 	}
 </style>
