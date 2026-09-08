@@ -17,7 +17,6 @@ export type SessionState = {
 	snapEnable: boolean;
 	showGrid: boolean;
 	hideComponentOrigin: boolean;
-	splitComponents: boolean;
 	theme: Theme;
 	locale: Locale;
 };
@@ -50,13 +49,7 @@ function isSessionState(v: unknown): v is SessionState {
 			: typeof s.hideMacroOrigin === 'boolean'
 				? s.hideMacroOrigin
 				: null;
-	const split =
-		typeof s.splitComponents === 'boolean'
-			? s.splitComponents
-			: typeof s.splitMacros === 'boolean'
-				? s.splitMacros
-				: null;
-	if (hide === null || split === null) return false;
+	if (hide === null) return false;
 	if (
 		s.version !== 1 ||
 		typeof s.fcd !== 'string' ||
@@ -75,6 +68,5 @@ function isSessionState(v: unknown): v is SessionState {
 		return false;
 	}
 	(s as SessionState).hideComponentOrigin = hide;
-	(s as SessionState).splitComponents = split;
 	return true;
 }

@@ -5,7 +5,7 @@ mod render_backend;
 
 use fidocad_core::parse::{builtin_libraries, parse_library};
 use fidocad_core::serialize::{serialize_clipboard, serialize_document, serialize_library};
-use fidocad_core::{Editor, EditorError, PropPatch, SaveOptions, Tool, UserLibraryTarget};
+use fidocad_core::{Editor, EditorError, PropPatch, Tool, UserLibraryTarget};
 use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
@@ -43,7 +43,6 @@ pub struct App {
     backend: Backend,
     width: f32,
     height: f32,
-    show_grid: bool,
     #[allow(dead_code)]
     locale: String,
     theme: String,
@@ -58,7 +57,6 @@ impl App {
             backend: Backend::new(),
             width: 800.0,
             height: 600.0,
-            show_grid: true,
             locale: "it".into(),
             theme: "light".into(),
         }
@@ -79,8 +77,11 @@ impl App {
 
     #[wasm_bindgen]
     pub fn render(&mut self) {
-        self.backend
-            .draw(&self.editor, (self.width, self.height), self.show_grid);
+        self.backend.draw(
+            &self.editor,
+            (self.width, self.height),
+            self.editor.show_grid(),
+        );
     }
 
     #[wasm_bindgen]
@@ -98,26 +99,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn save_fcd(&self) -> String {
-        serialize_document(
-            self.editor.persistent_doc(),
-            SaveOptions {
-                split_nonstandard_components: false,
-            },
-            Some(self.editor.libs()),
-        )
-    }
-
-    /// Like `save_fcd`, but expands components whose definition cannot be recovered from the file
-    /// when the “split non-standard components” option is on (local library, unresolved refs).
-    #[wasm_bindgen]
-    pub fn save_portable_fcd(&self) -> String {
-        serialize_document(
-            self.editor.persistent_doc(),
-            SaveOptions {
-                split_nonstandard_components: self.editor.split_nonstandard(),
-            },
-            Some(self.editor.libs()),
-        )
+        serialize_document(self.editor.persistent_doc(), Some(self.editor.libs()))
     }
 
     #[wasm_bindgen]
@@ -129,13 +111,7 @@ impl App {
             .filter_map(|&i| self.editor.doc().primitives.get(i).cloned())
             .collect();
         if prims.is_empty() {
-            serialize_document(
-                self.editor.doc(),
-                SaveOptions {
-                    split_nonstandard_components: false,
-                },
-                Some(self.editor.libs()),
-            )
+            serialize_document(self.editor.doc(), Some(self.editor.libs()))
         } else {
             serialize_clipboard(&prims)
         }
@@ -178,6 +154,7 @@ impl App {
             &layers,
             self.editor.libs(),
             opts.margin_lu.max(0.0),
+            self.editor.doc().stroke_width(),
         )
     }
 
@@ -311,7 +288,14 @@ impl App {
 
     #[wasm_bindgen]
     pub fn set_show_grid(&mut self, on: bool) {
-        self.show_grid = on;
+        self.editor.set_show_grid(on);
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_project_settings(&mut self, json: &str) -> Result<(), JsValue> {
+        let s: fidocad_core::ProjectSettings = serde_json::from_str(json).map_err(to_js)?;
+        self.editor.apply_project_settings(s);
+        Ok(())
     }
 
     #[wasm_bindgen]
@@ -337,11 +321,6 @@ impl App {
             .apply_selection_props_patch(&patch)
             .map_err(to_js)?;
         Ok(())
-    }
-
-    #[wasm_bindgen]
-    pub fn set_split_components(&mut self, on: bool) {
-        self.editor.set_split_nonstandard(on);
     }
 
     #[wasm_bindgen]
@@ -543,7 +522,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn status_json(&self) -> String {
-        to_json(&StatusDto::from_editor(&self.editor, self.show_grid), "{}")
+        to_json(&StatusDto::from_editor(&self.editor), "{}")
     }
 
     #[wasm_bindgen]

@@ -23,6 +23,8 @@ export type Status = {
 	snap_enable: boolean;
 	show_grid: boolean;
 	hide_component_origin: boolean;
+	stroke_hundredths: number;
+	default_filled: boolean;
 	pending_component: string | null;
 	can_create_component: boolean;
 	can_split_component: boolean;
@@ -107,6 +109,8 @@ export const defaultStatus = (): Status => ({
 	snap_enable: true,
 	show_grid: true,
 	hide_component_origin: true,
+	stroke_hundredths: 25,
+	default_filled: false,
 	pending_component: null,
 	can_create_component: false,
 	can_split_component: false,

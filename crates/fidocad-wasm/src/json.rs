@@ -31,6 +31,8 @@ pub struct StatusDto {
     pub snap_enable: bool,
     pub show_grid: bool,
     pub hide_component_origin: bool,
+    pub stroke_hundredths: i32,
+    pub default_filled: bool,
     pub pending_component: Option<String>,
     pub can_create_component: bool,
     pub can_split_component: bool,
@@ -42,7 +44,7 @@ pub struct StatusDto {
 }
 
 impl StatusDto {
-    pub fn from_editor(ed: &Editor, show_grid: bool) -> Self {
+    pub fn from_editor(ed: &Editor) -> Self {
         let hover = ed.hover().unwrap_or(fidocad_core::Point::new(0, 0));
         let editing = ed
             .editing_component()
@@ -68,8 +70,10 @@ impl StatusDto {
             grid: ed.doc().grid,
             grid_y: ed.doc().grid_y,
             snap_enable: ed.snap_enable(),
-            show_grid,
+            show_grid: ed.show_grid(),
             hide_component_origin: ed.hide_component_origin(),
+            stroke_hundredths: ed.doc().stroke_hundredths,
+            default_filled: ed.filled(),
             pending_component: if ed.tool() == Tool::Component {
                 ed.pending_component().map(str::to_string)
             } else {

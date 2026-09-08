@@ -1,7 +1,7 @@
 use fidocad_core::library::{UserLibraryTarget, PROJECT_STEM};
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_document_with_project_library};
 use fidocad_core::serialize::serialize_document;
-use fidocad_core::{Editor, LayerId, Line, Point, Primitive, SaveOptions, Tool};
+use fidocad_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
 #[test]
 fn create_from_selection_replaces_with_instance() {
@@ -40,13 +40,7 @@ fn project_library_roundtrips_in_fcd() {
     ed.set_selected(vec![0]);
     ed.create_component_from_selection(UserLibraryTarget::Project, "Box")
         .unwrap();
-    let text = serialize_document(
-        ed.doc(),
-        SaveOptions {
-            split_nonstandard_components: false,
-        },
-        Some(ed.libs()),
-    );
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
     assert!(text.contains("[FIDOLIB project]"));
     assert!(text.contains("[C01 Box]"));
     let (doc, project) = parse_document_with_project_library(&text).unwrap();
@@ -58,7 +52,7 @@ fn project_library_roundtrips_in_fcd() {
 }
 
 #[test]
-fn split_on_save_keeps_project_refs() {
+fn save_keeps_project_refs() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(5, 5),
@@ -68,19 +62,13 @@ fn split_on_save_keeps_project_refs() {
     ed.set_selected(vec![0]);
     ed.create_component_from_selection(UserLibraryTarget::Project, "Box")
         .unwrap();
-    let text = serialize_document(
-        ed.doc(),
-        SaveOptions {
-            split_nonstandard_components: true,
-        },
-        Some(ed.libs()),
-    );
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
     assert!(text.contains("project.C01"), "{text}");
     assert!(text.contains("[FIDOLIB project]"));
 }
 
 #[test]
-fn split_on_save_expands_local_refs() {
+fn save_keeps_local_refs() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(5, 5),
@@ -90,15 +78,8 @@ fn split_on_save_expands_local_refs() {
     ed.set_selected(vec![0]);
     ed.create_component_from_selection(UserLibraryTarget::Local, "Box")
         .unwrap();
-    let text = serialize_document(
-        ed.doc(),
-        SaveOptions {
-            split_nonstandard_components: true,
-        },
-        Some(ed.libs()),
-    );
-    assert!(!text.contains("local.C01"), "{text}");
-    assert!(text.contains("LI "), "{text}");
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
+    assert!(text.contains("local.C01"), "{text}");
 }
 
 #[test]
@@ -201,13 +182,7 @@ fn description_roundtrip() {
         .create_component_from_selection(UserLibraryTarget::Project, "Named")
         .unwrap();
     assert!(ed.set_component_description(PROJECT_STEM, &key, "A note"));
-    let text = serialize_document(
-        ed.doc(),
-        SaveOptions {
-            split_nonstandard_components: false,
-        },
-        Some(ed.libs()),
-    );
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
     assert!(text.contains("DS A note"));
     let (_, project) = parse_document_with_project_library(&text).unwrap();
     assert_eq!(project.unwrap().components[0].description, "A note");

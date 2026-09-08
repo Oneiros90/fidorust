@@ -6,7 +6,7 @@ use crate::geom::{snap, Point};
 
 impl Editor {
     pub fn snap_pt(&self, p: Point) -> Point {
-        if !self.snap_enable {
+        if !self.doc.snap_enable {
             return p;
         }
         Point::new(snap(p.x, self.doc.snap), snap(p.y, self.doc.snap_y))

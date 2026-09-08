@@ -6,7 +6,7 @@ export type DialogState =
 	| { kind: 'deleteComponent'; stem: string; key: string }
 	| { kind: 'about' }
 	| { kind: 'technologies' }
-	| { kind: 'grid' }
+	| { kind: 'projectSettings' }
 	| { kind: 'properties'; fields: PropFormField[] }
 	| { kind: 'error'; message: string }
 	| { kind: 'discard' }

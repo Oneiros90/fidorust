@@ -33,7 +33,13 @@ fn snapshot_tessellate_alimentatore() {
     common::assert_snapshot("alimentatore_view.txt", &scene_digest(&scene));
     let svg = scene_to_svg(&scene, 800.0, 600.0, ed.zoom(), ed.pan());
     common::assert_snapshot("alimentatore_export.svg", &svg);
-    let export = export_svg(&ed.doc().primitives, &ed.doc().layers, ed.libs(), 8.0);
+    let export = export_svg(
+        &ed.doc().primitives,
+        &ed.doc().layers,
+        ed.libs(),
+        8.0,
+        ed.doc().stroke_width(),
+    );
     common::assert_snapshot("alimentatore_full_export.svg", &export);
 }
 

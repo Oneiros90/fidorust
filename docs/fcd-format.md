@@ -1,6 +1,6 @@
 # The FidoCAD `.fcd` format (FidoRust)
 
-This guide explains how a FidoCAD drawing is stored as text, and how FidoRust stores layer names, colours, and visibility in the same file.
+This guide explains how a FidoCAD drawing is stored as text, and how FidoRust stores layer names, colours, visibility, and project settings in the same file.
 
 You do not need to edit these files by hand. The text form matters because it is what you copy into a forum post, an email, or a chat—and what you get back when someone shares a schematic with you.
 
@@ -49,6 +49,7 @@ You do not need to memorise these. They are listed so that a pasted block looks 
 | Code | Meaning |
 |------|---------|
 | `LD` | Layer definition (name, colour, visibility) |
+| `PS` | Project settings (grid, snap, defaults) |
 | `LI` | Straight line |
 | `RV` / `RP` | Empty / filled rectangle |
 | `EV` / `EP` | Empty / filled ellipse |
@@ -66,6 +67,7 @@ A small complete example:
 ```text
 [FIDOCAD Simple divider]
 LD 0 0 0 1 Schema
+PS 5 5 5 5 1 1 1 25 0
 MC 40 30 0 0 080
 LI 40 30 80 30
 SA 40 30
@@ -77,7 +79,7 @@ This is a resistor from the standard library, a wire, two junctions, and the lab
 
 ### Libraries (`.fcl`)
 
-Component collections are separate `.fcl` files (`[FIDOLIB]` header, `[key Display name]` entries). They use the same drawing commands inside each component definition. When you place a component, the `.fcd` usually stores only a short reference (`MC x y rot mir name`), not the whole artwork—unless you save with “split non-standard components”, which expands custom components into ordinary lines and shapes so others can open the drawing without your private libraries.
+Component collections are separate `.fcl` files (`[FIDOLIB]` header, `[key Display name]` entries). They use the same drawing commands inside each component definition. When you place a component, the `.fcd` stores only a short reference (`MC x y rot mir name`), not the whole artwork.
 
 FidoRust also keeps two user libraries:
 
@@ -98,7 +100,7 @@ LI 100 100 120 100
 
 `DS` is a FidoRust extension for the component description. Classic FidoCAD ignores unknown lines.
 
-The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. With “split non-standard components” on (the default), `project.*`, `local.*`, and other non-standard instances are expanded in the written drawing; the `[FIDOLIB project]` block is still written so FidoRust keeps the definitions. Older tools skip the unknown header.
+The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. The `[FIDOLIB project]` block is written so FidoRust keeps the definitions; older tools skip the unknown header. Local-library instances stay as `MC` references and are not stored in the file.
 
 ---
 
@@ -157,10 +159,50 @@ Programs that do not know `LD` typically skip the unknown line and still load th
 
 ---
 
+## Project settings (`PS`)
+
+FidoRust writes one `PS` line under the layer table, before any drawing commands.
+
+```text
+PS <gridX> <gridY> <snapX> <snapY> <showGrid> <snapEnable> <hideOrigin> <strokeHundredths> <filled>
+```
+
+- `gridX`, `gridY`: grid pitch in drawing units, 1–40 (default `5`)
+- `snapX`, `snapY`: snap pitch in drawing units, 1–20 (default `5`)
+- `showGrid`: `1` draw the grid, `0` hide it
+- `snapEnable`: `1` snap coordinates while drawing, `0` free placement
+- `hideOrigin`: `1` hide the red origin handle on components, `0` show it
+- `strokeHundredths`: schematic line thickness in hundredths of a drawing unit (default `25` = 0.25). Applies to lines, curves, and empty shapes in this file; PCB tracks keep their own width.
+- `filled`: `1` new rectangles, ellipses, and polygons are filled, `0` they are outlines
+
+Trailing fields may be omitted; missing values keep the defaults above. If the file has more than one `PS` line, the last one wins.
+
+Example:
+
+```text
+[FIDOCAD Dual rail]
+LD 0 0 0 1 Schema
+LD 0 80 200 1 Bottom copper
+PS 10 10 5 5 1 1 1 25 0
+LI 20 40 180 40 1
+```
+
+### Files that have no `PS` line
+
+Older drawings have no project-settings line. FidoRust opens them with the defaults above (grid and snap 5, grid and snap on, origin hidden, hairline stroke, empty shapes). The next save writes a `PS` line.
+
+Programs that do not know `PS` skip the unknown line and still load the geometry.
+
+FidoRust always writes `PS` when you save. Clipboard fragments and library definitions do not include it.
+
+---
+
 ## Practical takeaways
 
 1. **Sharing schematics** still works as copy-and-paste of FidoCAD text.
 2. **Objects keep their layer numbers** in every `.fcd` file.
 3. **Names, colours (including RGBA), and visibility** travel with the drawing as `LD` lines under the header.
-4. **A file without `LD`** opens with the four classic layers (plus extras if needed).
-5. FidoRust always writes `LD` when you save, so the next person sees the same layer table.
+4. **Grid, snap, and drawing defaults** travel as a `PS` line under the layer table.
+5. **A file without `LD`** opens with the four classic layers (plus extras if needed).
+6. **A file without `PS`** opens with the usual grid/snap defaults.
+7. FidoRust always writes `LD` and `PS` when you save, so the next person sees the same layer table and project settings.

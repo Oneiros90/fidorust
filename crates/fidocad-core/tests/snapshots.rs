@@ -5,12 +5,12 @@ use fidocad_core::properties::{apply_selection_props, selection_props_form, Prop
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{
     Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point,
-    Poly, Primitive, Rect, SaveOptions, Text, Tool,
+    Poly, Primitive, Rect, Text, Tool,
 };
 
 fn roundtrip(src: &str) -> String {
     let doc = parse_document(src).expect("parse");
-    serialize_document(&doc, SaveOptions::default(), None)
+    serialize_document(&doc, None)
 }
 
 #[test]
@@ -286,13 +286,7 @@ fn snapshot_editor_script() {
         .filter_map(|&i| ed.doc().primitives.get(i).cloned())
         .collect();
     apply_selection_props(&mut targets, &patch);
-    let out = serialize_document(
-        ed.doc(),
-        SaveOptions {
-            split_nonstandard_components: true,
-        },
-        Some(ed.libs()),
-    );
+    let out = serialize_document(ed.doc(), Some(ed.libs()));
     let mut dump = String::new();
     dump.push_str(&out);
     dump.push_str("\n---clipboard---\n");

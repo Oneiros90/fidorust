@@ -23,6 +23,16 @@ pub const COMPONENT_MAX_DEPTH: u8 = 8;
 /// Default `TY` font size inserted by the Text tool (`TE` parse uses 5 — keep both).
 pub const DEFAULT_TEXT_SY: i32 = 4;
 pub const DEFAULT_TEXT_SX: i32 = 3;
+/// Default schematic stroke in hundredths of LU (`25` = 0.25 LU).
+pub const DEFAULT_STROKE_HUNDREDTHS: i32 = 25;
+pub const STROKE_HUNDREDTHS_MIN: i32 = 1;
+pub const STROKE_HUNDREDTHS_MAX: i32 = 2000;
+/// Grid pitch limits (original FidoCAD `m_xgrid` / `m_ygrid`).
+pub const GRID_MIN: i32 = 1;
+pub const GRID_MAX: i32 = 40;
+/// Snap pitch limits (original FidoCAD `m_xsnap` / `m_ysnap`).
+pub const SNAP_MIN: i32 = 1;
+pub const SNAP_MAX: i32 = 20;
 /// Default PCB track width / pad size for new objects.
 pub const DEFAULT_TRACK_WIDTH: i32 = 4;
 pub const DEFAULT_PAD_DX: i32 = 18;

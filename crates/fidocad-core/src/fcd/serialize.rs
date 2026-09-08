@@ -1,8 +1,8 @@
 //! Serialize a document back to FidoCAD 0.96 text (CRLF, omit layer 0 except TY).
 
-use crate::document::{Document, SaveOptions};
+use crate::document::Document;
 use crate::layers::LayerInfo;
-use crate::library::{Library, LibraryKind, LibrarySet};
+use crate::library::{Library, LibrarySet};
 use crate::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
@@ -139,23 +139,20 @@ pub fn serialize_primitive(p: &Primitive) -> String {
     s
 }
 
-fn is_standard_component(name: &str, libs: Option<&LibrarySet>) -> bool {
-    if let Some(libs) = libs {
-        return libs.is_standard(name);
-    }
-    !name.contains('.')
-}
-
-/// Keep an `MC` reference when the definition will still be available after load.
-/// Local-library defs are not stored in the FCD, so they are not recoverable from the file alone.
-fn component_ref_recoverable(name: &str, libs: Option<&LibrarySet>) -> bool {
-    let Some(libs) = libs else {
-        return !name.contains('.');
-    };
-    match libs.lookup(name) {
-        Some((lib, _)) => lib.kind != LibraryKind::Local,
-        None => false,
-    }
+pub fn serialize_project_settings(doc: &Document) -> String {
+    let vis = |on: bool| if on { 1 } else { 0 };
+    format!(
+        "PS {} {} {} {} {} {} {} {} {}\r\n",
+        doc.grid,
+        doc.grid_y,
+        doc.snap,
+        doc.snap_y,
+        vis(doc.show_grid),
+        vis(doc.snap_enable),
+        vis(doc.hide_component_origin),
+        doc.stroke_hundredths,
+        vis(doc.default_filled),
+    )
 }
 
 pub fn serialize_layer(info: &LayerInfo) -> String {
@@ -173,7 +170,7 @@ pub fn serialize_layer(info: &LayerInfo) -> String {
     }
 }
 
-pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&LibrarySet>) -> String {
+pub fn serialize_document(doc: &Document, libs: Option<&LibrarySet>) -> String {
     let mut out = String::new();
     if doc.title.is_empty() {
         out.push_str("[FIDOCAD]\r\n");
@@ -185,22 +182,9 @@ pub fn serialize_document(doc: &Document, opts: SaveOptions, libs: Option<&Libra
     for layer in doc.layers.iter() {
         out.push_str(&serialize_layer(layer));
     }
+    out.push_str(&serialize_project_settings(doc));
     for p in &doc.primitives {
-        let expanded = match p {
-            Primitive::Component(ComponentRef { name, standard, .. })
-                if opts.split_nonstandard_components
-                    && !standard
-                    && !is_standard_component(name, libs)
-                    && !component_ref_recoverable(name, libs) =>
-            {
-                libs.map(|libs| crate::library::expand_primitive(p, libs))
-                    .unwrap_or_else(|| vec![p.clone()])
-            }
-            _ => vec![p.clone()],
-        };
-        for q in expanded {
-            out.push_str(&serialize_primitive(&q));
-        }
+        out.push_str(&serialize_primitive(p));
     }
     if let Some(libs) = libs {
         if let Some(project) = libs.project() {

@@ -207,7 +207,13 @@ fn export_svg_includes_ellipses_and_smart_holes() {
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
-    let svg = fidocad_gpu::export_svg(&ed.doc().primitives, &ed.doc().layers, ed.libs(), 4.0);
+    let svg = fidocad_gpu::export_svg(
+        &ed.doc().primitives,
+        &ed.doc().layers,
+        ed.libs(),
+        4.0,
+        ed.doc().stroke_width(),
+    );
     assert!(svg.contains("<ellipse"), "round figures must be exported");
     assert!(
         svg.contains("fill=\"none\""),
@@ -268,7 +274,13 @@ fn export_svg_keeps_beziers_and_text_native() {
     }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
-    let svg = fidocad_gpu::export_svg(&ed.doc().primitives, &ed.doc().layers, ed.libs(), 2.0);
+    let svg = fidocad_gpu::export_svg(
+        &ed.doc().primitives,
+        &ed.doc().layers,
+        ed.libs(),
+        2.0,
+        ed.doc().stroke_width(),
+    );
     assert!(svg.contains("<path d=\"M "), "beziers must be cubic paths");
     assert!(svg.contains(" C "), "beziers must keep control points");
     assert!(

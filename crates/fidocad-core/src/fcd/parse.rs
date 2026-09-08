@@ -1,6 +1,9 @@
 //! Line-oriented FidoCAD 0.96 parser. Unknown / FCJ / FJC / CV / CP lines are skipped.
 
-use crate::document::Document;
+use crate::consts::{
+    GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
+};
+use crate::document::{Document, ProjectSettings};
 use crate::geom::Point;
 use crate::layers::{LayerId, LayerInfo, LayerSet};
 use crate::library::{ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM};
@@ -71,6 +74,50 @@ pub fn parse_ld_line(line: &str) -> Option<LayerInfo> {
         color: [r, g, b, a],
         show,
     })
+}
+
+/// `PS <gridX> <gridY> <snapX> <snapY> <showGrid> <snapEnable> <hideOrigin> <strokeHundredths> <filled>`
+///
+/// Trailing fields may be omitted (they keep [`ProjectSettings`] defaults).
+pub fn parse_ps_line(line: &str) -> Option<ProjectSettings> {
+    let line = line.trim();
+    if line.len() < 2 || !line[..2].eq_ignore_ascii_case("PS") {
+        return None;
+    }
+    let rest = &line[2..];
+    if !rest.is_empty() && !rest.as_bytes()[0].is_ascii_whitespace() {
+        return None;
+    }
+    let t = TokenCursor::new(rest);
+    let mut s = ProjectSettings::default();
+    if let Some(v) = t.i32(0) {
+        s.grid = v.clamp(GRID_MIN, GRID_MAX);
+    }
+    if let Some(v) = t.i32(1) {
+        s.grid_y = v.clamp(GRID_MIN, GRID_MAX);
+    }
+    if let Some(v) = t.i32(2) {
+        s.snap = v.clamp(SNAP_MIN, SNAP_MAX);
+    }
+    if let Some(v) = t.i32(3) {
+        s.snap_y = v.clamp(SNAP_MIN, SNAP_MAX);
+    }
+    if let Some(v) = t.i32(4) {
+        s.show_grid = v != 0;
+    }
+    if let Some(v) = t.i32(5) {
+        s.snap_enable = v != 0;
+    }
+    if let Some(v) = t.i32(6) {
+        s.hide_component_origin = v != 0;
+    }
+    if let Some(v) = t.i32(7) {
+        s.stroke_hundredths = v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+    }
+    if let Some(v) = t.i32(8) {
+        s.default_filled = v != 0;
+    }
+    Some(s)
 }
 
 fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>) {
@@ -386,6 +433,10 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
         }
         if let Some(info) = parse_ld_line(line) {
             defined.push(info);
+            continue;
+        }
+        if let Some(settings) = parse_ps_line(line) {
+            doc.apply_project_settings(settings);
             continue;
         }
         match parse_primitive_line(line) {

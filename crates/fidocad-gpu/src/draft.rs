@@ -3,7 +3,7 @@
 use fidocad_core::geom::Point;
 use fidocad_core::{Editor, Tool};
 
-use crate::scene::{Scene, DEFAULT_STROKE_W};
+use crate::scene::Scene;
 use crate::shapes::rect_corners;
 
 pub(crate) struct DraftParams<'a> {
@@ -24,7 +24,12 @@ impl<'a> DraftParams<'a> {
     }
 }
 
-pub(crate) fn add_draft(scene: &mut Scene, params: &DraftParams<'_>, preview: [f32; 4]) {
+pub(crate) fn add_draft(
+    scene: &mut Scene,
+    params: &DraftParams<'_>,
+    preview: [f32; 4],
+    stroke_w: f32,
+) {
     let pts = params.points;
     if pts.is_empty() {
         return;
@@ -40,7 +45,7 @@ pub(crate) fn add_draft(scene: &mut Scene, params: &DraftParams<'_>, preview: [f
     match params.tool {
         Some(Tool::Ellipse) => {
             if a != b {
-                scene.push_ellipse(a, b, params.filled, DEFAULT_STROKE_W, preview, false);
+                scene.push_ellipse(a, b, params.filled, stroke_w, preview, false);
             }
         }
         Some(Tool::Rect) => {
@@ -49,23 +54,23 @@ pub(crate) fn add_draft(scene: &mut Scene, params: &DraftParams<'_>, preview: [f
                 if params.filled {
                     scene.fill_polygon(&corners, preview, false);
                 } else {
-                    scene.stroke_poly(&corners, true, DEFAULT_STROKE_W, preview, false);
+                    scene.stroke_poly(&corners, true, stroke_w, preview, false);
                 }
             }
         }
         Some(Tool::Poly) | Some(Tool::Bezier) => {
-            scene.stroke_poly(pts, false, DEFAULT_STROKE_W, preview, false);
+            scene.stroke_poly(pts, false, stroke_w, preview, false);
             if let Some(h) = params.hover {
                 if let Some(&last) = pts.last() {
                     if last != h {
-                        scene.push_line(last, h, DEFAULT_STROKE_W, preview, false);
+                        scene.push_line(last, h, stroke_w, preview, false);
                     }
                 }
             }
         }
         _ => {
             if a != b {
-                scene.push_line(a, b, DEFAULT_STROKE_W, preview, false);
+                scene.push_line(a, b, stroke_w, preview, false);
             }
         }
     }

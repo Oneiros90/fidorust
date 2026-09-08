@@ -5,6 +5,7 @@ export class App {
     free(): void;
     [Symbol.dispose](): void;
     add_layer(): void;
+    apply_project_settings(json: string): void;
     apply_selection_props(patch_json: string): void;
     attach_canvas(canvas: HTMLCanvasElement): void;
     begin_selected_text_edit(): string;
@@ -57,11 +58,6 @@ export class App {
     rotate(): void;
     save_component_edit(): boolean;
     save_fcd(): string;
-    /**
-     * Like `save_fcd`, but expands components whose definition cannot be recovered from the file
-     * when the “split non-standard components” option is on (local library, unresolved refs).
-     */
-    save_portable_fcd(): string;
     selection_props_form_json(): string;
     selection_props_json(): string;
     set_component_description(stem: string, key: string, description: string): boolean;
@@ -80,7 +76,6 @@ export class App {
     set_show_grid(on: boolean): void;
     set_snap(x: number, y: number): void;
     set_snap_enable(on: boolean): void;
-    set_split_components(on: boolean): void;
     set_theme(theme: string): void;
     set_tool(id: string): void;
     set_track_width(w: number): void;
@@ -99,6 +94,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_app_free: (a: number, b: number) => void;
     readonly app_add_layer: (a: number) => void;
+    readonly app_apply_project_settings: (a: number, b: number, c: number) => [number, number];
     readonly app_apply_selection_props: (a: number, b: number, c: number) => [number, number];
     readonly app_attach_canvas: (a: number, b: any) => [number, number];
     readonly app_begin_selected_text_edit: (a: number) => [number, number];
@@ -145,7 +141,6 @@ export interface InitOutput {
     readonly app_rotate: (a: number) => void;
     readonly app_save_component_edit: (a: number) => number;
     readonly app_save_fcd: (a: number) => [number, number];
-    readonly app_save_portable_fcd: (a: number) => [number, number];
     readonly app_selection_props_form_json: (a: number) => [number, number];
     readonly app_selection_props_json: (a: number) => [number, number];
     readonly app_set_component_description: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
@@ -164,7 +159,6 @@ export interface InitOutput {
     readonly app_set_show_grid: (a: number, b: number) => void;
     readonly app_set_snap: (a: number, b: number, c: number) => void;
     readonly app_set_snap_enable: (a: number, b: number) => void;
-    readonly app_set_split_components: (a: number, b: number) => void;
     readonly app_set_theme: (a: number, b: number, c: number) => void;
     readonly app_set_tool: (a: number, b: number, c: number) => void;
     readonly app_set_track_width: (a: number, b: number) => void;

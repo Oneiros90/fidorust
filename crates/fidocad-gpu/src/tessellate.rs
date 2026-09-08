@@ -27,24 +27,24 @@ pub use crate::svg::{
 const PCB_TRACK_CAP_SEGS: u32 = 24;
 
 trait Tessellate {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool);
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32);
 }
 
 impl Tessellate for Line {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
-        scene.push_line(self.a, self.b, DEFAULT_STROKE_W, rgb, selected);
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
+        scene.push_line(self.a, self.b, stroke_w, rgb, selected);
     }
 }
 
 impl Tessellate for Bezier {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
         let (x0, y0) = (self.p0.x as f32, self.p0.y as f32);
         let mut prev_x = x0;
         let mut prev_y = y0;
         for i in 1..=BEZIER_SEGMENTS_DRAW {
             let t = i as f32 / BEZIER_SEGMENTS_DRAW as f32;
             let (x, y) = bezier_point(self.p0, self.p1, self.p2, self.p3, t);
-            scene.push_line_f(prev_x, prev_y, x, y, DEFAULT_STROKE_W, rgb, selected);
+            scene.push_line_f(prev_x, prev_y, x, y, stroke_w, rgb, selected);
             prev_x = x;
             prev_y = y;
         }
@@ -52,34 +52,34 @@ impl Tessellate for Bezier {
 }
 
 impl Tessellate for Rect {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
         let pts = rect_corners(self.a, self.b);
         if self.filled {
             scene.fill_polygon(&pts, rgb, selected);
         } else {
-            scene.stroke_poly(&pts, true, DEFAULT_STROKE_W, rgb, selected);
+            scene.stroke_poly(&pts, true, stroke_w, rgb, selected);
         }
     }
 }
 
 impl Tessellate for Poly {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
         if self.filled && self.pts.len() >= 3 {
             scene.fill_polygon(&self.pts, rgb, selected);
         } else {
-            scene.stroke_poly(&self.pts, true, DEFAULT_STROKE_W, rgb, selected);
+            scene.stroke_poly(&self.pts, true, stroke_w, rgb, selected);
         }
     }
 }
 
 impl Tessellate for Ellipse {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
-        scene.push_ellipse(self.a, self.b, self.filled, DEFAULT_STROKE_W, rgb, selected);
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
+        scene.push_ellipse(self.a, self.b, self.filled, stroke_w, rgb, selected);
     }
 }
 
 impl Tessellate for Connection {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, _stroke_w: f32) {
         scene.push_circle(
             self.pos.x as f32,
             self.pos.y as f32,
@@ -94,13 +94,13 @@ impl Tessellate for Connection {
 }
 
 impl Tessellate for PcbTrack {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, _stroke_w: f32) {
         add_pcb_track(scene, self.a, self.b, self.width, rgb, selected);
     }
 }
 
 impl Tessellate for PcbPad {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, _stroke_w: f32) {
         add_pcb_pad(
             scene, self.pos, self.dx, self.dy, self.hole, self.style, rgb, selected,
         );
@@ -108,7 +108,7 @@ impl Tessellate for PcbPad {
 }
 
 impl Tessellate for Text {
-    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool) {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, _stroke_w: f32) {
         let h = (self.sy as f32).max(2.0);
         let wch = (self.sx as f32).max(1.5);
         let mirrored = self.style & STYLE_MIRRORED != 0;
@@ -144,7 +144,7 @@ impl Tessellate for Text {
 }
 
 impl Tessellate for ComponentRef {
-    fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 4], _selected: bool) {}
+    fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 4], _selected: bool, _stroke_w: f32) {}
 }
 
 fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
@@ -235,12 +235,12 @@ fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 4] {
     Rgb::from_rgba_u8(layers.color(p.layer()))
 }
 
-fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool) {
+fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, stroke_w: f32) {
     if !layers.visible(p.layer()) && !p.is_component() {
         return;
     }
     let rgb = color(layers, p, selected);
-    fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected));
+    fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
 fn group_by_layer<T>(
@@ -259,12 +259,20 @@ fn group_by_layer<T>(
 }
 
 pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet) -> Scene {
+    tessellate_primitives_with_stroke(prims, layers, DEFAULT_STROKE_W)
+}
+
+fn tessellate_primitives_with_stroke(
+    prims: &[Primitive],
+    layers: &LayerSet,
+    stroke_w: f32,
+) -> Scene {
     let mut scene = Scene::default();
     let n = layers.len();
     let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
     for bucket in by_layer {
         for p in bucket {
-            add_prim(&mut scene, p, layers, false);
+            add_prim(&mut scene, p, layers, false, stroke_w);
         }
         scene.mark_layer_end();
     }
@@ -278,6 +286,7 @@ struct TessellateInput<'a> {
     selected: &'a [usize],
     editing_text: Option<usize>,
     hide_component_origin: bool,
+    stroke_w: f32,
     zoom: f32,
     pan: (f32, f32),
     layer: LayerId,
@@ -296,6 +305,7 @@ impl<'a> TessellateInput<'a> {
             selected: ed.selected(),
             editing_text: ed.editing_text(),
             hide_component_origin: ed.hide_component_origin(),
+            stroke_w: ed.doc().stroke_width(),
             zoom: ed.zoom(),
             pan: ed.pan(),
             layer: ed.layer(),
@@ -322,7 +332,7 @@ pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
         .iter()
         .flat_map(|p| fidocad_core::library::expand_primitive(p, ed.libs()))
         .collect();
-    tessellate_primitives(&expanded, layers)
+    tessellate_primitives_with_stroke(&expanded, layers, ed.doc().stroke_width())
 }
 
 pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {
@@ -374,10 +384,10 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
         for (sel, q) in &bucket {
-            add_prim(&mut scene, q, layers, *sel);
+            add_prim(&mut scene, q, layers, *sel, input.stroke_w);
         }
         if input.layer.index() == li {
-            add_draft(&mut scene, draft, preview);
+            add_draft(&mut scene, draft, preview, input.stroke_w);
         }
         scene.mark_layer_end();
     }

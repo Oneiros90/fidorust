@@ -2,7 +2,7 @@ use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_lin
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
     ComponentRef, Connection, Document, Editor, LayerId, Line, PcbPad, PcbTrack, Point, Poly,
-    Primitive, PropPatch, Rect, SaveOptions, Text, Tool,
+    Primitive, PropPatch, Rect, Text, Tool,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -83,7 +83,7 @@ fn alimentatore_golden() {
     let doc = parse_document(src).unwrap();
     assert!(doc.title.contains("Alimentatore"));
     assert!(doc.primitives.len() > 50);
-    let out = serialize_document(&doc, SaveOptions::default(), None);
+    let out = serialize_document(&doc, None);
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc.primitives.len(), doc2.primitives.len());
 }
@@ -186,7 +186,7 @@ fn pcb_pad_and_track() {
 #[test]
 fn empty_document_ok() {
     let d = Document::default();
-    let s = serialize_document(&d, SaveOptions::default(), None);
+    let s = serialize_document(&d, None);
     assert!(s.starts_with("[FIDOCAD]"));
 }
 
@@ -416,8 +416,8 @@ fn ld_out_of_range_primitive_clamps_to_zero() {
 fn serialize_writes_ld_and_roundtrips() {
     let src = "[FIDOCAD Title]\nLD 1 2 3 0 Hidden sheet\nLD 0 80 200 1 Rame\nLI 1 2 3 4 1\n";
     let doc = parse_document(src).unwrap();
-    let out = serialize_document(&doc, SaveOptions::default(), None);
-    assert!(out.starts_with("[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\n"));
+    let out = serialize_document(&doc, None);
+    assert!(out.starts_with("[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\nPS 5 5 5 5 1 1 1 25 0\r\n"));
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc.layers.len(), doc2.layers.len());
     assert_eq!(
@@ -436,7 +436,7 @@ fn ld_optional_alpha_roundtrips() {
     let src = "[FIDOCAD]\nLD 10 20 30 1 128 Overlay\nLI 0 0 10 10\n";
     let doc = parse_document(src).unwrap();
     assert_eq!(doc.layers.get(0).unwrap().color, [10, 20, 30, 128]);
-    let out = serialize_document(&doc, SaveOptions::default(), None);
+    let out = serialize_document(&doc, None);
     assert!(out.contains("LD 10 20 30 1 128 Overlay"));
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc2.layers.get(0).unwrap().color, [10, 20, 30, 128]);
@@ -446,9 +446,50 @@ fn ld_optional_alpha_roundtrips() {
 fn new_document_has_four_fallback_layers() {
     let d = Document::default();
     assert_eq!(d.layers.len(), 4);
-    let s = serialize_document(&d, SaveOptions::default(), None);
+    let s = serialize_document(&d, None);
     assert!(s.contains("LD 0 0 0 1 Schema"));
     assert!(s.contains("LD 0 0 192 1 PCB lato rame"));
+    assert!(s.contains("PS 5 5 5 5 1 1 1 25 0"));
+}
+
+#[test]
+fn ps_line_roundtrips() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nPS 10 8 4 2 0 0 0 50 1\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.grid, 10);
+    assert_eq!(doc.grid_y, 8);
+    assert_eq!(doc.snap, 4);
+    assert_eq!(doc.snap_y, 2);
+    assert!(!doc.show_grid);
+    assert!(!doc.snap_enable);
+    assert!(!doc.hide_component_origin);
+    assert_eq!(doc.stroke_hundredths, 50);
+    assert!(doc.default_filled);
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("PS 10 8 4 2 0 0 0 50 1"));
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.project_settings(), doc2.project_settings());
+}
+
+#[test]
+fn missing_ps_keeps_defaults() {
+    let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\n").unwrap();
+    assert_eq!(
+        doc.project_settings(),
+        fidocad_core::ProjectSettings::default()
+    );
+}
+
+#[test]
+fn ps_trailing_fields_optional_and_last_wins() {
+    let src = "[FIDOCAD]\nPS 10 10 5 5 1 1 1 25 0\nPS 8 8\nLI 0 0 1 1\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.grid, 8);
+    assert_eq!(doc.grid_y, 8);
+    assert_eq!(doc.snap, 5);
+    assert!(doc.show_grid);
+    assert_eq!(doc.stroke_hundredths, 25);
+    assert!(!doc.default_filled);
 }
 
 #[test]
@@ -638,6 +679,24 @@ fn apply_props_and_grid_are_undoable() {
     ed.set_pcb_mode(true);
     ed.undo();
     assert!(!ed.doc().pcb_mode);
+
+    let mut custom = fidocad_core::ProjectSettings::default();
+    custom.grid = 12;
+    custom.stroke_hundredths = 80;
+    custom.default_filled = true;
+    custom.show_grid = false;
+    ed.apply_project_settings(custom);
+    assert!(ed.can_undo());
+    assert_eq!(ed.doc().grid, 12);
+    assert_eq!(ed.doc().stroke_hundredths, 80);
+    assert!(ed.doc().default_filled);
+    assert!(!ed.doc().show_grid);
+    ed.apply_project_settings(custom);
+    ed.undo();
+    assert_eq!(
+        ed.doc().project_settings(),
+        fidocad_core::ProjectSettings::default()
+    );
 }
 
 #[test]

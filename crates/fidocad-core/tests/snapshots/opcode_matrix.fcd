@@ -3,6 +3,7 @@ LD 0 0 0 1 Schema
 LD 0 0 192 1 PCB lato rame
 LD 0 192 0 1 PCB lato componenti
 LD 0 150 150 1 Serigrafie
+PS 5 5 5 5 1 1 1 25 0
 LI 1 2 3 4
 LI 1 2 3 4 2
 SA 5 6

@@ -12,9 +12,10 @@ pub use tools::{EditorError, TextEditSession, Tool};
 
 use crate::consts::{
     DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_TEXT_SX, DEFAULT_TEXT_SY,
-    DEFAULT_TRACK_WIDTH, FIT_MARGIN, ZOOM_MAX_WHEEL, ZOOM_TOOL_FACTOR,
+    DEFAULT_TRACK_WIDTH, FIT_MARGIN, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, ZOOM_MAX_WHEEL,
+    ZOOM_TOOL_FACTOR,
 };
-use crate::document::Document;
+use crate::document::{Document, ProjectSettings};
 use crate::geom::Point;
 use crate::hit::{hit_test, marquee_select};
 use crate::layers::LayerId;
@@ -38,8 +39,6 @@ pub struct Editor {
     selected: Vec<usize>,
     zoom: f32,
     pan: (f32, f32),
-    split_nonstandard: bool,
-    filled: bool,
     track_width: i32,
     pad_dx: i32,
     pad_dy: i32,
@@ -63,10 +62,6 @@ pub struct Editor {
     hover: Option<Point>,
     /// Screen theme only: preview stroke colour. Not saved.
     canvas_dark: bool,
-    /// Original `m_bSnapEnable`. When false, coordinates are not quantized.
-    snap_enable: bool,
-    /// When true, skip the red origin handle on components.
-    hide_component_origin: bool,
     libs_rev: u32,
     component_edit: Option<ComponentEditSession>,
 }
@@ -82,8 +77,6 @@ impl Editor {
             selected: Vec::new(),
             zoom: 4.0,
             pan: (FIT_MARGIN, FIT_MARGIN),
-            split_nonstandard: false,
-            filled: false,
             track_width: DEFAULT_TRACK_WIDTH,
             pad_dx: DEFAULT_PAD_DX,
             pad_dy: DEFAULT_PAD_DY,
@@ -102,8 +95,6 @@ impl Editor {
             drag: None,
             hover: None,
             canvas_dark: false,
-            snap_enable: true,
-            hide_component_origin: true,
             libs_rev: 0,
             component_edit: None,
         }
@@ -119,7 +110,7 @@ impl Editor {
     }
 
     pub fn set_filled(&mut self, on: bool) {
-        self.filled = on;
+        self.doc.default_filled = on;
     }
 
     pub fn set_layer(&mut self, n: u8) {
@@ -189,7 +180,7 @@ impl Editor {
     }
 
     pub fn filled(&self) -> bool {
-        self.filled
+        self.doc.default_filled
     }
 
     pub fn hover(&self) -> Option<Point> {
@@ -209,27 +200,36 @@ impl Editor {
     }
 
     pub fn snap_enable(&self) -> bool {
-        self.snap_enable
+        self.doc.snap_enable
     }
 
     pub fn set_snap_enable(&mut self, on: bool) {
-        self.snap_enable = on;
+        self.doc.snap_enable = on;
     }
 
     pub fn hide_component_origin(&self) -> bool {
-        self.hide_component_origin
+        self.doc.hide_component_origin
     }
 
     pub fn set_hide_component_origin(&mut self, on: bool) {
-        self.hide_component_origin = on;
+        self.doc.hide_component_origin = on;
     }
 
-    pub fn split_nonstandard(&self) -> bool {
-        self.split_nonstandard
+    pub fn show_grid(&self) -> bool {
+        self.doc.show_grid
     }
 
-    pub fn set_split_nonstandard(&mut self, on: bool) {
-        self.split_nonstandard = on;
+    pub fn set_show_grid(&mut self, on: bool) {
+        self.doc.show_grid = on;
+    }
+
+    pub fn apply_project_settings(&mut self, s: ProjectSettings) {
+        let s = s.clamped();
+        if self.doc.project_settings() == s {
+            return;
+        }
+        self.push_undo();
+        self.doc.apply_project_settings(s);
     }
 
     pub fn pending_rotations(&self) -> u8 {
@@ -257,8 +257,8 @@ impl Editor {
     }
 
     pub fn set_grid(&mut self, x: i32, y: i32) {
-        let x = x.clamp(1, 40);
-        let y = y.clamp(1, 40);
+        let x = x.clamp(GRID_MIN, GRID_MAX);
+        let y = y.clamp(GRID_MIN, GRID_MAX);
         if self.doc.grid == x && self.doc.grid_y == y {
             return;
         }
@@ -268,8 +268,8 @@ impl Editor {
     }
 
     pub fn set_snap(&mut self, x: i32, y: i32) {
-        let x = x.clamp(1, 20);
-        let y = y.clamp(1, 20);
+        let x = x.clamp(SNAP_MIN, SNAP_MAX);
+        let y = y.clamp(SNAP_MIN, SNAP_MAX);
         if self.doc.snap == x && self.doc.snap_y == y {
             return;
         }
@@ -500,7 +500,7 @@ impl Editor {
                     self.doc.insert(Primitive::Rect(Rect {
                         a: d.points[0],
                         b: d.points[1],
-                        filled: self.filled,
+                        filled: self.doc.default_filled,
                         layer: self.layer,
                     }));
                 }
@@ -509,7 +509,7 @@ impl Editor {
                     self.doc.insert(Primitive::Ellipse(Ellipse {
                         a: d.points[0],
                         b: d.points[1],
-                        filled: self.filled,
+                        filled: self.doc.default_filled,
                         layer: self.layer,
                     }));
                 }
@@ -563,7 +563,7 @@ impl Editor {
                 self.push_undo();
                 self.doc.insert(Primitive::Poly(Poly {
                     pts: d.points,
-                    filled: self.filled,
+                    filled: self.doc.default_filled,
                     layer: self.layer,
                 }));
             }

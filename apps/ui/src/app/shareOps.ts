@@ -6,9 +6,7 @@ export async function openShareLink(s: AppSession) {
 	s.dialogs.open({ kind: 'shareLink', url: '' });
 	try {
 		const url = shareUrl(
-			await encodeProject(
-				s.engine.query((app) => (s.splitComponents ? app.save_portable_fcd() : app.save_fcd()))
-			)
+			await encodeProject(s.engine.query((app) => app.save_fcd()))
 		);
 		if (s.dialogs.dialog?.kind === 'shareLink') {
 			s.dialogs.dialog = { kind: 'shareLink', url };
@@ -23,7 +21,7 @@ export function openShareFcd(s: AppSession) {
 	if (!s.engine) return;
 	s.dialogs.open({
 		kind: 'shareFcd',
-		text: s.engine.query((app) => (s.splitComponents ? app.save_portable_fcd() : app.save_fcd()))
+		text: s.engine.query((app) => app.save_fcd())
 	});
 }
 

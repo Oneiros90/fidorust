@@ -4,7 +4,7 @@
 	import TechnologiesDialog from '../dialogs/TechnologiesDialog.svelte';
 	import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
-	import GridDialog from '../dialogs/GridDialog.svelte';
+	import ProjectSettingsDialog from '../dialogs/ProjectSettingsDialog.svelte';
 	import DeleteLayerDialog from '../dialogs/DeleteLayerDialog.svelte';
 	import DeleteComponentDialog from '../dialogs/DeleteComponentDialog.svelte';
 	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
@@ -59,8 +59,8 @@
 	<AboutDialog />
 {:else if dialog?.kind === 'technologies'}
 	<TechnologiesDialog />
-{:else if dialog?.kind === 'grid'}
-	<GridDialog
+{:else if dialog?.kind === 'projectSettings'}
+	<ProjectSettingsDialog
 		t={app.t}
 		values={{
 			gridX: app.status.grid,
@@ -69,9 +69,11 @@
 			snapY: app.status.snap_y,
 			showGrid: app.status.show_grid,
 			snapEnable: app.status.snap_enable,
-			hideComponentOrigin: app.status.hide_component_origin
+			hideComponentOrigin: app.status.hide_component_origin,
+			strokeHundredths: app.status.stroke_hundredths,
+			defaultFilled: app.status.default_filled
 		}}
-		onApply={app.applyGrid}
+		onApply={app.applyProjectSettings}
 		onCancel={() => app.dialogs.close()}
 	/>
 {:else if dialog?.kind === 'properties'}

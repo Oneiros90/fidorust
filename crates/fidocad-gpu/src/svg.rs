@@ -8,7 +8,7 @@ use fidocad_core::primitive::{
     DEFAULT_FONT, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED, STYLE_UNDERLINE,
 };
 
-use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene, DEFAULT_STROKE_W};
+use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
 use crate::theme::css_color;
 
 struct SvgWriter<F> {
@@ -153,6 +153,7 @@ pub fn export_svg(
     layers: &LayerSet,
     libs: &LibrarySet,
     margin: f32,
+    stroke_w: f32,
 ) -> String {
     let margin = margin.max(0.0);
     let expanded: Vec<Primitive> = prims
@@ -186,7 +187,14 @@ pub fn export_svg(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w:.2}" height="{h:.2}" viewBox="{x0:.2} {y0:.2} {w:.2} {h:.2}" fill="none">"#
     );
     write_export_hole_defs(&mut out, &holes, x0, y0, w, h);
-    write_prim_layers(&mut out, &by_layer, &holes, layers, n as isize - 1);
+    write_prim_layers(
+        &mut out,
+        &by_layer,
+        &holes,
+        layers,
+        n as isize - 1,
+        stroke_w,
+    );
     out.push_str("</svg>");
     out
 }
@@ -262,6 +270,7 @@ fn write_prim_layers(
     holes: &[Vec<PadHole>],
     layers: &LayerSet,
     i: isize,
+    stroke_w: f32,
 ) {
     if i < 0 {
         return;
@@ -270,35 +279,41 @@ fn write_prim_layers(
     let layer_holes = holes.get(i).map(Vec::as_slice).unwrap_or(&[]);
     if !layer_holes.is_empty() {
         out.push_str(&format!(r#"<g mask="url(#export-h{i})">"#));
-        write_prim_layers(out, by_layer, holes, layers, i as isize - 1);
-        write_layer_prims(out, by_layer, layers, i);
+        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, stroke_w);
+        write_layer_prims(out, by_layer, layers, i, stroke_w);
         for hole in layer_holes {
             write_hole_marker(out, hole);
         }
         out.push_str("</g>");
     } else {
-        write_prim_layers(out, by_layer, holes, layers, i as isize - 1);
-        write_layer_prims(out, by_layer, layers, i);
+        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, stroke_w);
+        write_layer_prims(out, by_layer, layers, i, stroke_w);
     }
 }
 
-fn write_layer_prims(out: &mut String, by_layer: &[Vec<Primitive>], layers: &LayerSet, i: usize) {
+fn write_layer_prims(
+    out: &mut String,
+    by_layer: &[Vec<Primitive>],
+    layers: &LayerSet,
+    i: usize,
+    stroke_w: f32,
+) {
     let Some(prims) = by_layer.get(i) else {
         return;
     };
     for p in prims {
-        write_prim(out, p, &rgb_u8(layers.color(p.layer())));
+        write_prim(out, p, &rgb_u8(layers.color(p.layer())), stroke_w);
     }
 }
 
-fn write_prim(out: &mut String, p: &Primitive, color: &str) {
+fn write_prim(out: &mut String, p: &Primitive, color: &str, stroke_w: f32) {
     match p {
-        Primitive::Line(l) => write_line_prim(out, l, color),
-        Primitive::Rect(r) => write_rect_prim(out, r, color),
-        Primitive::Poly(poly) => write_poly_prim(out, poly, color),
-        Primitive::Ellipse(e) => write_ellipse_prim(out, e, color),
-        Primitive::Bezier(b) => write_bezier_prim(out, b, color),
-        Primitive::Text(t) => write_text_prim(out, t, color),
+        Primitive::Line(l) => write_line_prim(out, l, color, stroke_w),
+        Primitive::Rect(r) => write_rect_prim(out, r, color, stroke_w),
+        Primitive::Poly(poly) => write_poly_prim(out, poly, color, stroke_w),
+        Primitive::Ellipse(e) => write_ellipse_prim(out, e, color, stroke_w),
+        Primitive::Bezier(b) => write_bezier_prim(out, b, color, stroke_w),
+        Primitive::Text(t) => write_text_prim(out, t, color, stroke_w),
         Primitive::Connection(c) => write_connection_prim(out, c, color),
         Primitive::PcbTrack(t) => write_track_prim(out, t, color),
         Primitive::PcbPad(pad) => write_pad_prim(out, pad, color),
@@ -320,7 +335,7 @@ fn write_stroke_line(
     ));
 }
 
-fn write_line_prim(out: &mut String, l: &Line, color: &str) {
+fn write_line_prim(out: &mut String, l: &Line, color: &str, stroke_w: f32) {
     write_stroke_line(
         out,
         l.a.x as f32,
@@ -328,11 +343,11 @@ fn write_line_prim(out: &mut String, l: &Line, color: &str) {
         l.b.x as f32,
         l.b.y as f32,
         color,
-        DEFAULT_STROKE_W,
+        stroke_w,
     );
 }
 
-fn write_rect_prim(out: &mut String, r: &Rect, color: &str) {
+fn write_rect_prim(out: &mut String, r: &Rect, color: &str, stroke_w: f32) {
     let x = r.a.x.min(r.b.x) as f32;
     let y = r.a.y.min(r.b.y) as f32;
     let w = (r.a.x - r.b.x).unsigned_abs() as f32;
@@ -343,12 +358,12 @@ fn write_rect_prim(out: &mut String, r: &Rect, color: &str) {
         ));
     } else {
         out.push_str(&format!(
-            r#"<rect x="{x:.2}" y="{y:.2}" width="{w:.2}" height="{h:.2}" fill="none" stroke="{color}" stroke-width="{DEFAULT_STROKE_W}"/>"#
+            r#"<rect x="{x:.2}" y="{y:.2}" width="{w:.2}" height="{h:.2}" fill="none" stroke="{color}" stroke-width="{stroke_w}"/>"#
         ));
     }
 }
 
-fn write_poly_prim(out: &mut String, poly: &Poly, color: &str) {
+fn write_poly_prim(out: &mut String, poly: &Poly, color: &str, stroke_w: f32) {
     if poly.pts.len() < 2 {
         return;
     }
@@ -362,12 +377,12 @@ fn write_poly_prim(out: &mut String, poly: &Poly, color: &str) {
         out.push_str(&format!(r#"<polygon points="{pts}" fill="{color}"/>"#));
     } else {
         out.push_str(&format!(
-            r#"<polygon points="{pts}" fill="none" stroke="{color}" stroke-width="{DEFAULT_STROKE_W}" stroke-linejoin="round"/>"#
+            r#"<polygon points="{pts}" fill="none" stroke="{color}" stroke-width="{stroke_w}" stroke-linejoin="round"/>"#
         ));
     }
 }
 
-fn write_ellipse_prim(out: &mut String, e: &Ellipse, color: &str) {
+fn write_ellipse_prim(out: &mut String, e: &Ellipse, color: &str, stroke_w: f32) {
     let cx = (e.a.x + e.b.x) as f32 / 2.0;
     let cy = (e.a.y + e.b.y) as f32 / 2.0;
     let rx = ((e.a.x - e.b.x).abs() as f32 / 2.0).max(0.5);
@@ -378,14 +393,14 @@ fn write_ellipse_prim(out: &mut String, e: &Ellipse, color: &str) {
         ));
     } else {
         out.push_str(&format!(
-            r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="none" stroke="{color}" stroke-width="{DEFAULT_STROKE_W:.2}"/>"#
+            r#"<ellipse cx="{cx:.2}" cy="{cy:.2}" rx="{rx:.2}" ry="{ry:.2}" fill="none" stroke="{color}" stroke-width="{stroke_w:.2}"/>"#
         ));
     }
 }
 
-fn write_bezier_prim(out: &mut String, b: &Bezier, color: &str) {
+fn write_bezier_prim(out: &mut String, b: &Bezier, color: &str, stroke_w: f32) {
     out.push_str(&format!(
-        r#"<path d="M {x0:.2},{y0:.2} C {x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="none" stroke="{color}" stroke-width="{DEFAULT_STROKE_W}" stroke-linecap="round"/>"#,
+        r#"<path d="M {x0:.2},{y0:.2} C {x1:.2},{y1:.2} {x2:.2},{y2:.2} {x3:.2},{y3:.2}" fill="none" stroke="{color}" stroke-width="{stroke_w}" stroke-linecap="round"/>"#,
         x0 = b.p0.x as f32,
         y0 = b.p0.y as f32,
         x1 = b.p1.x as f32,
@@ -412,7 +427,7 @@ fn xml_escape(s: &str) -> String {
     out
 }
 
-fn write_text_prim(out: &mut String, t: &Text, color: &str) {
+fn write_text_prim(out: &mut String, t: &Text, color: &str, stroke_w: f32) {
     if t.text.is_empty() {
         return;
     }
@@ -457,7 +472,7 @@ fn write_text_prim(out: &mut String, t: &Text, color: &str) {
         let map = |lx: f32, ly: f32| (px + lx * cos - ly * sin, py + lx * sin + ly * cos);
         let (ax, ay) = map(x0, size);
         let (bx, by) = map(x1, size);
-        write_stroke_line(out, ax, ay, bx, by, color, DEFAULT_STROKE_W);
+        write_stroke_line(out, ax, ay, bx, by, color, stroke_w);
     }
 }
 

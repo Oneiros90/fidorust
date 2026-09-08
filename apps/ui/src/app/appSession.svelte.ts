@@ -30,7 +30,7 @@ import { loadLocalLibrary, saveLocalLibrary } from '../lib/localLibrary';
 export type { RecentEntry };
 export type { LibGhost };
 
-export type GridValues = {
+export type ProjectSettingsValues = {
 	gridX: number;
 	gridY: number;
 	snapX: number;
@@ -38,6 +38,8 @@ export type GridValues = {
 	showGrid: boolean;
 	snapEnable: boolean;
 	hideComponentOrigin: boolean;
+	strokeHundredths: number;
+	defaultFilled: boolean;
 };
 
 export class AppSession {
@@ -59,7 +61,6 @@ export class AppSession {
 	);
 	ui = new UiState();
 	dialogs = new Dialogs();
-	splitComponents = $state(this.#session?.splitComponents ?? false);
 	fileHandleName = $state(this.#session?.name ?? 'untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
 	libGhost = $state<LibGhost | null>(null);
@@ -203,7 +204,6 @@ export class AppSession {
 			app.set_locale(this.locale);
 			app.set_theme(this.theme);
 			if (localFcl) app.load_local_library(localFcl);
-			app.set_split_components(this.splitComponents);
 			if (this.#session) {
 				app.set_hide_component_origin(this.#session.hideComponentOrigin);
 			}
@@ -252,13 +252,13 @@ export class AppSession {
 					session.tool === 'component' || session.tool === 'macro' ? 'select' : session.tool
 				);
 				app.set_layer(session.layer);
-				app.set_snap_enable(session.snapEnable);
-				app.set_show_grid(session.showGrid);
-				app.set_hide_component_origin(session.hideComponentOrigin);
-				app.set_split_components(session.splitComponents);
+				if (!fcdHasProjectSettings(session.fcd)) {
+					app.set_snap_enable(session.snapEnable);
+					app.set_show_grid(session.showGrid);
+					app.set_hide_component_origin(session.hideComponentOrigin);
+				}
 			});
 			this.fileHandleName = session.name;
-			this.splitComponents = session.splitComponents;
 			this.savedSnapshot = session.savedFcd;
 		} catch (err) {
 			this.error = String(err);
@@ -303,7 +303,6 @@ export class AppSession {
 			snapEnable: status.snap_enable,
 			showGrid: status.show_grid,
 			hideComponentOrigin: status.hide_component_origin,
-			splitComponents: this.splitComponents,
 			theme: this.theme,
 			locale: this.locale
 		});
@@ -355,7 +354,7 @@ export class AppSession {
 
 	openAbout = () => this.dialogs.open({ kind: 'about' });
 	openTechnologies = () => this.dialogs.open({ kind: 'technologies' });
-	openGrid = () => this.dialogs.open({ kind: 'grid' });
+	openProjectSettings = () => this.dialogs.open({ kind: 'projectSettings' });
 
 	openProperties = () => {
 		if (!this.engine || this.status.selected === 0) return;
@@ -422,14 +421,6 @@ export class AppSession {
 		this.engine?.mutate((app) => {
 			app.set_pcb_mode(!this.status.pcb);
 		});
-	};
-
-	toggleSplitComponents = () => {
-		this.splitComponents = !this.splitComponents;
-		this.engine?.query((app) => {
-			app.set_split_components(this.splitComponents);
-		});
-		this.schedulePersist();
 	};
 
 	pickComponent = (stem: string, key: string) => {
@@ -547,13 +538,21 @@ export class AppSession {
 	getCursor = (name: string) => getCursor(this, name);
 	armLibraryDrag = (name: string, e: PointerEvent) => this.#libraryDrag.arm(name, e);
 
-	applyGrid = (v: GridValues) => {
+	applyProjectSettings = (v: ProjectSettingsValues) => {
 		this.engine?.mutate((app) => {
-			app.set_grid(v.gridX, v.gridY);
-			app.set_snap(v.snapX, v.snapY);
-			app.set_show_grid(v.showGrid);
-			app.set_snap_enable(v.snapEnable);
-			app.set_hide_component_origin(v.hideComponentOrigin);
+			app.apply_project_settings(
+				JSON.stringify({
+					grid: v.gridX,
+					grid_y: v.gridY,
+					snap: v.snapX,
+					snap_y: v.snapY,
+					show_grid: v.showGrid,
+					snap_enable: v.snapEnable,
+					hide_component_origin: v.hideComponentOrigin,
+					stroke_hundredths: v.strokeHundredths,
+					default_filled: v.defaultFilled
+				})
+			);
 		});
 		this.dialogs.close();
 	};
@@ -621,4 +620,8 @@ export class AppSession {
 			app.set_layer_show(i, show);
 		});
 	};
+}
+
+function fcdHasProjectSettings(text: string): boolean {
+	return /(^|[\r\n])[ \t]*PS(?:\s|$)/i.test(text);
 }

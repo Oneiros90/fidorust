@@ -117,7 +117,7 @@ export function saveFile(s: AppSession) {
 	const name = s.fileHandleName.endsWith('.fcd') ? s.fileHandleName : 'drawing.fcd';
 	download(
 		name,
-		s.engine.query((app) => (s.splitComponents ? app.save_portable_fcd() : app.save_fcd())),
+		s.engine.query((app) => app.save_fcd()),
 		'text/plain'
 	);
 	s.fileHandleName = name;
