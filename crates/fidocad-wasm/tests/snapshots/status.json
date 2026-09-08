@@ -6,6 +6,8 @@
   "hide_macro_origin": true,
   "layer": 0,
   "n": 0,
+  "pan_x": 40.0,
+  "pan_y": 40.0,
   "pcb": false,
   "pending_macro": null,
   "selected": 0,

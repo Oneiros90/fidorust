@@ -29,3 +29,13 @@ fn pretty(raw: &str) -> String {
     let v: serde_json::Value = serde_json::from_str(raw).unwrap_or(serde_json::Value::Null);
     serde_json::to_string_pretty(&v).unwrap()
 }
+
+#[test]
+fn set_view_roundtrip() {
+    let mut app = App::new();
+    app.set_view(8.0, 12.0, 34.0);
+    let status: serde_json::Value = serde_json::from_str(&app.status_json()).unwrap();
+    assert_eq!(status["zoom"].as_f64(), Some(8.0));
+    assert_eq!(status["pan_x"].as_f64(), Some(12.0));
+    assert_eq!(status["pan_y"].as_f64(), Some(34.0));
+}

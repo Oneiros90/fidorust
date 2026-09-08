@@ -449,6 +449,11 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn set_view(&mut self, zoom: f32, pan_x: f32, pan_y: f32) {
+        self.editor.set_view(zoom, (pan_x, pan_y));
+    }
+
+    #[wasm_bindgen]
     pub fn new_doc(&mut self) {
         self.editor = Editor::new(builtin_libraries());
         self.backend.apply_theme(&mut self.editor, &self.theme);

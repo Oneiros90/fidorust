@@ -9,8 +9,13 @@ export class Settings {
 
 	constructor(
 		private getEngine: () => Engine | null,
-		private onApplyTheme: (theme: Theme) => void
+		private onApplyTheme: (theme: Theme) => void,
+		initial?: { locale: Locale; theme: Theme }
 	) {
+		if (initial) {
+			this.locale = initial.locale;
+			this.theme = initial.theme;
+		}
 		$effect(() => {
 			const loc = this.locale;
 			const theme = this.theme;

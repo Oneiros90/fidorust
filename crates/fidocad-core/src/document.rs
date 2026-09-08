@@ -19,7 +19,7 @@ impl Default for SaveOptions {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Document {
     pub title: String,
     pub primitives: Vec<Primitive>,

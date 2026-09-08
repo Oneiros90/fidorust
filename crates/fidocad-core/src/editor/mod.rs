@@ -50,6 +50,8 @@ pub struct Editor {
     editing_text: Option<usize>,
     undo: Vec<Document>,
     redo: Vec<Document>,
+    /// Pre-move / pre-handle snapshot; committed on pointer_up if the document changed.
+    drag_checkpoint: Option<Document>,
     draft: Option<Draft>,
     drag: Option<Drag>,
     hover: Option<Point>,
@@ -84,6 +86,7 @@ impl Editor {
             editing_text: None,
             undo: Vec::new(),
             redo: Vec::new(),
+            drag_checkpoint: None,
             draft: None,
             drag: None,
             hover: None,
@@ -220,17 +223,33 @@ impl Editor {
     }
 
     pub fn set_pcb_mode(&mut self, on: bool) {
+        if self.doc.pcb_mode == on {
+            return;
+        }
+        self.push_undo();
         self.doc.pcb_mode = on;
     }
 
     pub fn set_grid(&mut self, x: i32, y: i32) {
-        self.doc.grid = x.clamp(1, 40);
-        self.doc.grid_y = y.clamp(1, 40);
+        let x = x.clamp(1, 40);
+        let y = y.clamp(1, 40);
+        if self.doc.grid == x && self.doc.grid_y == y {
+            return;
+        }
+        self.push_undo();
+        self.doc.grid = x;
+        self.doc.grid_y = y;
     }
 
     pub fn set_snap(&mut self, x: i32, y: i32) {
-        self.doc.snap = x.clamp(1, 20);
-        self.doc.snap_y = y.clamp(1, 20);
+        let x = x.clamp(1, 20);
+        let y = y.clamp(1, 20);
+        if self.doc.snap == x && self.doc.snap_y == y {
+            return;
+        }
+        self.push_undo();
+        self.doc.snap = x;
+        self.doc.snap_y = y;
     }
 
     pub fn set_track_width(&mut self, w: i32) {
@@ -267,9 +286,6 @@ impl Editor {
     }
 
     pub fn pointer_down(&mut self, world: Point, screen: (f32, f32), shift: bool, pan_mod: bool) {
-        if self.tool == Tool::Select && !pan_mod && !self.selected.is_empty() {
-            self.push_undo();
-        }
         let pt = self.snap_pt(world);
         if pan_mod || self.tool == Tool::Pan {
             self.drag = Some(Drag::Pan {
@@ -294,11 +310,13 @@ impl Editor {
                         self.selected.push(hit.index);
                     }
                     if let Some(h) = hit.handle {
+                        self.begin_drag_checkpoint();
                         self.drag = Some(Drag::Handle {
                             index: hit.index,
                             handle: h,
                         });
                     } else {
+                        self.begin_drag_checkpoint();
                         self.drag = Some(Drag::Move { last: pt });
                     }
                 } else {
@@ -428,6 +446,7 @@ impl Editor {
     pub fn pointer_up(&mut self, world: Point) {
         let pt = self.snap_pt(world);
         if let Some(Drag::Marquee { start, current }) = self.drag.take() {
+            self.drag_checkpoint = None;
             let a = self.screen_to_world(start.0, start.1);
             let b = self.screen_to_world(current.0, current.1);
             let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
@@ -439,6 +458,7 @@ impl Editor {
             return;
         }
         self.drag = None;
+        self.commit_drag_checkpoint();
         if let Some(d) = self.draft.take() {
             match d.tool {
                 Tool::Line if d.points.len() >= 2 && d.points[0] != d.points[1] => {
@@ -527,6 +547,7 @@ impl Editor {
     pub fn cancel_draft(&mut self) {
         self.draft = None;
         self.drag = None;
+        self.commit_drag_checkpoint();
     }
 
     pub fn selection_props_form(&self) -> Vec<crate::properties::PropFormField> {
@@ -567,9 +588,12 @@ impl Editor {
     }
 
     pub fn load_text(&mut self, text: &str) -> Result<(), crate::parse::ParseError> {
-        self.push_undo();
-        self.doc = crate::parse::parse_document(text)?;
+        let doc = crate::parse::parse_document(text)?;
+        self.doc = doc;
+        self.clear_history();
         self.selected.clear();
+        self.drag = None;
+        self.draft = None;
         self.clamp_current_layer();
         self.fit_view(800.0, 600.0);
         Ok(())

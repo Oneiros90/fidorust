@@ -79,7 +79,7 @@ pub fn fidocad_fallback() -> Vec<LayerInfo> {
     ]
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LayerSet {
     layers: Vec<LayerInfo>,
 }

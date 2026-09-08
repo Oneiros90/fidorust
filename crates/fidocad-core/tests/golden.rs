@@ -2,7 +2,7 @@ use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_lin
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
     Connection, Document, Editor, LayerId, Line, MacroRef, PcbPad, PcbTrack, Point, Poly,
-    Primitive, SaveOptions, Text, Tool,
+    Primitive, PropPatch, Rect, SaveOptions, Text, Tool,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -312,6 +312,7 @@ fn text_edit_commit_replaces_content() {
     assert_eq!(ed.editing_text(), Some(0));
     ed.commit_text_edit("OUT".into());
     assert!(ed.editing_text().is_none());
+    assert!(ed.can_undo());
     match &ed.doc_mut().primitives[0] {
         Primitive::Text(Text { text, .. }) => assert_eq!(text, "OUT"),
         _ => panic!("expected text"),
@@ -502,4 +503,113 @@ fn cannot_delete_last_layer() {
     }
     assert!(!ed.delete_layer(0, None));
     assert_eq!(ed.doc_mut().layers.len(), 1);
+}
+
+#[test]
+fn empty_selection_move_is_undoable() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    ed.pointer_up(Point::new(15, 0));
+    assert!(ed.can_undo());
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(10, 0), Point::new(20, 0)));
+        }
+        _ => panic!("expected line"),
+    }
+    ed.undo();
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected line"),
+    }
+    assert!(!ed.can_undo());
+    assert!(ed.can_redo());
+}
+
+#[test]
+fn select_click_without_move_is_not_undoable() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.set_tool(Tool::Select);
+    ed.selected_mut().push(0);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.pointer_up(Point::new(5, 0));
+    assert!(!ed.can_undo());
+}
+
+#[test]
+fn apply_props_and_grid_are_undoable() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::Rect(Rect {
+        a: Point::new(0, 0),
+        b: Point::new(10, 10),
+        filled: false,
+        layer: LayerId(0),
+    }));
+    ed.selected_mut().push(0);
+    let applied = ed
+        .apply_selection_props_patch(&PropPatch {
+            filled: Some(true),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(applied);
+    assert!(ed.can_undo());
+    match &ed.doc().primitives[0] {
+        Primitive::Rect(Rect { filled, .. }) => assert!(filled),
+        _ => panic!("expected rect"),
+    }
+    ed.undo();
+    match &ed.doc().primitives[0] {
+        Primitive::Rect(Rect { filled, .. }) => assert!(!filled),
+        _ => panic!("expected rect"),
+    }
+
+    ed.set_grid(10, 8);
+    assert!(ed.can_undo());
+    assert_eq!(ed.doc().grid, 10);
+    assert_eq!(ed.doc().grid_y, 8);
+    ed.set_grid(10, 8);
+    ed.undo();
+    assert_eq!(ed.doc().grid, 5);
+    assert_eq!(ed.doc().grid_y, 5);
+    assert!(!ed.can_undo());
+
+    ed.set_pcb_mode(true);
+    assert!(ed.can_undo());
+    assert!(ed.doc().pcb_mode);
+    ed.set_pcb_mode(true);
+    ed.undo();
+    assert!(!ed.doc().pcb_mode);
+}
+
+#[test]
+fn load_text_clears_history() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.set_grid(10, 10);
+    assert!(ed.can_undo());
+    ed.load_text("[FIDOCAD]\nLI 1 2 3 4\n").unwrap();
+    assert!(!ed.can_undo());
+    assert!(!ed.can_redo());
+    assert_eq!(ed.doc().primitives.len(), 1);
 }

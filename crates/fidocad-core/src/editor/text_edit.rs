@@ -32,6 +32,7 @@ impl Editor {
     fn begin_text_edit_index(&mut self, index: usize) -> Option<TextEditSession> {
         let session = self.text_edit_session(index)?;
         self.selected = vec![index];
+        self.commit_drag_checkpoint();
         self.drag = None;
         self.editing_text = Some(index);
         Some(session)
@@ -46,6 +47,7 @@ impl Editor {
         if self.draft.is_some() {
             return None;
         }
+        self.commit_drag_checkpoint();
         self.drag = None;
         let hit = hit_test(
             &self.doc.primitives,

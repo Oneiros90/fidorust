@@ -2,6 +2,12 @@ import { SvelteMap } from 'svelte/reactivity';
 import type { Locale } from '../i18n';
 import type { Example } from '../lib/examples';
 import { loadRecents, type RecentEntry } from '../lib/recentFiles';
+import {
+	loadSession,
+	saveSession,
+	SESSION_DEBOUNCE_MS,
+	type SessionState
+} from '../lib/sessionStore';
 import { decodeProject } from '../lib/shareCodec';
 import { parsePropForm, type PropPatch } from '../lib/propForm';
 import { defaultStatus } from './engineTypes';
@@ -33,6 +39,9 @@ export type GridValues = {
 };
 
 export class AppSession {
+	#session = loadSession();
+	#persistTimer: ReturnType<typeof setTimeout> | null = null;
+	#persistEnabled = false;
 	engine = $state<Engine | null>(null);
 	settings = new Settings(
 		() => this.engine,
@@ -42,12 +51,14 @@ export class AppSession {
 				app.set_theme(theme);
 				app.render();
 			});
-		}
+			this.schedulePersist();
+		},
+		this.#session ? { locale: this.#session.locale, theme: this.#session.theme } : undefined
 	);
 	ui = new UiState();
 	dialogs = new Dialogs();
-	splitMacros = $state(true);
-	fileHandleName = $state('untitled.fcd');
+	splitMacros = $state(this.#session?.splitMacros ?? true);
+	fileHandleName = $state(this.#session?.name ?? 'untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
 	libGhost = $state<LibGhost | null>(null);
 	cursorCache = new SvelteMap<string, MacroCursor>();
@@ -145,7 +156,10 @@ export class AppSession {
 	};
 
 	applyTheme = () => this.settings.applyTheme();
-	setLocale = (loc: Locale) => this.settings.setLocale(loc);
+	setLocale = (loc: Locale) => {
+		this.settings.setLocale(loc);
+		this.schedulePersist();
+	};
 	setTheme = (theme: Theme) => this.settings.setTheme(theme);
 
 	init = async () => {
@@ -157,6 +171,7 @@ export class AppSession {
 		this.engine.query((app) => {
 			app.set_locale(this.locale);
 			app.set_theme(this.theme);
+			app.set_split_macros(this.splitMacros);
 		});
 		this.refresh();
 		const project = new URLSearchParams(window.location.search).get('project');
@@ -171,9 +186,81 @@ export class AppSession {
 				this.error = String(err);
 				this.markClean();
 			}
+		} else if (this.#session) {
+			this.restoreSession(this.#session);
 		} else {
 			this.markClean();
 		}
+		this.#persistEnabled = true;
+		if (this.engine) this.engine.onRefresh = () => this.schedulePersist();
+		window.addEventListener('pagehide', this.flushPersist);
+		document.addEventListener('visibilitychange', this.onVisibilityChange);
+		this.schedulePersist();
+	};
+
+	restoreSession = (session: SessionState) => {
+		if (!this.engine) return;
+		try {
+			this.engine.mutate((app) => {
+				app.load_fcd(session.fcd);
+				app.set_view(session.zoom, session.panX, session.panY);
+				app.set_tool(session.tool);
+				app.set_layer(session.layer);
+				app.set_snap_enable(session.snapEnable);
+				app.set_show_grid(session.showGrid);
+				app.set_hide_macro_origin(session.hideMacroOrigin);
+				app.set_split_macros(session.splitMacros);
+			});
+			this.fileHandleName = session.name;
+			this.splitMacros = session.splitMacros;
+			this.savedSnapshot = session.savedFcd;
+		} catch (err) {
+			this.error = String(err);
+			this.markClean();
+		}
+	};
+
+	schedulePersist = () => {
+		if (!this.#persistEnabled) return;
+		if (this.#persistTimer) clearTimeout(this.#persistTimer);
+		this.#persistTimer = setTimeout(() => {
+			this.#persistTimer = null;
+			this.persistNow();
+		}, SESSION_DEBOUNCE_MS);
+	};
+
+	flushPersist = () => {
+		if (this.#persistTimer) {
+			clearTimeout(this.#persistTimer);
+			this.#persistTimer = null;
+		}
+		this.persistNow();
+	};
+
+	onVisibilityChange = () => {
+		if (document.visibilityState === 'hidden') this.flushPersist();
+	};
+
+	persistNow = () => {
+		if (!this.#persistEnabled || !this.engine) return;
+		const status = this.status;
+		saveSession({
+			version: 1,
+			fcd: this.engine.query((app) => app.save_fcd()),
+			name: this.fileHandleName,
+			savedFcd: this.savedSnapshot,
+			zoom: status.zoom,
+			panX: status.pan_x,
+			panY: status.pan_y,
+			tool: status.tool,
+			layer: status.layer,
+			snapEnable: status.snap_enable,
+			showGrid: status.show_grid,
+			hideMacroOrigin: status.hide_macro_origin,
+			splitMacros: this.splitMacros,
+			theme: this.theme,
+			locale: this.locale
+		});
 	};
 
 	onKey = (e: KeyboardEvent) => {
@@ -242,7 +329,10 @@ export class AppSession {
 	};
 
 	isDirty = () => files.isDirty(this);
-	markClean = () => files.markClean(this);
+	markClean = () => {
+		files.markClean(this);
+		this.schedulePersist();
+	};
 	rememberCurrent = (name: string) => files.rememberCurrent(this, name);
 	confirmDiscard = (action: () => void) => files.confirmDiscard(this, action);
 	acceptDiscard = () => files.acceptDiscard(this);
@@ -276,10 +366,9 @@ export class AppSession {
 	fit = () => edit.fit(this);
 
 	togglePcb = () => {
-		this.engine?.query((app) => {
+		this.engine?.mutate((app) => {
 			app.set_pcb_mode(!this.status.pcb);
 		});
-		this.refresh();
 	};
 
 	toggleSplitMacros = () => {
@@ -287,6 +376,7 @@ export class AppSession {
 		this.engine?.query((app) => {
 			app.set_split_macros(this.splitMacros);
 		});
+		this.schedulePersist();
 	};
 
 	pickMacro = (stem: string, key: string) => {

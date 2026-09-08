@@ -67,6 +67,7 @@ export class App {
     set_theme(theme: string): void;
     set_tool(id: string): void;
     set_track_width(w: number): void;
+    set_view(zoom: number, pan_x: number, pan_y: number): void;
     split_selected_macros(): void;
     status_json(): string;
     undo(): void;
@@ -136,6 +137,7 @@ export interface InitOutput {
     readonly app_set_theme: (a: number, b: number, c: number) => void;
     readonly app_set_tool: (a: number, b: number, c: number) => void;
     readonly app_set_track_width: (a: number, b: number) => void;
+    readonly app_set_view: (a: number, b: number, c: number, d: number) => void;
     readonly app_split_selected_macros: (a: number) => void;
     readonly app_status_json: (a: number) => [number, number];
     readonly app_undo: (a: number) => void;

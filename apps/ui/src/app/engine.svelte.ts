@@ -9,6 +9,7 @@ export class Engine {
 	layers = $state<LayersData>({ layers: [] });
 	libs = $state<LibraryEntry[]>([]);
 	canvas: HTMLCanvasElement | null = null;
+	onRefresh: (() => void) | null = null;
 
 	constructor(app: WasmApp) {
 		this.app = app;
@@ -19,6 +20,7 @@ export class Engine {
 	refresh = () => {
 		this.status = JSON.parse(this.app.status_json());
 		this.layers = JSON.parse(this.app.layers_json());
+		this.onRefresh?.();
 	};
 
 	mutate = (fn: (app: WasmApp) => void, opts?: MutateOpts) => {

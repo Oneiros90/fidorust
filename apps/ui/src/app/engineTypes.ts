@@ -8,6 +8,8 @@ export type Status = {
 	xmm: number;
 	ymm: number;
 	zoom: number;
+	pan_x: number;
+	pan_y: number;
 	pcb: boolean;
 	n: number;
 	selected: number;
@@ -67,6 +69,8 @@ export const defaultStatus = (): Status => ({
 	xmm: 0,
 	ymm: 0,
 	zoom: 4,
+	pan_x: 40,
+	pan_y: 40,
 	pcb: false,
 	n: 0,
 	selected: 0,
