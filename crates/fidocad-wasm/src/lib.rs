@@ -6,9 +6,7 @@ mod render_backend;
 use fidocad_core::parse::builtin_libraries;
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{Editor, EditorError, PropPatch, SaveOptions, Tool};
-use fidocad_gpu::tessellate::{
-    scene_to_export_svg, scene_to_thumb_svg, tessellate_export, tessellate_primitives,
-};
+use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
@@ -157,8 +155,12 @@ impl App {
                 });
             }
         }
-        let scene = tessellate_export(&self.editor, &layers);
-        scene_to_export_svg(&scene, opts.margin_lu.max(0.0))
+        export_svg(
+            &self.editor.doc().primitives,
+            &layers,
+            self.editor.libs(),
+            opts.margin_lu.max(0.0),
+        )
     }
 
     #[wasm_bindgen]

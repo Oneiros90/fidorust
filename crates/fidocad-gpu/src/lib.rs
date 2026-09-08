@@ -9,7 +9,7 @@ pub mod tessellate;
 pub mod theme;
 
 pub use tessellate::{
-    scene_to_cursor_svg, scene_to_export_svg, scene_to_svg, scene_to_thumb_svg, tessellate_editor,
+    export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, tessellate_editor,
     tessellate_export, tessellate_primitives, tessellate_view, CursorSvg, Scene,
 };
 pub use theme::{Rgb, Theme};

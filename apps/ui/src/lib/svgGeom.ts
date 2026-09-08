@@ -1,7 +1,15 @@
 export type SvgBox = { x: number; y: number; w: number; h: number };
 
+export type Rgb = [number, number, number];
+
 export type SvgPrim =
-	| { kind: 'polygon'; pts: [number, number][]; r: number; g: number; b: number }
+	| {
+			kind: 'polygon';
+			pts: [number, number][];
+			fill: Rgb | null;
+			stroke: Rgb | null;
+			strokeWidth: number;
+	  }
 	| {
 			kind: 'line';
 			x1: number;
@@ -19,9 +27,50 @@ export type SvgPrim =
 			cy: number;
 			rx: number;
 			ry: number;
-			fill: [number, number, number] | null;
-			stroke: [number, number, number] | null;
+			fill: Rgb | null;
+			stroke: Rgb | null;
 			strokeWidth: number;
+	  }
+	| {
+			kind: 'rect';
+			x: number;
+			y: number;
+			w: number;
+			h: number;
+			rx: number;
+			ry: number;
+			fill: Rgb | null;
+			stroke: Rgb | null;
+			strokeWidth: number;
+	  }
+	| {
+			kind: 'bezier';
+			x0: number;
+			y0: number;
+			x1: number;
+			y1: number;
+			x2: number;
+			y2: number;
+			x3: number;
+			y3: number;
+			width: number;
+			r: number;
+			g: number;
+			b: number;
+	  }
+	| {
+			kind: 'text';
+			x: number;
+			y: number;
+			content: string;
+			fontSize: number;
+			fontFamily: string;
+			fill: Rgb;
+			italic: boolean;
+			bold: boolean;
+			angle: number;
+			mirrored: boolean;
+			textLength: number;
 	  }
 	| { kind: 'hole'; cx: number; cy: number; r: number };
 
@@ -74,14 +123,15 @@ function rgbAttr(tag: string, name: string): [number, number, number] | null {
 export function parseSvgPrims(svg: string): SvgPrim[] {
 	const body = svg.replace(/<defs>[\s\S]*?<\/defs>/g, '');
 	const out: SvgPrim[] = [];
-	const re = /<(polygon|line|ellipse|circle)\s([^>]*?)\/>/g;
+	const re = /<(polygon|line|ellipse|circle|rect|path)\s([^>]*?)\/>/g;
 	for (const m of body.matchAll(re)) {
 		const name = m[1];
 		const tag = m[2];
 		if (name === 'polygon') {
 			const fill = rgbAttr(tag, 'fill');
+			const stroke = rgbAttr(tag, 'stroke');
 			const ptsRaw = attr(tag, 'points');
-			if (!fill || !ptsRaw) continue;
+			if (!ptsRaw) continue;
 			const pts = ptsRaw
 				.trim()
 				.split(/\s+/)
@@ -90,7 +140,16 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 					return [x, y] as [number, number];
 				})
 				.filter((p) => p.every(Number.isFinite));
-			if (pts.length >= 3) out.push({ kind: 'polygon', pts, r: fill[0], g: fill[1], b: fill[2] });
+			const strokeWidth = Number(attr(tag, 'stroke-width') ?? '0');
+			if (pts.length >= 2 && (fill || stroke)) {
+				out.push({
+					kind: 'polygon',
+					pts,
+					fill,
+					stroke,
+					strokeWidth: Number.isFinite(strokeWidth) ? strokeWidth : 0
+				});
+			}
 			continue;
 		}
 		if (name === 'line') {
@@ -115,23 +174,56 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			continue;
 		}
 		if (name === 'ellipse') {
-			const cx = Number(attr(tag, 'cx'));
-			const cy = Number(attr(tag, 'cy'));
-			const rx = Number(attr(tag, 'rx'));
-			const ry = Number(attr(tag, 'ry'));
-			if (![cx, cy, rx, ry].every(Number.isFinite)) continue;
-			const fill = rgbAttr(tag, 'fill');
-			const stroke = rgbAttr(tag, 'stroke');
+			pushEllipse(out, tag);
+			continue;
+		}
+		if (name === 'rect') {
+			const x = Number(attr(tag, 'x'));
+			const y = Number(attr(tag, 'y'));
+			const w = Number(attr(tag, 'width'));
+			const h = Number(attr(tag, 'height'));
+			if (![x, y, w, h].every(Number.isFinite)) continue;
+			const rx = Number(attr(tag, 'rx') ?? '0');
+			const ry = Number(attr(tag, 'ry') ?? '0');
 			const strokeWidth = Number(attr(tag, 'stroke-width') ?? '0');
 			out.push({
-				kind: 'ellipse',
-				cx,
-				cy,
-				rx,
-				ry,
-				fill,
-				stroke,
+				kind: 'rect',
+				x,
+				y,
+				w,
+				h,
+				rx: Number.isFinite(rx) ? rx : 0,
+				ry: Number.isFinite(ry) ? ry : 0,
+				fill: rgbAttr(tag, 'fill'),
+				stroke: rgbAttr(tag, 'stroke'),
 				strokeWidth: Number.isFinite(strokeWidth) ? strokeWidth : 0
+			});
+			continue;
+		}
+		if (name === 'path') {
+			const d = attr(tag, 'd') ?? '';
+			const cubic = d.match(
+				/M\s*([-\d.]+)[,\s]+([-\d.]+)\s*C\s*([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)[,\s]+([-\d.]+)/i
+			);
+			const stroke = rgbAttr(tag, 'stroke');
+			const width = Number(attr(tag, 'stroke-width'));
+			if (!cubic || !stroke || !Number.isFinite(width)) continue;
+			const nums = cubic.slice(1).map(Number);
+			if (!nums.every(Number.isFinite)) continue;
+			out.push({
+				kind: 'bezier',
+				x0: nums[0],
+				y0: nums[1],
+				x1: nums[2],
+				y1: nums[3],
+				x2: nums[4],
+				y2: nums[5],
+				x3: nums[6],
+				y3: nums[7],
+				width,
+				r: stroke[0],
+				g: stroke[1],
+				b: stroke[2]
 			});
 			continue;
 		}
@@ -140,7 +232,84 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			const cy = Number(attr(tag, 'cy'));
 			const r = Number(attr(tag, 'r'));
 			if ([cx, cy, r].every(Number.isFinite)) out.push({ kind: 'hole', cx, cy, r });
+			continue;
+		}
+		if (name === 'circle') {
+			const r = Number(attr(tag, 'r'));
+			const fill = rgbAttr(tag, 'fill');
+			const cx = Number(attr(tag, 'cx'));
+			const cy = Number(attr(tag, 'cy'));
+			if (!fill || ![cx, cy, r].every(Number.isFinite)) continue;
+			out.push({
+				kind: 'ellipse',
+				cx,
+				cy,
+				rx: r,
+				ry: r,
+				fill,
+				stroke: rgbAttr(tag, 'stroke'),
+				strokeWidth: Number(attr(tag, 'stroke-width') ?? '0') || 0
+			});
 		}
 	}
+	const textRe = /<text\s([^>]*?)>([^<]*)<\/text>/g;
+	for (const m of body.matchAll(textRe)) {
+		const tag = m[1];
+		const fill = rgbAttr(tag, 'fill');
+		if (!fill) continue;
+		const tr = attr(tag, 'transform') ?? '';
+		const trn = tr.match(/translate\(([-\d.]+),([-\d.]+)\)/);
+		const rot = tr.match(/rotate\(([-\d.]+)/);
+		const scl = tr.match(/scale\(([-\d.]+)/);
+		const ax = Number(attr(tag, 'x') ?? '0');
+		const ay = Number(attr(tag, 'y') ?? '0');
+		const x = trn ? Number(trn[1]) : ax;
+		const y = trn ? Number(trn[2]) : ay;
+		const fontSize = Number(attr(tag, 'font-size') ?? '10');
+		const textLength = Number(attr(tag, 'textLength') ?? '0');
+		if (![x, y, fontSize].every(Number.isFinite)) continue;
+		out.push({
+			kind: 'text',
+			x,
+			y,
+			content: decodeXml(m[2]),
+			fontSize,
+			fontFamily: attr(tag, 'font-family') ?? 'Courier New',
+			fill,
+			italic: attr(tag, 'font-style') === 'italic',
+			bold: attr(tag, 'font-weight') === 'bold',
+			angle: rot ? Number(rot[1]) : 0,
+			mirrored: scl ? Number(scl[1]) < 0 : false,
+			textLength: Number.isFinite(textLength) ? textLength : 0
+		});
+	}
 	return out;
+}
+
+function pushEllipse(out: SvgPrim[], tag: string) {
+	const cx = Number(attr(tag, 'cx'));
+	const cy = Number(attr(tag, 'cy'));
+	const rx = Number(attr(tag, 'rx'));
+	const ry = Number(attr(tag, 'ry'));
+	if (![cx, cy, rx, ry].every(Number.isFinite)) return;
+	const strokeWidth = Number(attr(tag, 'stroke-width') ?? '0');
+	out.push({
+		kind: 'ellipse',
+		cx,
+		cy,
+		rx,
+		ry,
+		fill: rgbAttr(tag, 'fill'),
+		stroke: rgbAttr(tag, 'stroke'),
+		strokeWidth: Number.isFinite(strokeWidth) ? strokeWidth : 0
+	});
+}
+
+function decodeXml(s: string): string {
+	return s
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&apos;/g, "'")
+		.replace(/&amp;/g, '&');
 }

@@ -207,10 +207,7 @@ fn export_svg_includes_ellipses_and_smart_holes() {
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
-    let svg = fidocad_gpu::scene_to_export_svg(
-        &fidocad_gpu::tessellate_export(&ed, &ed.doc().layers),
-        4.0,
-    );
+    let svg = fidocad_gpu::export_svg(&ed.doc().primitives, &ed.doc().layers, ed.libs(), 4.0);
     assert!(svg.contains("<ellipse"), "round figures must be exported");
     assert!(
         svg.contains("fill=\"none\""),
@@ -227,6 +224,66 @@ fn export_svg_includes_ellipses_and_smart_holes() {
     assert!(
         !svg.contains("viewBox=\"0 0 800"),
         "must not use the canvas viewport"
+    );
+    let polygons = svg.matches("<polygon").count();
+    assert_eq!(
+        polygons, 0,
+        "pads/tracks must stay native shapes, not tessellated triangles, got {polygons} polygons"
+    );
+    assert!(
+        svg.contains(r#"stroke-width="10""#) || svg.contains(r#"stroke-width="10.00""#),
+        "pcb tracks must be stroked lines, not filled capsules: {svg}"
+    );
+}
+
+#[test]
+fn export_svg_keeps_beziers_and_text_native() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives
+        .push(fidocad_core::Primitive::Bezier(fidocad_core::Bezier {
+            p0: fidocad_core::Point::new(0, 0),
+            p1: fidocad_core::Point::new(10, 20),
+            p2: fidocad_core::Point::new(20, 20),
+            p3: fidocad_core::Point::new(30, 0),
+            layer: fidocad_core::LayerId(0),
+        }));
+    doc.primitives.push(fidocad_core::Primitive::Text(Text {
+        pos: fidocad_core::Point::new(0, 40),
+        sy: 10,
+        sx: 6,
+        angle: 0,
+        style: 0,
+        layer: fidocad_core::LayerId(0),
+        font: "Courier New".into(),
+        text: "Vcc".into(),
+        simple: false,
+    }));
+    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
+        pos: fidocad_core::Point::new(50, 50),
+        dx: 20,
+        dy: 12,
+        hole: 6,
+        style: fidocad_core::primitive::PadStyle::RoundedRect,
+        layer: fidocad_core::LayerId(0),
+    }));
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_doc(doc);
+    let svg = fidocad_gpu::export_svg(&ed.doc().primitives, &ed.doc().layers, ed.libs(), 2.0);
+    assert!(svg.contains("<path d=\"M "), "beziers must be cubic paths");
+    assert!(svg.contains(" C "), "beziers must keep control points");
+    assert!(
+        svg.contains("<text"),
+        "labels must stay as text, not glyph triangles"
+    );
+    assert!(svg.contains(">Vcc</text>"));
+    assert!(
+        svg.contains("rx="),
+        "rounded pads must use native rounded rects: {svg}"
+    );
+    assert_eq!(svg.matches("<polygon").count(), 0);
+    assert!(
+        svg.matches("<line").count() < 4,
+        "a cubic must not explode into draw segments: {svg}"
     );
 }
 

@@ -19,7 +19,7 @@ use crate::theme::Rgb;
 
 pub use crate::scene::{CircleInstance, FillVertexGpu, LineInstance, PadHole, Scene};
 pub use crate::svg::{
-    scene_to_cursor_svg, scene_to_export_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg,
+    export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, CursorSvg,
 };
 
 const PCB_TRACK_CAP_SEGS: u32 = 24;
