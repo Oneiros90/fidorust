@@ -196,6 +196,7 @@ fn snapshot_primitive_json_shapes() {
             mirrored: true,
             name: "080".into(),
             standard: true,
+            layer: LayerId(0),
         }),
     ];
     common::assert_snapshot(

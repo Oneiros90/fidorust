@@ -141,6 +141,20 @@ fn expand_terminal() {
 }
 
 #[test]
+fn mc_optional_layer_token() {
+    let doc = parse_document("[FIDOCAD]\nMC 10 20 0 0 080 2\n").unwrap();
+    match &doc.primitives[0] {
+        Primitive::Component(c) => {
+            assert_eq!(c.name, "080");
+            assert_eq!(c.layer.0, 2);
+        }
+        _ => panic!(),
+    }
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("MC 10 20 0 0 080 2"), "{out}");
+}
+
+#[test]
 fn mirrored_text_aabb_extends_left_of_origin() {
     let p = parse_primitive_line("TY 1100 265 30 15 0 5 1 * Propic2 compatible PCB").unwrap();
     let bb = p.aabb();

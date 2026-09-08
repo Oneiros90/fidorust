@@ -2,6 +2,7 @@
 
 use crate::consts::COMPONENT_MAX_DEPTH;
 use crate::geom::{Aabb, Point, Transform};
+use crate::layers::LayerId;
 use crate::primitive::{ComponentRef, Primitive};
 use crate::COMPONENT_ORIGIN;
 use serde::{Deserialize, Serialize};
@@ -397,7 +398,7 @@ pub fn expand_component(
 pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
     if let Primitive::Component(m) = p {
         if let Some((_, def)) = libs.lookup(&m.name) {
-            expand_component(
+            let mut out = expand_component(
                 def,
                 Transform {
                     origin: m.pos,
@@ -406,12 +407,21 @@ pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
                 },
                 libs,
                 0,
-            )
+            );
+            paint_primitives(&mut out, m.layer);
+            out
         } else {
             vec![p.clone()]
         }
     } else {
         vec![p.clone()]
+    }
+}
+
+/// Assign every primitive (including nested component refs) to `layer`.
+pub fn paint_primitives(prims: &mut [Primitive], layer: LayerId) {
+    for p in prims {
+        p.set_layer(layer);
     }
 }
 

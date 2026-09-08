@@ -187,3 +187,75 @@ fn description_roundtrip() {
     let (_, project) = parse_document_with_project_library(&text).unwrap();
     assert_eq!(project.unwrap().components[0].description, "A note");
 }
+
+#[test]
+fn create_flattens_body_and_places_instance_on_current_layer() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(0),
+    ));
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 10),
+        Point::new(10, 10),
+        LayerId(1),
+    ));
+    ed.set_layer(2);
+    ed.set_selected(vec![0, 1]);
+    ed.create_component_from_selection(UserLibraryTarget::Project, "Mix")
+        .unwrap();
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.layer.0, 2),
+        _ => panic!("expected component instance"),
+    }
+    let def = ed.libs().project().unwrap().components.last().unwrap();
+    assert!(
+        def.primitives.iter().all(|p| p.layer().0 == 0),
+        "definition must be flattened to layer 0"
+    );
+}
+
+#[test]
+fn instance_expansion_uses_instance_layer() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![0]);
+    ed.create_component_from_selection(UserLibraryTarget::Project, "A")
+        .unwrap();
+    ed.set_selected(vec![0]);
+    ed.set_layer(1);
+    assert_eq!(ed.doc().primitives[0].layer().0, 1);
+    let flat = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    assert!(!flat.is_empty());
+    assert!(flat.iter().all(|p| p.layer().0 == 1));
+}
+
+#[test]
+fn component_edit_locks_layers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(1),
+    ));
+    ed.set_selected(vec![0]);
+    let (_, key) = ed
+        .create_component_from_selection(UserLibraryTarget::Project, "A")
+        .unwrap();
+    assert!(ed.enter_component_edit(PROJECT_STEM, &key));
+    assert_eq!(ed.doc().layers.len(), 1);
+    assert_eq!(ed.layer().0, 0);
+    assert!(ed.add_layer().is_none());
+    ed.set_layer(3);
+    assert_eq!(ed.layer().0, 0);
+    ed.set_selected(vec![0]);
+    assert!(ed
+        .selection_props_form()
+        .iter()
+        .all(|f| f.id != fidocad_core::properties::PropField::Layer));
+}

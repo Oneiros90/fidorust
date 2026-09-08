@@ -124,16 +124,18 @@ pub fn serialize_primitive(p: &Primitive) -> String {
             rotations,
             mirrored,
             name,
+            layer,
             ..
         }) => {
             s.push_str(&format!(
-                "MC {} {} {} {} {}\r\n",
+                "MC {} {} {} {} {}",
                 pos.x,
                 pos.y,
                 rotations,
                 if *mirrored { 1 } else { 0 },
                 name
             ));
+            push_layer(&mut s, *layer);
         }
     }
     s

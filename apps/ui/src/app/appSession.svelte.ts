@@ -458,12 +458,14 @@ export class AppSession {
 
 	enterComponentEdit = (stem: string, key: string) => {
 		this.ui.ctxMenu = null;
+		this.rightTab = 'library';
 		this.engine?.mutate((app) => {
 			app.enter_component_edit(stem, key);
 		});
 	};
 
 	editSelectedComponent = () => {
+		this.rightTab = 'library';
 		this.engine?.mutate((app) => {
 			app.edit_selected_component();
 		});

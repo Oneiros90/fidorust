@@ -143,6 +143,22 @@ fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>) {
     }
 }
 
+/// `MC x y rot mir name [layer]` — a trailing integer is the instance layer.
+fn mc_name_and_layer(rest: &str) -> (String, LayerId) {
+    let rest = rest.trim();
+    if rest.is_empty() {
+        return (String::new(), LayerId(0));
+    }
+    if let Some((name, last)) = rest.rsplit_once(char::is_whitespace) {
+        if !last.is_empty() && last.bytes().all(|b| b.is_ascii_digit()) {
+            if let Ok(n) = last.parse::<i32>() {
+                return (name.trim_end().to_string(), LayerId::from_i32(n));
+            }
+        }
+    }
+    (rest.to_string(), LayerId(0))
+}
+
 pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
     let line = line.trim();
     if line.is_empty() {
@@ -263,7 +279,11 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
             if t.len() < 5 {
                 return None;
             }
-            let name = t.rest_string(4);
+            let rest = t.rest_string(4);
+            if rest.is_empty() {
+                return None;
+            }
+            let (name, layer) = mc_name_and_layer(&rest);
             if name.is_empty() {
                 return None;
             }
@@ -274,6 +294,7 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
                 mirrored: t.i32(3)? != 0,
                 name: name.trim_start_matches('~').to_string(),
                 standard,
+                layer,
             }))
         }
         "TE" => {

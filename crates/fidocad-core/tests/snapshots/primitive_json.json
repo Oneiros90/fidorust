@@ -142,7 +142,8 @@
       "rotations": 1,
       "mirrored": true,
       "name": "080",
-      "standard": true
+      "standard": true,
+      "layer": 0
     }
   }
 ]

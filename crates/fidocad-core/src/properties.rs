@@ -58,7 +58,7 @@ pub struct PropFormField {
     pub id: PropField,
     pub kind: PropFieldKind,
     pub value: PropFieldValue,
-    /// When true the field is shown but cannot be applied (e.g. layer on components).
+    /// When true the field is shown but cannot be applied.
     #[serde(default)]
     pub read_only: bool,
 }
@@ -376,13 +376,10 @@ impl PropSource for ComponentRef {
         &[]
     }
     fn read(&self, field: PropField) -> Option<PropFieldValue> {
-        match field {
-            PropField::Layer => Some(PropFieldValue::Layer { value: 0 }),
-            _ => None,
-        }
+        read_layer(self.layer, field)
     }
-    fn apply(&mut self, _field: PropField, _value: &PropFieldValue) -> bool {
-        false
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
     }
 }
 
@@ -472,9 +469,6 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
 
     // Layer always appended (FidoCAD).
     let mut layer_val = read_field(first, PropField::Layer).unwrap_or(PropFieldValue::Unset);
-    let all_component = primitives
-        .iter()
-        .all(|p| matches!(p, Primitive::Component(ComponentRef { .. })));
     for p in &primitives[1..] {
         if let Some(v) = read_field(p, PropField::Layer) {
             if layer_val != v {
@@ -486,7 +480,7 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
         id: PropField::Layer,
         kind: PropFieldKind::Layer,
         value: layer_val,
-        read_only: all_component,
+        read_only: false,
     });
 
     fields

@@ -3,8 +3,9 @@
 use super::{history::HistorySnapshot, Drag, Editor, Tool};
 use crate::geom::{Point, Transform};
 use crate::hit::hit_test;
+use crate::layers::{LayerId, LayerSet};
 use crate::library::{
-    component_full_name, explode_named_everywhere, rewrite_component_names,
+    component_full_name, explode_named_everywhere, paint_primitives, rewrite_component_names,
     rewrite_component_names_in_libs, translate_primitives, ComponentDef, Library,
     UserLibraryTarget,
 };
@@ -169,7 +170,7 @@ impl Editor {
         let Some((_, def)) = self.libs.lookup(name) else {
             return Vec::new();
         };
-        crate::library::expand_component(
+        let mut prims = crate::library::expand_component(
             def,
             Transform {
                 origin: pos,
@@ -178,7 +179,9 @@ impl Editor {
             },
             &self.libs,
             0,
-        )
+        );
+        crate::library::paint_primitives(&mut prims, self.layer);
+        prims
     }
 
     pub fn clear_hover(&mut self) {
@@ -198,6 +201,7 @@ impl Editor {
             mirrored: false,
             name,
             standard,
+            layer: self.layer,
         }));
     }
 
@@ -241,6 +245,7 @@ impl Editor {
             COMPONENT_ORIGIN.x - origin.x,
             COMPONENT_ORIGIN.y - origin.y,
         );
+        paint_primitives(&mut body, LayerId(0));
         let stem = target.stem();
         let lib = self.libs.library_mut(stem)?;
         let key = lib.next_key();
@@ -260,6 +265,7 @@ impl Editor {
             mirrored: false,
             name: full,
             standard: false,
+            layer: self.layer,
         }));
         let new_index = remaining.len() - 1;
         self.doc.primitives = remaining;
@@ -385,7 +391,8 @@ impl Editor {
         let Some(def) = lib.find(key) else {
             return false;
         };
-        let primitives = def.primitives.clone();
+        let mut primitives = def.primitives.clone();
+        paint_primitives(&mut primitives, LayerId(0));
         self.cancel_draft();
         let session = ComponentEditSession {
             stem: stem.to_string(),
@@ -412,6 +419,8 @@ impl Editor {
             original_primitives: primitives.clone(),
         };
         self.doc.primitives = primitives;
+        self.doc.layers = LayerSet::component_edit();
+        self.layer = LayerId(0);
         self.selected.clear();
         self.pending_component = None;
         self.tool = Tool::Select;
@@ -427,7 +436,8 @@ impl Editor {
         let Some(session) = self.component_edit.take() else {
             return false;
         };
-        let primitives = self.doc.primitives.clone();
+        let mut primitives = self.doc.primitives.clone();
+        paint_primitives(&mut primitives, LayerId(0));
         let stem = session.stem.clone();
         let key = session.key.clone();
         self.restore_from_component_edit(session);

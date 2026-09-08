@@ -16,13 +16,16 @@ pub struct ComponentRef {
     pub mirrored: bool,
     pub name: String,
     pub standard: bool,
+    pub layer: LayerId,
 }
 
 impl Geometry for ComponentRef {
     fn layer(&self) -> LayerId {
-        LayerId(0)
+        self.layer
     }
-    fn set_layer(&mut self, _layer: LayerId) {}
+    fn set_layer(&mut self, layer: LayerId) {
+        self.layer = layer;
+    }
     fn aabb(&self) -> Aabb {
         Aabb {
             min: Point::new(self.pos.x - 10, self.pos.y - 10),

@@ -31,7 +31,9 @@
 
 <footer class="status">
 	<span>{app.status.title || app.t.statusReady}</span>
-	<span>{app.t.layer} {app.status.layer}</span>
+	{#if !app.status.editing_component}
+		<span>{app.t.layer} {app.status.layer}</span>
+	{/if}
 	<span>{app.status.x}, {app.status.y} LU</span>
 	{#if app.status.pcb}
 		<span>{app.status.xmm.toFixed(2)} × {app.status.ymm.toFixed(2)} mm</span>

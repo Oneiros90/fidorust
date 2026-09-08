@@ -114,6 +114,9 @@ impl Editor {
     }
 
     pub fn set_layer(&mut self, n: u8) {
+        if self.component_edit.is_some() {
+            return;
+        }
         let max = self.doc.layers.len().saturating_sub(1) as u8;
         self.layer = LayerId(n.min(max));
         if !self.selected.is_empty() {
@@ -582,7 +585,11 @@ impl Editor {
             .iter()
             .filter_map(|&i| self.doc.primitives.get(i))
             .collect();
-        selection_props_form(&refs)
+        let mut fields = selection_props_form(&refs);
+        if self.component_edit.is_some() {
+            fields.retain(|f| f.id != crate::properties::PropField::Layer);
+        }
+        fields
     }
 
     pub fn apply_selection_props_patch(&mut self, patch: &PropPatch) -> Result<bool, EditorError> {
