@@ -355,7 +355,9 @@
 					<label>
 						{app.t.exportPdfPage}
 						<select bind:value={opts.pdfPage}>
-							<option value="drawing">{app.t.exportPageDrawing}{sheet ? ` (${sheet.label})` : ''}</option>
+							<option value="drawing"
+								>{app.t.exportPageDrawing}{sheet ? ` (${sheet.label})` : ''}</option
+							>
 							<option value="a4">{app.t.exportPageA4} ({a4Cm})</option>
 							<option value="letter">{app.t.exportPageLetter} ({letterCm})</option>
 						</select>
@@ -376,7 +378,9 @@
 					<label>
 						{app.t.exportPrintPage}
 						<select bind:value={opts.printPage}>
-							<option value="drawing">{app.t.exportPageDrawing}{sheet ? ` (${sheet.label})` : ''}</option>
+							<option value="drawing"
+								>{app.t.exportPageDrawing}{sheet ? ` (${sheet.label})` : ''}</option
+							>
 							<option value="a4">{app.t.exportPageA4} ({a4Cm})</option>
 							<option value="letter">{app.t.exportPageLetter} ({letterCm})</option>
 						</select>
@@ -385,7 +389,9 @@
 						{app.t.exportPrintScale}
 						<select bind:value={opts.printScale}>
 							<option value="fit">{app.t.exportPrintFit}</option>
-							<option value="1:1">{app.t.exportPrintActual}{sheet ? ` (${sheet.label})` : ''}</option>
+							<option value="1:1"
+								>{app.t.exportPrintActual}{sheet ? ` (${sheet.label})` : ''}</option
+							>
 						</select>
 					</label>
 					<label>
