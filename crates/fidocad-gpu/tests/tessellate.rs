@@ -150,8 +150,7 @@ fn macro_thumb_svg_has_geometry() {
         &libs,
         0,
     );
-    let scene =
-        fidocad_gpu::tessellate_primitives(&prims, &fidocad_core::LayerSet::default(), false);
+    let scene = fidocad_gpu::tessellate_primitives(&prims, &fidocad_core::LayerSet::default());
     let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
     assert!(svg.contains("<svg"));
     assert!(svg.contains("<line") || svg.contains("<ellipse") || svg.contains("<polygon"));
@@ -173,7 +172,6 @@ fn macro_cursor_svg_has_hotspot() {
             0,
         ),
         &fidocad_core::LayerSet::default(),
-        false,
     );
     let cur = fidocad_gpu::scene_to_cursor_svg(&prims, fidocad_core::MACRO_ORIGIN);
     assert!(cur.w > 1.0 && cur.h > 1.0);

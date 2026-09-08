@@ -412,7 +412,7 @@ impl App {
             self.editor.libs(),
             0,
         );
-        tessellate_primitives(&prims, &self.editor.doc().layers, self.editor.canvas_dark())
+        tessellate_primitives(&prims, &self.editor.doc().layers)
     }
 
     #[wasm_bindgen]

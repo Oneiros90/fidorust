@@ -51,7 +51,7 @@ fn snapshot_macro_svgs() {
         &libs,
         0,
     );
-    let scene = tessellate_primitives(&prims, &fidocad_core::LayerSet::default(), false);
+    let scene = tessellate_primitives(&prims, &fidocad_core::LayerSet::default());
     common::assert_snapshot("macro_080_thumb.svg", &scene_to_thumb_svg(&scene, 40.0));
     let cur = scene_to_cursor_svg(&scene, fidocad_core::MACRO_ORIGIN);
     common::assert_snapshot(

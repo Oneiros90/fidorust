@@ -225,18 +225,18 @@ fn add_pcb_pad(
     scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
 }
 
-fn color(layers: &LayerSet, p: &Primitive, selected: bool, dark: bool) -> [f32; 3] {
+fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 3] {
     if selected {
         return Rgb::SELECTION.0;
     }
-    Rgb::display_layer(layers.color(p.layer()), dark).0
+    Rgb::from_u8(layers.color(p.layer())).0
 }
 
-fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, dark: bool) {
+fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool) {
     if !layers.visible(p.layer()) && !p.is_macro() {
         return;
     }
-    let rgb = color(layers, p, selected, dark);
+    let rgb = color(layers, p, selected);
     fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected));
 }
 
@@ -255,13 +255,13 @@ fn group_by_layer<T>(
     by_layer
 }
 
-pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet, dark: bool) -> Scene {
+pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet) -> Scene {
     let mut scene = Scene::default();
     let n = layers.len();
     let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
     for bucket in by_layer {
         for p in bucket {
-            add_prim(&mut scene, p, layers, false, dark);
+            add_prim(&mut scene, p, layers, false);
         }
         scene.mark_layer_end();
     }
@@ -319,7 +319,7 @@ pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
         .iter()
         .flat_map(|p| fidocad_core::library::expand_primitive(p, ed.libs()))
         .collect();
-    tessellate_primitives(&expanded, layers, false)
+    tessellate_primitives(&expanded, layers)
 }
 
 pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {
@@ -371,7 +371,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
         for (sel, q) in &bucket {
-            add_prim(&mut scene, q, layers, *sel, input.dark);
+            add_prim(&mut scene, q, layers, *sel);
         }
         if input.layer.index() == li {
             add_draft(&mut scene, draft, preview);

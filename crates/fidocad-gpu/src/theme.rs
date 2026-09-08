@@ -7,8 +7,6 @@ impl Rgb {
     pub const SELECTION: Self = Self([0.85, 0.42, 0.22]);
     pub const PREVIEW_LIGHT: Self = Self([0.72, 0.42, 0.22]);
     pub const PREVIEW_DARK: Self = Self([0.85, 0.55, 0.32]);
-    pub const WHITE: Self = Self([1.0, 1.0, 1.0]);
-
     pub fn from_u8(c: [u8; 3]) -> Self {
         Self([
             c[0] as f32 / 255.0,
@@ -32,17 +30,6 @@ impl Rgb {
         } else {
             Self::PREVIEW_LIGHT
         }
-    }
-
-    /// Invert near-black layer colours on a dark canvas (matches original `display_rgb`).
-    pub fn display_layer(c: [u8; 3], dark: bool) -> Self {
-        if dark {
-            let lum = 0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32;
-            if lum < 48.0 {
-                return Self::WHITE;
-            }
-        }
-        Self::from_u8(c)
     }
 }
 

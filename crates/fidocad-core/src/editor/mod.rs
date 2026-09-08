@@ -55,7 +55,7 @@ pub struct Editor {
     draft: Option<Draft>,
     drag: Option<Drag>,
     hover: Option<Point>,
-    /// Screen theme only: invert near-black layer colours when drawing. Not saved.
+    /// Screen theme only: preview stroke colour. Not saved.
     canvas_dark: bool,
     /// Original `m_bSnapEnable`. When false, coordinates are not quantized.
     snap_enable: bool,
