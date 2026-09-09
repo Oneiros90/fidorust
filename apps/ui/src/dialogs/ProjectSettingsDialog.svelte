@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { ProjectSettingsValues } from '../app/appSession.svelte';
 	import type { Dict } from '../i18n';
+	import { formatLuAsMm } from '../lib/constants';
 	import { clampInt } from '../lib/num';
 	import Modal from './Modal.svelte';
 
@@ -75,11 +76,17 @@
 				<h3>{t.sectionGrid}</h3>
 				<label>
 					{t.gridX}
-					<input type="number" min="1" max="40" step="1" bind:value={edit.gridX} />
+					<span class="value">
+						<input type="number" min="1" max="40" step="1" bind:value={edit.gridX} />
+						<span class="mm">{formatLuAsMm(edit.gridX)}</span>
+					</span>
 				</label>
 				<label>
 					{t.gridY}
-					<input type="number" min="1" max="40" step="1" bind:value={edit.gridY} />
+					<span class="value">
+						<input type="number" min="1" max="40" step="1" bind:value={edit.gridY} />
+						<span class="mm">{formatLuAsMm(edit.gridY)}</span>
+					</span>
 				</label>
 				<label class="chk">
 					<input type="checkbox" bind:checked={edit.showGrid} />
@@ -93,11 +100,17 @@
 				<h3>{t.sectionSnap}</h3>
 				<label>
 					{t.snapX}
-					<input type="number" min="1" max="20" step="1" bind:value={edit.snapX} />
+					<span class="value">
+						<input type="number" min="1" max="20" step="1" bind:value={edit.snapX} />
+						<span class="mm">{formatLuAsMm(edit.snapX)}</span>
+					</span>
 				</label>
 				<label>
 					{t.snapY}
-					<input type="number" min="1" max="20" step="1" bind:value={edit.snapY} />
+					<span class="value">
+						<input type="number" min="1" max="20" step="1" bind:value={edit.snapY} />
+						<span class="mm">{formatLuAsMm(edit.snapY)}</span>
+					</span>
 				</label>
 				<label class="chk">
 					<input type="checkbox" bind:checked={edit.snapEnable} />
@@ -177,7 +190,7 @@
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		max-width: 220px;
+		max-width: 280px;
 	}
 	.chk {
 		flex-direction: row;
@@ -185,7 +198,24 @@
 		gap: 8px;
 		max-width: none;
 	}
+	.value {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.value input[type='number'] {
+		width: 88px;
+		flex: 0 0 auto;
+	}
 	input[type='number'] {
 		width: 100%;
+	}
+	.mm {
+		font-family: var(--mono);
+		font-size: 12px;
+		color: var(--fg-muted);
+		cursor: default;
+		pointer-events: none;
+		user-select: none;
 	}
 </style>

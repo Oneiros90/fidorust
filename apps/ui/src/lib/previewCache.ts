@@ -64,9 +64,7 @@ export class PreviewCache {
 		this.#busy = true;
 		const step = (deadline?: IdleDeadline) => {
 			const budget = () =>
-				deadline && typeof deadline.timeRemaining === 'function'
-					? deadline.timeRemaining()
-					: 8;
+				deadline && typeof deadline.timeRemaining === 'function' ? deadline.timeRemaining() : 8;
 			let n = 0;
 			while (this.#queue.length && n < 6 && (n === 0 || budget() > 4)) {
 				const job = this.#queue.shift();

@@ -6,6 +6,13 @@ export const RECENTS_MAX = 10;
 export const PDF_MAX_PT = 720;
 /** One FidoCAD logical unit is 127 µm, i.e. 200 LU per inch. */
 export const MM_PER_LU = 0.127;
+
+export function formatLuAsMm(lu: number): string {
+	const n = Number(lu);
+	if (!Number.isFinite(n)) return '— mm';
+	return `${(n * MM_PER_LU).toFixed(2)} mm`;
+}
+
 export const LU_PER_INCH = 200;
 export const PT_PER_LU = (MM_PER_LU / 25.4) * 72;
 export const PNG_PPI_PRESETS = [72, 96, 150, 200, 300, 600, 1200] as const;

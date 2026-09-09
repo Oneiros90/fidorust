@@ -661,6 +661,30 @@ export class AppSession {
 		this.dialogs.close();
 	};
 
+	setGrid = (x: number, y: number) => {
+		this.engine?.mutate((app) => {
+			app.set_grid(x, y);
+		});
+	};
+
+	setSnap = (x: number, y: number) => {
+		this.engine?.mutate((app) => {
+			app.set_snap(x, y);
+		});
+	};
+
+	setShowGrid = (on: boolean) => {
+		this.engine?.mutate((app) => {
+			app.set_show_grid(on);
+		});
+	};
+
+	setSnapEnable = (on: boolean) => {
+		this.engine?.mutate((app) => {
+			app.set_snap_enable(on);
+		});
+	};
+
 	addLayer = () => {
 		this.engine?.mutate((app) => {
 			app.add_layer();

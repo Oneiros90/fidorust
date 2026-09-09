@@ -9,6 +9,7 @@
 		openReleasePage,
 		type LatestRelease
 	} from '../lib/updates';
+	import StatusSettingPill from './StatusSettingPill.svelte';
 
 	const app = getAppSession();
 
@@ -43,10 +44,34 @@
 	{#if app.status.selected}<span>sel {app.status.selected}</span>{/if}
 	{#if app.status.pending_component}<span>{app.t.component}: {app.status.pending_component}</span
 		>{/if}
-	<span
-		>snap {app.status.snap}×{app.status.snap_y}{app.status.snap_enable ? '' : ' off'} / grid {app
-			.status.grid}×{app.status.grid_y}</span
-	>
+	<span class="pills">
+		<StatusSettingPill
+			label={app.t.statusSnap}
+			x={app.status.snap}
+			y={app.status.snap_y}
+			enabled={app.status.snap_enable}
+			enabledLabel={app.t.enableSnap}
+			offLabel={app.t.statusOff}
+			min={1}
+			max={20}
+			onX={(v) => app.setSnap(v, app.status.snap_y)}
+			onY={(v) => app.setSnap(app.status.snap, v)}
+			onEnabled={app.setSnapEnable}
+		/>
+		<StatusSettingPill
+			label={app.t.statusGrid}
+			x={app.status.grid}
+			y={app.status.grid_y}
+			enabled={app.status.show_grid}
+			enabledLabel={app.t.showGrid}
+			offLabel={app.t.statusOff}
+			min={1}
+			max={40}
+			onX={(v) => app.setGrid(v, app.status.grid_y)}
+			onY={(v) => app.setGrid(app.status.grid, v)}
+			onEnabled={app.setShowGrid}
+		/>
+	</span>
 	<span class="version">
 		<span>{displayVersion(appVersion)}</span>
 		{#if update}
@@ -66,6 +91,14 @@
 		background: var(--bg-menu);
 		border-top: 1px solid var(--border);
 		color: var(--fg-muted);
+		overflow: visible;
+		position: relative;
+		z-index: var(--z-menubar);
+	}
+	.pills {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.version {
 		margin-left: auto;
