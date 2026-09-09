@@ -5,6 +5,7 @@
   "can_split_component": false,
   "can_undo": false,
   "default_filled": false,
+  "duplicate_drag": false,
   "editing_component": null,
   "editing_component_dirty": false,
   "editing_component_name": null,

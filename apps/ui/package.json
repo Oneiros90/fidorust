@@ -11,7 +11,8 @@
 		"bump": "prettier --write . && node ../../tools/bump.mjs",
 		"check": "npm run wasm && svelte-check --tsconfig ./tsconfig.json",
 		"format": "prettier --write .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"test": "cargo test --workspace"
 	},
 	"devDependencies": {
 		"@sveltejs/vite-plugin-svelte": "^5.1.0",
