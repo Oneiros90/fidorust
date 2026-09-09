@@ -30,8 +30,8 @@ cd apps/ui
 npm install
 npm run check          # svelte-check
 npm run format         # prettier (svelte plugin)
-npm run "dev web"      # web at http://localhost:5173
-npm run "dev desktop"  # desktop
+npm run dev:web        # web at http://localhost:5173
+npm run dev:desktop    # desktop
 ```
 
 Rust quality:

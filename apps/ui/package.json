@@ -4,8 +4,8 @@
 	"version": "0.3.4",
 	"type": "module",
 	"scripts": {
-		"dev web": "vite",
-		"dev desktop": "tauri dev",
+		"dev:web": "vite",
+		"dev:desktop": "tauri dev",
 		"build": "npm run wasm && vite build",
 		"wasm": "wasm-pack build ../../crates/fidocad-wasm --target web --out-dir ../../apps/ui/src/wasm --out-name fidocad_wasm",
 		"bump": "prettier --write . && node ../../tools/bump.mjs",

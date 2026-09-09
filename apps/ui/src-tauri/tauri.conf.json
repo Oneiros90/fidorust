@@ -4,7 +4,7 @@
 	"version": "0.3.4",
 	"identifier": "com.fidorust.app",
 	"build": {
-		"beforeDevCommand": "npm run \"dev web\"",
+		"beforeDevCommand": "npm run dev:web",
 		"devUrl": "http://localhost:5173",
 		"beforeBuildCommand": "npm run build",
 		"frontendDist": "../dist"
