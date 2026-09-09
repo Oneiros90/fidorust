@@ -1,6 +1,6 @@
-//! In-place text editing.
+//! In-place text editing and canvas double-click dispatch.
 
-use super::{Editor, TextEditSession, Tool};
+use super::{DblClickAction, Editor, TextEditSession, Tool};
 use crate::hit::hit_test;
 use crate::primitive::{Primitive, Text};
 
@@ -38,25 +38,44 @@ impl Editor {
         Some(session)
     }
 
-    /// Double-click handler: finish a polygon draft, or start in-place text edit.
-    pub fn begin_text_edit_at(&mut self, world: crate::geom::Point) -> Option<TextEditSession> {
+    /// Double-click: finish a polygon draft, edit text in place, or open properties.
+    pub fn handle_dblclick(&mut self, world: crate::geom::Point) -> DblClickAction {
         if self.draft.as_ref().is_some_and(|d| d.tool == Tool::Poly) {
             self.finish_poly();
-            return None;
+            return DblClickAction::None;
         }
         if self.draft.is_some() {
-            return None;
+            return DblClickAction::None;
         }
         self.commit_drag_checkpoint();
         self.drag = None;
-        let hit = hit_test(
+        let Some(hit) = hit_test(
             &self.doc.primitives,
             &self.libs,
             &self.doc.layers,
             world,
             self.zoom,
-        )?;
-        self.begin_text_edit_index(hit.index)
+        ) else {
+            return DblClickAction::None;
+        };
+        if let Some(session) = self.begin_text_edit_index(hit.index) {
+            return DblClickAction::TextEdit(session);
+        }
+        if self.tool != Tool::Select {
+            return DblClickAction::None;
+        }
+        if !self.selected.contains(&hit.index) {
+            self.selected = vec![hit.index];
+        }
+        DblClickAction::OpenProperties
+    }
+
+    /// Double-click handler: finish a polygon draft, or start in-place text edit.
+    pub fn begin_text_edit_at(&mut self, world: crate::geom::Point) -> Option<TextEditSession> {
+        match self.handle_dblclick(world) {
+            DblClickAction::TextEdit(session) => Some(session),
+            _ => None,
+        }
     }
 
     pub fn begin_text_edit_selected(&mut self) -> Option<TextEditSession> {

@@ -16,8 +16,8 @@ use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
 use json::{
-    text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts, StatusDto,
-    UserLibBlob,
+    dblclick_json, text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts,
+    StatusDto, UserLibBlob,
 };
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
@@ -197,10 +197,8 @@ impl App {
     #[wasm_bindgen]
     pub fn dblclick(&mut self, sx: f32, sy: f32) -> String {
         let w = self.editor.screen_to_world(sx, sy);
-        if let Some(session) = self.editor.begin_text_edit_at(w) {
-            return text_edit_json(&self.editor, session);
-        }
-        "null".into()
+        let action = self.editor.handle_dblclick(w);
+        dblclick_json(&self.editor, action)
     }
 
     #[wasm_bindgen]

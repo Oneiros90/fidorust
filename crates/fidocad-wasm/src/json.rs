@@ -1,6 +1,6 @@
 //! JSON DTOs for the WASM ↔ UI bridge.
 
-use fidocad_core::{Document, Editor, TextEditSession, Tool};
+use fidocad_core::{DblClickAction, Document, Editor, TextEditSession, Tool};
 use serde::{Deserialize, Serialize};
 
 pub fn to_json<T: Serialize>(v: &T, fallback: &'static str) -> String {
@@ -112,6 +112,14 @@ pub fn text_edit_json(ed: &Editor, session: TextEditSession) -> String {
         },
         "null",
     )
+}
+
+pub fn dblclick_json(ed: &Editor, action: DblClickAction) -> String {
+    match action {
+        DblClickAction::TextEdit(session) => text_edit_json(ed, session),
+        DblClickAction::OpenProperties => "{\"action\":\"properties\"}".into(),
+        DblClickAction::None => "null".into(),
+    }
 }
 
 #[derive(Serialize)]

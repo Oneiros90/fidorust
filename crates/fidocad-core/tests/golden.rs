@@ -1,8 +1,8 @@
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
-    ComponentRef, Connection, Document, Editor, LayerId, Line, PcbPad, PcbTrack, Point, Poly,
-    Primitive, PropPatch, Rect, Text, Tool,
+    ComponentRef, Connection, DblClickAction, Document, Editor, LayerId, Line, PcbPad, PcbTrack,
+    Point, Poly, Primitive, PropPatch, Rect, Text, Tool,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -382,6 +382,57 @@ fn dblclick_finishes_poly_instead_of_text_edit() {
         .primitives
         .iter()
         .any(|p| matches!(p, Primitive::Poly(Poly { .. }))));
+}
+
+#[test]
+fn dblclick_opens_properties_on_non_text() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    assert_eq!(
+        ed.handle_dblclick(Point::new(5, 0)),
+        DblClickAction::OpenProperties
+    );
+    assert_eq!(ed.selected(), &[0]);
+}
+
+#[test]
+fn dblclick_empty_space_does_not_open_properties() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    *ed.selected_mut() = vec![0];
+    assert_eq!(ed.handle_dblclick(Point::new(80, 80)), DblClickAction::None);
+}
+
+#[test]
+fn dblclick_keeps_multi_selection_for_properties() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 5),
+        b: Point::new(10, 5),
+        layer: LayerId(0),
+    }));
+    *ed.selected_mut() = vec![0, 1];
+    assert_eq!(
+        ed.handle_dblclick(Point::new(5, 0)),
+        DblClickAction::OpenProperties
+    );
+    assert_eq!(ed.selected(), &[0, 1]);
 }
 
 #[test]

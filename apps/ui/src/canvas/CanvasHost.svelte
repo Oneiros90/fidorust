@@ -2,7 +2,12 @@
 	import { untrack } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import { canvasLocal, dpr } from '../lib/canvasCoords';
-	import { parseEdit, textOverlayLayout, type TextEdit } from '../lib/textEdit';
+	import {
+		dblClickOpensProperties,
+		parseEdit,
+		textOverlayLayout,
+		type TextEdit
+	} from '../lib/textEdit';
 	import TextEditor from './TextEditor.svelte';
 
 	const app = getAppSession();
@@ -162,9 +167,12 @@
 	function dblclick(e: MouseEvent) {
 		if (!engine || textEdit) return;
 		const p = local(e);
+		let raw = 'null';
 		engine.mutate((wasm) => {
-			openEdit(wasm.dblclick(p.x, p.y));
+			raw = wasm.dblclick(p.x, p.y);
+			openEdit(raw);
 		});
+		if (dblClickOpensProperties(raw)) app.openProperties();
 	}
 
 	function onCtx(e: MouseEvent) {

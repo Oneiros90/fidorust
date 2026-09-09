@@ -36,6 +36,15 @@ export function parseEdit(raw: string): TextEdit | null {
 	}
 }
 
+export function dblClickOpensProperties(raw: string): boolean {
+	if (!raw || raw === 'null') return false;
+	try {
+		return (JSON.parse(raw) as { action?: string }).action === 'properties';
+	} catch {
+		return false;
+	}
+}
+
 export function textOverlayLayout(edit: TextEdit, scale: number) {
 	return {
 		x: edit.screenX / scale,

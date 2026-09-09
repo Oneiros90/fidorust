@@ -108,8 +108,16 @@ pub(super) enum Drag {
     },
 }
 
+/// Result of a canvas double-click.
+#[derive(Clone, Debug, PartialEq)]
+pub enum DblClickAction {
+    None,
+    TextEdit(TextEditSession),
+    OpenProperties,
+}
+
 /// Layout of a text primitive for an in-scene editor overlay.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct TextEditSession {
     pub index: usize,
     pub text: String,

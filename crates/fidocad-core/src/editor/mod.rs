@@ -8,7 +8,7 @@ mod text_edit;
 mod tools;
 mod view;
 
-pub use tools::{EditorError, TextEditSession, Tool};
+pub use tools::{DblClickAction, EditorError, TextEditSession, Tool};
 
 use crate::consts::{
     DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_TEXT_SX, DEFAULT_TEXT_SY,
