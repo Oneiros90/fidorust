@@ -448,6 +448,7 @@ export class AppSession {
 	doSelectAll = () => edit.doSelectAll(this);
 	doInvert = () => edit.doInvert(this);
 	fit = () => edit.fit(this);
+	duplicateSelection = () => edit.duplicateSelection(this);
 
 	togglePcb = () => {
 		this.engine?.mutate((app) => {

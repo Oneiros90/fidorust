@@ -19,10 +19,26 @@
 			? 'grabbing'
 			: space || app.status.tool === 'pan'
 				? 'grab'
-				: app.status.tool === 'select'
-					? 'default'
-					: 'crosshair'
+				: app.status.duplicate_drag
+					? 'copy'
+					: app.status.tool === 'select'
+						? 'default'
+						: 'crosshair'
 	);
+
+	function copyMod(e: { ctrlKey: boolean; metaKey: boolean }) {
+		return e.ctrlKey || e.metaKey;
+	}
+
+	function syncDuplicate(e: { ctrlKey: boolean; metaKey: boolean }) {
+		if (!engine) return;
+		engine.mutate(
+			(wasm) => {
+				wasm.set_move_duplicate(copyMod(e));
+			},
+			{ refreshFirst: true }
+		);
+	}
 
 	function resizeCanvas() {
 		if (!canvas || !wrap || !engine) return;
@@ -97,6 +113,7 @@
 		engine.mutate(
 			(wasm) => {
 				wasm.pointer_down(p.x, p.y, e.shiftKey, space || e.button === 1);
+				wasm.set_move_duplicate(copyMod(e));
 				if (e.detail >= 2) {
 					wasm.pointer_up(p.x, p.y);
 				}
@@ -110,6 +127,7 @@
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
+				wasm.set_move_duplicate(copyMod(e));
 				wasm.pointer_move(p.x, p.y);
 			},
 			{ refreshFirst: true }
@@ -122,6 +140,7 @@
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
+				wasm.set_move_duplicate(copyMod(e));
 				wasm.pointer_up(p.x, p.y);
 			},
 			{ refreshFirst: true }
@@ -196,6 +215,7 @@
 	onkeydown={(e) => {
 		if (textEdit) return;
 		if (e.code === 'Space') space = true;
+		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(e);
 		if (e.altKey && e.key === 'Enter' && engine) {
 			e.preventDefault();
 			engine.mutate((wasm) => {
@@ -205,6 +225,7 @@
 	}}
 	onkeyup={(e) => {
 		if (e.code === 'Space') space = false;
+		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(e);
 	}}
 />
 

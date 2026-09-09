@@ -26,6 +26,7 @@ export type Status = {
 	stroke_hundredths: number;
 	default_filled: boolean;
 	pending_component: string | null;
+	duplicate_drag: boolean;
 	can_create_component: boolean;
 	can_split_component: boolean;
 	can_edit_component: boolean;
@@ -112,6 +113,7 @@ export const defaultStatus = (): Status => ({
 	stroke_hundredths: 25,
 	default_filled: false,
 	pending_component: null,
+	duplicate_drag: false,
 	can_create_component: false,
 	can_split_component: false,
 	can_edit_component: false,

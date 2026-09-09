@@ -391,6 +391,16 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn duplicate_selection(&mut self) {
+        self.editor.duplicate_selection();
+    }
+
+    #[wasm_bindgen]
+    pub fn set_move_duplicate(&mut self, on: bool) {
+        self.editor.set_move_duplicate(on);
+    }
+
+    #[wasm_bindgen]
     pub fn clear_hover(&mut self) {
         self.editor.clear_hover();
     }

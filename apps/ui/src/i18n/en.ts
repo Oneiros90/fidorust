@@ -27,6 +27,7 @@ export const en = {
 	redo: 'Redo',
 	cut: 'Cut',
 	copy: 'Copy',
+	duplicate: 'Duplicate',
 	paste: 'Paste',
 	delete: 'Delete',
 	selectAll: 'Select all',

@@ -1,5 +1,7 @@
 use fidocad_core::parse::{builtin_libraries, parse_document};
-use fidocad_core::{Editor, Ellipse, Line, PcbPad, PcbTrack, Point, Text, Tool};
+use fidocad_core::{
+    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Text, Tool,
+};
 use fidocad_gpu::{tessellate_editor, tessellate_primitives};
 
 #[test]
@@ -436,4 +438,27 @@ fn selection_handles_store_world_centers() {
         .collect();
     assert!(pts.contains(&(10, 20)));
     assert!(pts.contains(&(40, 20)));
+}
+
+#[test]
+fn duplicate_drag_ghost_adds_preview_geometry() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (0.0, 0.0), false, false);
+    let before = tessellate_editor(&ed);
+    ed.set_move_duplicate(true);
+    ed.pointer_move(Point::new(25, 0), (80.0, 0.0));
+    let during = tessellate_editor(&ed);
+    assert!(
+        during.lines.len() > before.lines.len(),
+        "expected ghost geometry during duplicate drag, before={} during={}",
+        before.lines.len(),
+        during.lines.len()
+    );
 }

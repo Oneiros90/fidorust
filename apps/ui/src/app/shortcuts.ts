@@ -50,6 +50,15 @@ export const APP_SHORTCUTS: Shortcut[] = [
 		}
 	},
 	{
+		key: 'd',
+		meta: true,
+		when: (app) => app.status.selected > 0,
+		run: (app, e) => {
+			e.preventDefault();
+			app.duplicateSelection();
+		}
+	},
+	{
 		key: 'Enter',
 		alt: true,
 		when: (app) => app.status.selected > 0,

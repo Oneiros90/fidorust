@@ -90,7 +90,9 @@ pub(super) struct Draft {
 #[derive(Clone, Debug)]
 pub(super) enum Drag {
     Move {
+        start: crate::geom::Point,
         last: crate::geom::Point,
+        duplicate: bool,
     },
     Marquee {
         start: (f32, f32),

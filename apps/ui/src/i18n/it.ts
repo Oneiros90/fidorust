@@ -29,6 +29,7 @@ export const it: typeof en = {
 	redo: 'Ripeti',
 	cut: 'Taglia',
 	copy: 'Copia',
+	duplicate: 'Duplica',
 	paste: 'Incolla',
 	delete: 'Elimina',
 	selectAll: 'Seleziona tutto',

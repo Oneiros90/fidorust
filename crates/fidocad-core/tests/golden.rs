@@ -745,3 +745,112 @@ fn load_text_clears_history() {
     assert!(!ed.can_redo());
     assert_eq!(ed.doc().primitives.len(), 1);
 }
+
+fn insert_h_line(ed: &mut Editor, a: Point, b: Point) {
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a,
+        b,
+        layer: LayerId(0),
+    }));
+}
+
+#[test]
+fn duplicate_selection_places_bbox_min_at_cursor() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_selected(vec![0]);
+    ed.set_hover(Some(Point::new(50, 20)));
+    ed.duplicate_selection();
+    assert_eq!(ed.doc().primitives.len(), 2);
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected original line"),
+    }
+    match &ed.doc().primitives[1] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(50, 20), Point::new(60, 20)));
+        }
+        _ => panic!("expected cloned line"),
+    }
+    assert_eq!(ed.selected(), &[1]);
+}
+
+#[test]
+fn duplicate_drag_keeps_original_and_inserts_clone() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.set_move_duplicate(true);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected original line"),
+    }
+    assert!(ed.duplicate_drag());
+    assert!(!ed.duplicate_drag_preview().is_empty());
+    ed.pointer_up(Point::new(15, 0));
+    assert_eq!(ed.doc().primitives.len(), 2);
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected original line"),
+    }
+    match &ed.doc().primitives[1] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(10, 0), Point::new(20, 0)));
+        }
+        _ => panic!("expected cloned line"),
+    }
+    assert_eq!(ed.selected(), &[1]);
+    assert!(ed.can_undo());
+}
+
+#[test]
+fn duplicate_drag_toggle_restores_then_moves() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(10, 0), Point::new(20, 0)));
+        }
+        _ => panic!("expected moved line"),
+    }
+    ed.set_move_duplicate(true);
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected restored line"),
+    }
+    assert!(ed.duplicate_drag());
+    ed.set_move_duplicate(false);
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(10, 0), Point::new(20, 0)));
+        }
+        _ => panic!("expected line under cursor"),
+    }
+    assert!(!ed.duplicate_drag());
+}
+
+#[test]
+fn duplicate_drag_zero_delta_does_not_clone() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.set_move_duplicate(true);
+    ed.pointer_up(Point::new(5, 0));
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert!(!ed.can_undo());
+}

@@ -53,3 +53,9 @@ export function fit(s: AppSession) {
 		app.fit();
 	});
 }
+
+export function duplicateSelection(s: AppSession) {
+	s.engine?.mutate((app) => {
+		app.duplicate_selection();
+	});
+}

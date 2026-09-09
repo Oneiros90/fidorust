@@ -346,7 +346,11 @@ impl Editor {
                         });
                     } else {
                         self.begin_drag_checkpoint();
-                        self.drag = Some(Drag::Move { last: pt });
+                        self.drag = Some(Drag::Move {
+                            start: pt,
+                            last: pt,
+                            duplicate: false,
+                        });
                     }
                 } else {
                     if !shift {
@@ -437,16 +441,16 @@ impl Editor {
             }
         }
         match &self.drag {
-            Some(Drag::Move { last }) => {
+            Some(Drag::Move {
+                last, duplicate, ..
+            }) => {
+                let duplicate = *duplicate;
                 let delta = Point::new(pt.x - last.x, pt.y - last.y);
                 if delta != Point::new(0, 0) {
-                    let sel = self.selected.clone();
-                    for i in sel {
-                        if let Some(p) = self.doc.primitives.get_mut(i) {
-                            p.transform(|q| q + delta);
-                        }
+                    if !duplicate {
+                        self.translate_selected(delta);
                     }
-                    if let Some(Drag::Move { last }) = &mut self.drag {
+                    if let Some(Drag::Move { last, .. }) = &mut self.drag {
                         *last = pt;
                     }
                 }
@@ -474,19 +478,32 @@ impl Editor {
 
     pub fn pointer_up(&mut self, world: Point) {
         let pt = self.snap_pt(world);
-        if let Some(Drag::Marquee { start, current }) = self.drag.take() {
-            self.drag_checkpoint = None;
-            let a = self.screen_to_world(start.0, start.1);
-            let b = self.screen_to_world(current.0, current.1);
-            let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
-            for i in extra {
-                if !self.selected.contains(&i) {
-                    self.selected.push(i);
+        match self.drag.take() {
+            Some(Drag::Marquee { start, current }) => {
+                self.drag_checkpoint = None;
+                let a = self.screen_to_world(start.0, start.1);
+                let b = self.screen_to_world(current.0, current.1);
+                let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
+                for i in extra {
+                    if !self.selected.contains(&i) {
+                        self.selected.push(i);
+                    }
+                }
+                return;
+            }
+            Some(Drag::Move {
+                start,
+                duplicate: true,
+                ..
+            }) => {
+                let dx = pt.x - start.x;
+                let dy = pt.y - start.y;
+                if dx != 0 || dy != 0 {
+                    self.insert_translated_clones(dx, dy);
                 }
             }
-            return;
+            _ => {}
         }
-        self.drag = None;
         self.commit_drag_checkpoint();
         if let Some(d) = self.draft.take() {
             match d.tool {

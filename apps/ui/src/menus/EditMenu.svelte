@@ -24,6 +24,12 @@
 />
 <MenuItem label={app.t.paste} shortcut="Ctrl+V" onclick={() => void app.pasteFcd()} />
 <MenuItem label={app.t.pasteNewDoc} onclick={() => void app.pasteNewDoc()} />
+<MenuItem
+	label={app.t.duplicate}
+	shortcut="Ctrl+D"
+	disabled={!hasSelection}
+	onclick={app.duplicateSelection}
+/>
 <MenuItem label={app.t.delete} shortcut="Del" disabled={!hasSelection} onclick={app.doDelete} />
 <MenuSeparator />
 <MenuItem

@@ -349,7 +349,11 @@ impl<'a> TessellateInput<'a> {
             layer: ed.layer(),
             viewport,
             dark,
-            pending: ed.pending_component_preview(),
+            pending: {
+                let mut pending = ed.pending_component_preview();
+                pending.extend(ed.duplicate_drag_preview());
+                pending
+            },
             marquee: ed.marquee_screen_rect(),
             component_edit: ed.editing_component().is_some(),
         }

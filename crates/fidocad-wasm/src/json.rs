@@ -34,6 +34,7 @@ pub struct StatusDto {
     pub stroke_hundredths: i32,
     pub default_filled: bool,
     pub pending_component: Option<String>,
+    pub duplicate_drag: bool,
     pub can_create_component: bool,
     pub can_split_component: bool,
     pub can_edit_component: bool,
@@ -79,6 +80,7 @@ impl StatusDto {
             } else {
                 None
             },
+            duplicate_drag: ed.duplicate_drag(),
             can_create_component: ed.can_create_component(),
             can_split_component: ed.can_split_component(),
             can_edit_component: ed.can_edit_component(),
