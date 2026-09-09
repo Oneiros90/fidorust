@@ -45,6 +45,28 @@
 		);
 	}
 
+	let lastStampMs = 0;
+
+	function tryStamp(): boolean {
+		if (!engine || textEdit) return false;
+		const now = performance.now();
+		if (now - lastStampMs < 40) return false;
+		let stamped = false;
+		engine.mutate(
+			(wasm) => {
+				stamped = wasm.stamp_drag_copy();
+			},
+			{ refreshFirst: true }
+		);
+		if (stamped) lastStampMs = now;
+		return stamped;
+	}
+
+	function onMiddleDown(e: MouseEvent) {
+		if (e.button !== 1) return;
+		if (tryStamp()) e.preventDefault();
+	}
+
 	function resizeCanvas() {
 		if (!canvas || !wrap || !engine) return;
 		const r = wrap.getBoundingClientRect();
@@ -129,6 +151,10 @@
 
 	function move(e: PointerEvent) {
 		if (!engine || textEdit) return;
+		if (e.button === 1 && (e.buttons & 4) !== 0) {
+			e.preventDefault();
+			tryStamp();
+		}
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
@@ -141,6 +167,10 @@
 
 	function up(e: PointerEvent) {
 		if (e.button === 2 || !engine || textEdit) return;
+		if (e.button === 1) {
+			e.preventDefault();
+			if (!panning) return;
+		}
 		panning = false;
 		const p = local(e);
 		engine.mutate(
@@ -235,6 +265,7 @@
 		if (e.code === 'Space') space = false;
 		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(e);
 	}}
+	onmousedowncapture={onMiddleDown}
 />
 
 <div class="wrap" {@attach attachWrap}>
@@ -244,6 +275,10 @@
 		onpointermove={move}
 		onpointerup={up}
 		onpointercancel={() => (panning = false)}
+		onmousedown={onMiddleDown}
+		onauxclick={(e) => {
+			if (e.button === 1) e.preventDefault();
+		}}
 		ondblclick={dblclick}
 		onwheel={wheel}
 		oncontextmenu={onCtx}

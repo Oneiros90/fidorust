@@ -19,12 +19,15 @@ impl Editor {
         }
     }
 
-    pub(super) fn insert_translated_clones(&mut self, dx: i32, dy: i32) {
-        let mut clones: Vec<Primitive> = self
-            .selected
+    fn clone_selected(&self) -> Vec<Primitive> {
+        self.selected
             .iter()
             .filter_map(|&i| self.doc.primitives.get(i).cloned())
-            .collect();
+            .collect()
+    }
+
+    pub(super) fn insert_translated_clones(&mut self, dx: i32, dy: i32) {
+        let mut clones = self.clone_selected();
         if clones.is_empty() {
             return;
         }
@@ -34,6 +37,39 @@ impl Editor {
             let i = self.doc.insert(p);
             self.selected.push(i);
         }
+    }
+
+    fn insert_clones_keeping_selection(&mut self, dx: i32, dy: i32) {
+        let mut clones = self.clone_selected();
+        if clones.is_empty() {
+            return;
+        }
+        translate_primitives(&mut clones, dx, dy);
+        for p in clones {
+            self.doc.insert(p);
+        }
+    }
+
+    /// Stamp a copy at the dragged selection. Keeps dragging the originals.
+    pub fn stamp_drag_copy(&mut self) -> bool {
+        let Some(Drag::Move {
+            start,
+            last,
+            duplicate,
+        }) = &self.drag
+        else {
+            return false;
+        };
+        let (dx, dy) = if *duplicate {
+            (last.x - start.x, last.y - start.y)
+        } else {
+            (0, 0)
+        };
+        if self.selected.is_empty() {
+            return false;
+        }
+        self.insert_clones_keeping_selection(dx, dy);
+        true
     }
 
     pub fn duplicate_drag(&self) -> bool {

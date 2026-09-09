@@ -905,3 +905,99 @@ fn duplicate_drag_zero_delta_does_not_clone() {
     assert_eq!(ed.doc().primitives.len(), 1);
     assert!(!ed.can_undo());
 }
+
+fn line_ends(p: &Primitive) -> (Point, Point) {
+    match p {
+        Primitive::Line(Line { a, b, .. }) => (*a, *b),
+        _ => panic!("expected line"),
+    }
+}
+
+#[test]
+fn stamp_drag_copy_leaves_original_selected() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    assert!(ed.stamp_drag_copy());
+    assert_eq!(ed.doc().primitives.len(), 2);
+    assert_eq!(ed.selected(), &[0]);
+    assert_eq!(
+        line_ends(&ed.doc().primitives[0]),
+        (Point::new(10, 0), Point::new(20, 0))
+    );
+    assert_eq!(
+        line_ends(&ed.doc().primitives[1]),
+        (Point::new(10, 0), Point::new(20, 0))
+    );
+    ed.pointer_move(Point::new(25, 0), (100.0, 0.0));
+    assert_eq!(
+        line_ends(&ed.doc().primitives[0]),
+        (Point::new(20, 0), Point::new(30, 0))
+    );
+    assert_eq!(
+        line_ends(&ed.doc().primitives[1]),
+        (Point::new(10, 0), Point::new(20, 0))
+    );
+    ed.pointer_up(Point::new(25, 0));
+    assert_eq!(ed.doc().primitives.len(), 2);
+    assert_eq!(ed.selected(), &[0]);
+}
+
+#[test]
+fn stamp_drag_copy_can_drop_several() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    assert!(ed.stamp_drag_copy());
+    ed.pointer_move(Point::new(25, 0), (100.0, 0.0));
+    assert!(ed.stamp_drag_copy());
+    ed.pointer_up(Point::new(25, 0));
+    assert_eq!(ed.doc().primitives.len(), 3);
+    assert_eq!(ed.selected(), &[0]);
+    assert_eq!(
+        line_ends(&ed.doc().primitives[0]),
+        (Point::new(20, 0), Point::new(30, 0))
+    );
+    assert_eq!(
+        line_ends(&ed.doc().primitives[1]),
+        (Point::new(10, 0), Point::new(20, 0))
+    );
+    assert_eq!(
+        line_ends(&ed.doc().primitives[2]),
+        (Point::new(20, 0), Point::new(30, 0))
+    );
+}
+
+#[test]
+fn stamp_drag_copy_in_duplicate_mode_uses_ghost_offset() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_tool(Tool::Select);
+    ed.pointer_down(Point::new(5, 0), (20.0, 0.0), false, false);
+    ed.set_move_duplicate(true);
+    ed.pointer_move(Point::new(15, 0), (60.0, 0.0));
+    assert!(ed.stamp_drag_copy());
+    assert_eq!(ed.doc().primitives.len(), 2);
+    assert_eq!(ed.selected(), &[0]);
+    assert_eq!(
+        line_ends(&ed.doc().primitives[0]),
+        (Point::new(0, 0), Point::new(10, 0))
+    );
+    assert_eq!(
+        line_ends(&ed.doc().primitives[1]),
+        (Point::new(10, 0), Point::new(20, 0))
+    );
+}
+
+#[test]
+fn stamp_drag_copy_without_move_drag_is_noop() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_selected(vec![0]);
+    assert!(!ed.stamp_drag_copy());
+    assert_eq!(ed.doc().primitives.len(), 1);
+}

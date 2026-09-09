@@ -399,6 +399,11 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn stamp_drag_copy(&mut self) -> bool {
+        self.editor.stamp_drag_copy()
+    }
+
+    #[wasm_bindgen]
     pub fn clear_hover(&mut self) {
         self.editor.clear_hover();
     }
