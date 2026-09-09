@@ -60,7 +60,7 @@ jobs:
 
       - name: Build FidoRust
         working-directory: apps/ui
-        run: npm run tauri build
+        run: npx tauri build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
