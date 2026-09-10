@@ -4,7 +4,7 @@ use super::{Drag, Editor};
 use crate::geom::Point;
 use crate::layers::LayerId;
 use crate::library::{expand_primitive, translate_primitives};
-use crate::primitive::{ComponentRef, Primitive};
+use crate::primitive::{ComponentRef, Primitive, STYLE_MIRRORED};
 
 impl Editor {
     pub(super) fn translate_selected(&mut self, delta: Point) {
@@ -179,7 +179,10 @@ impl Editor {
                 p.transform(|q| q.rotate90_cw(origin));
                 match p {
                     Primitive::Component(ComponentRef { rotations, .. }) => {
-                        *rotations = (*rotations + 1) % 4;
+                        // `rotate90_cw` is CCW in Y-down. FidoCadJ CCW uses
+                        // `o = (o + 3) % 4` so internals follow the same turn
+                        // as rotating the expanded primitives together.
+                        *rotations = (*rotations + 3) % 4;
                     }
                     Primitive::Text(t) => {
                         t.angle = (t.angle + 90).rem_euclid(360);
@@ -208,8 +211,14 @@ impl Editor {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
                 p.transform(|q| q.mirror_vertical(origin));
-                if let Primitive::Component(ComponentRef { mirrored, .. }) = p {
-                    *mirrored = !*mirrored;
+                match p {
+                    Primitive::Component(ComponentRef { mirrored, .. }) => {
+                        *mirrored = !*mirrored;
+                    }
+                    Primitive::Text(t) => {
+                        t.style ^= STYLE_MIRRORED;
+                    }
+                    _ => {}
                 }
             }
         }

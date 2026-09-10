@@ -151,7 +151,8 @@
 </script>
 
 <div
-	class={['item', { selected }]}
+	class="item"
+	class:selected
 	role="button"
 	tabindex="0"
 	aria-pressed={selected}
@@ -161,9 +162,13 @@
 	onkeydown={onKey}
 	onpointerdown={onPointerDown}
 	oncontextmenu={onContext}
-	style:--thumb-size="{THUMB_SIZE}px"
 >
-	<div class="thumb" {@attach attachPreview}></div>
+	<div
+		class="thumb"
+		style:width="{THUMB_SIZE}px"
+		style:height="{THUMB_SIZE}px"
+		{@attach attachPreview}
+	></div>
 	<span class="meta">
 		<span class="key">{componentKey}</span>
 		{#if editing === 'name'}
@@ -215,10 +220,12 @@
 
 <style>
 	.item {
-		display: flex;
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr);
 		align-items: center;
-		gap: 8px;
+		column-gap: 8px;
 		width: 100%;
+		min-width: 0;
 		text-align: left;
 		border: 1px solid transparent;
 		background: transparent;
@@ -247,9 +254,12 @@
 		cursor: grabbing;
 	}
 	.thumb {
-		width: var(--thumb-size);
-		height: var(--thumb-size);
-		flex-shrink: 0;
+		width: 40px;
+		height: 40px;
+		min-width: 40px;
+		min-height: 40px;
+		max-width: 40px;
+		max-height: 40px;
 		border-radius: 4px;
 		background: var(--canvas-bg);
 		border: 1px solid var(--border);
@@ -260,15 +270,16 @@
 	}
 	.thumb :global(svg) {
 		display: block;
-		width: var(--thumb-size);
-		height: var(--thumb-size);
+		width: 40px;
+		height: 40px;
+		max-width: 40px;
+		max-height: 40px;
 	}
 	.meta {
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
-		flex: 1;
 	}
 	.key {
 		font-family: var(--mono);

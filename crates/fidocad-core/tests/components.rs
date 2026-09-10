@@ -3,7 +3,8 @@ use fidocad_core::parse::{
     builtin_libraries, parse_document, parse_document_with_project_library, parse_library,
 };
 use fidocad_core::serialize::{
-    serialize_document, serialize_document_with_policy, serialize_library, SaveLibraryPolicy,
+    serialize_document, serialize_document_with_policy, serialize_library, serialize_primitive,
+    SaveLibraryPolicy,
 };
 use fidocad_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
@@ -531,4 +532,62 @@ fn create_user_library_keeps_spaces_in_stem() {
     let mut ed = Editor::new(builtin_libraries());
     let stem = ed.create_user_library("My Library");
     assert_eq!(stem, "My Library");
+}
+
+fn plus_terminal_component() -> Editor {
+    let mut ed = Editor::new(builtin_libraries());
+    let src =
+        "[FIDOCAD]\nLI 320 60 315 60 1\nPP 320 60 318 61 318 59 1\nTY 323 62 4 2 180 1 1 * +\n";
+    let doc = parse_document(src).unwrap();
+    for p in doc.primitives {
+        ed.doc_mut().insert(p);
+    }
+    ed.set_selected(vec![0, 1, 2]);
+    ed.create_component_from_selection(PROJECT_STEM, "Plus")
+        .expect("created");
+    ed
+}
+
+fn dump_doc_primitives(ed: &Editor) -> String {
+    ed.doc()
+        .primitives
+        .iter()
+        .map(serialize_primitive)
+        .collect()
+}
+
+#[test]
+fn rotating_a_component_matches_rotating_its_parts() {
+    let mut as_component = plus_terminal_component();
+    as_component.rotate_selected();
+    as_component.split_selected_components();
+
+    let mut as_parts = plus_terminal_component();
+    as_parts.split_selected_components();
+    as_parts.select_all();
+    as_parts.rotate_selected();
+
+    assert_eq!(
+        dump_doc_primitives(&as_component),
+        dump_doc_primitives(&as_parts)
+    );
+}
+
+#[test]
+fn rotating_a_component_twice_matches_rotating_its_parts_twice() {
+    let mut as_component = plus_terminal_component();
+    as_component.rotate_selected();
+    as_component.rotate_selected();
+    as_component.split_selected_components();
+
+    let mut as_parts = plus_terminal_component();
+    as_parts.split_selected_components();
+    as_parts.select_all();
+    as_parts.rotate_selected();
+    as_parts.rotate_selected();
+
+    assert_eq!(
+        dump_doc_primitives(&as_component),
+        dump_doc_primitives(&as_parts)
+    );
 }

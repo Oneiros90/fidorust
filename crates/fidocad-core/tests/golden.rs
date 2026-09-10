@@ -1,8 +1,9 @@
 use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
+use fidocad_core::primitive::STYLE_MIRRORED;
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
     ComponentRef, Connection, DblClickAction, Document, Editor, LayerId, Line, PcbPad, PcbTrack,
-    Point, Poly, Primitive, PropPatch, Rect, Text, Tool, DEFAULT_FONT,
+    Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform, COMPONENT_ORIGIN, DEFAULT_FONT,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -237,6 +238,84 @@ fn rotate_selected_increments_text_angle() {
     ed.rotate_selected();
     match &ed.doc().primitives[0] {
         Primitive::Text(t) => assert_eq!(t.angle, 180),
+        _ => panic!("expected text"),
+    }
+}
+
+#[test]
+fn apply_transform_rotates_text_angle_with_map_coordinates() {
+    let mut p = parse_primitive_line("TY 110 100 4 2 180 1 1 * +").unwrap();
+    p.apply_transform(Transform {
+        origin: COMPONENT_ORIGIN,
+        rotations: 1,
+        mirrored: false,
+    });
+    match &p {
+        Primitive::Text(t) => {
+            // Clockwise MapCoordinates step: (10,0) → (0,10), angle 180 − 90.
+            assert_eq!(t.pos, Point::new(100, 110));
+            assert_eq!(t.angle, 90);
+        }
+        other => panic!("expected text, got {other:?}"),
+    }
+
+    let mut q = parse_primitive_line("TY 110 100 4 2 180 1 1 * +").unwrap();
+    q.apply_transform(Transform {
+        origin: COMPONENT_ORIGIN,
+        rotations: 3,
+        mirrored: false,
+    });
+    match &q {
+        Primitive::Text(t) => {
+            // CCW step used by rotate_at: (10,0) → (0,−10), angle 180 + 90.
+            assert_eq!(t.pos, Point::new(100, 90));
+            assert_eq!(t.angle, 270);
+        }
+        other => panic!("expected text, got {other:?}"),
+    }
+}
+
+#[test]
+fn apply_transform_mirrors_text_style_like_specchia() {
+    let mut p = parse_primitive_line("TY 110 100 4 2 0 1 1 * +").unwrap();
+    p.apply_transform(Transform {
+        origin: COMPONENT_ORIGIN,
+        rotations: 0,
+        mirrored: true,
+    });
+    match &p {
+        Primitive::Text(t) => {
+            assert_eq!(t.pos, Point::new(90, 100));
+            assert_eq!(t.angle, 0);
+            assert_ne!(t.style & STYLE_MIRRORED, 0);
+        }
+        other => panic!("expected text, got {other:?}"),
+    }
+}
+
+#[test]
+fn mirror_selected_toggles_text_mirrored_like_the_property() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(sample_text(Point::new(10, 20), "AB"));
+    ed.set_selected(vec![0]);
+    match &ed.doc().primitives[0] {
+        Primitive::Text(t) => assert_eq!(t.style & STYLE_MIRRORED, 0),
+        _ => panic!("expected text"),
+    }
+    ed.mirror_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::Text(t) => {
+            assert_ne!(
+                t.style & STYLE_MIRRORED,
+                0,
+                "Specchia must set the same mirrored style bit as the text property"
+            );
+        }
+        _ => panic!("expected text"),
+    }
+    ed.mirror_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::Text(t) => assert_eq!(t.style & STYLE_MIRRORED, 0),
         _ => panic!("expected text"),
     }
 }

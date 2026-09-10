@@ -144,6 +144,15 @@ impl Primitive {
                 m.mirrored = !m.mirrored;
             }
         }
+        if let Self::Text(t) = self {
+            // MapCoordinates `rotations` is clockwise 90° steps. `rotate_at` is
+            // CCW (`rotate90_cw`) and adds +90° to `Text.angle`; one CW step is
+            // three CCW steps, so subtract 90° per stored rotation.
+            t.angle = (t.angle - 90 * i32::from(xf.rotations)).rem_euclid(360);
+            if xf.mirrored {
+                t.style ^= STYLE_MIRRORED;
+            }
+        }
         if let Self::PcbPad(pad) = self {
             if xf.rotations % 2 == 1 {
                 std::mem::swap(&mut pad.dx, &mut pad.dy);
