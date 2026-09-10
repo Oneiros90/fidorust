@@ -548,6 +548,22 @@ pub fn expand_component(
     out
 }
 
+/// Highest layer index actually drawn: the instance layer, or the definition
+/// layers when the instance keeps them (`use_component_layers`).
+pub fn max_used_layer_index(prims: &[Primitive], libs: &LibrarySet) -> usize {
+    let mut max = 0;
+    for p in prims {
+        if p.uses_component_layers() {
+            for q in expand_primitive(p, libs) {
+                max = max.max(q.layer().index());
+            }
+        } else {
+            max = max.max(p.layer().index());
+        }
+    }
+    max
+}
+
 pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
     if let Primitive::Component(m) = p {
         if let Some((_, def)) = libs.lookup(&m.name) {

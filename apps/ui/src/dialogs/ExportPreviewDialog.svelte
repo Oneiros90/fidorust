@@ -16,6 +16,7 @@
 	import { pdfLayout, svgToPdfBlob } from '../lib/svgPdf';
 	import { A4_PT, LETTER_PT, LU_PER_INCH } from '../lib/constants';
 	import { parseSvgViewBox } from '../lib/svgGeom';
+	import { displayLayerName } from '../app/layerOps';
 	import Modal from './Modal.svelte';
 	import { untrack } from 'svelte';
 
@@ -421,7 +422,7 @@
 							{#if opts.layers[i]}
 								<li>
 									<span class="swatch" style:background={layerSwatch(i)}></span>
-									<span class="lname">{layer.name}</span>
+									<span class="lname">{displayLayerName(layer.name, i, app.t)}</span>
 									<button
 										type="button"
 										class={['icon', { off: !opts.layers[i].show }]}

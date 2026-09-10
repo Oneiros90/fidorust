@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
+	import { commitLayerName, displayLayerName } from '../app/layerOps';
 	import LayerColorPicker from './LayerColorPicker.svelte';
 
 	const app = getAppSession();
@@ -21,7 +22,7 @@
 			app.editingLayerName = null;
 			return;
 		}
-		app.setLayerName(i, name);
+		app.setLayerName(i, commitLayerName(name, app.layers.layers[i]?.name ?? '', i, app.t));
 	}
 
 	function cancelRename() {
@@ -100,7 +101,7 @@
 				{#if app.editingLayerName === i}
 					<input
 						class="name"
-						value={l.name}
+						value={displayLayerName(l.name, i, app.t)}
 						{@attach focusAndSelect}
 						onblur={(e) => commitRename(i, e.currentTarget.value)}
 						onkeydown={(e) => {
@@ -121,7 +122,7 @@
 						onclick={() => app.setLayer(i)}
 						ondblclick={() => app.beginRenameLayer(i)}
 					>
-						{l.name}
+						{displayLayerName(l.name, i, app.t)}
 					</button>
 				{/if}
 				<button

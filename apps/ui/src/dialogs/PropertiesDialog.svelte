@@ -4,6 +4,7 @@
 	import type { LayersData } from '../app/engineTypes';
 	import { rgbaCss } from '../lib/color';
 	import { clampInt } from '../lib/num';
+	import { displayLayerName } from '../app/layerOps';
 	import {
 		editStateToPatch,
 		fieldLabels,
@@ -157,7 +158,7 @@
 						<option value="">{t.indeterminate}</option>
 						{#each layers.layers as l, i (i)}
 							<option value={String(i)}>
-								{l.name || `${t.layer} ${i}`}
+								{displayLayerName(l.name, i, t) || `${t.layer} ${i}`}
 							</option>
 						{/each}
 					</select>

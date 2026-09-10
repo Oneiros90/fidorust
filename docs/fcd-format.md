@@ -68,7 +68,7 @@ A small complete example:
 
 ```text
 [FIDOCAD Simple divider]
-LD 0 0 0 1 Schema
+LD 0 0 0 1 Schematic
 PS 5 5 5 5 1 1 1 25 0
 MC 40 30 0 0 080
 LI 40 30 80 30
@@ -139,16 +139,16 @@ There is no per-layer print flag.
 
 ### Files that have no `LD` lines
 
-Older drawings (forum pastes, files saved before this format) have no layer table. When FidoRust opens them it starts from the four familiar sheets:
+Older drawings (forum pastes, files saved before this format) have no layer table. When FidoRust opens them it starts from the four familiar sheets (English names in the file; the UI shows them in the current language):
 
 | Layer | Name | Colour |
 |------:|------|--------|
-| 0 | Schema | Black |
-| 1 | PCB lato rame | Blue |
-| 2 | PCB lato componenti | Green |
-| 3 | Serigrafie | Teal |
+| 0 | Schematic | Black |
+| 1 | PCB copper side | Blue |
+| 2 | PCB component side | Green |
+| 3 | Silkscreen | Teal |
 
-If an object uses a higher index, extra generic layers (`Layer 5`, `Layer 6`, …) are added to cover it. The next save writes `LD` lines for whatever the document actually has.
+If an object uses a higher index — including geometry inside a component that keeps its definition layers — extra sheets are added (`Layer 5`, `Layer 6`, …) using the same repeating colour palette. The next save writes `LD` lines for whatever the document actually has.
 
 If the file **does** contain `LD` lines, those lines replace this fallback entirely.
 

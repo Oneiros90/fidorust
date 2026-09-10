@@ -631,8 +631,8 @@ fn snap_xy_independent_and_disable() {
 fn file_without_ld_uses_four_fidocad_layers() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\nLI 0 0 10 10 1\n").unwrap();
     assert_eq!(doc.layers.len(), 4);
-    assert_eq!(doc.layers.get(0).unwrap().name, "Schema");
-    assert_eq!(doc.layers.get(1).unwrap().name, "PCB lato rame");
+    assert_eq!(doc.layers.get(0).unwrap().name, "Schematic");
+    assert_eq!(doc.layers.get(1).unwrap().name, "PCB copper side");
     assert_eq!(doc.layers.get(1).unwrap().color, [0, 0, 192, 255]);
 }
 
@@ -640,11 +640,32 @@ fn file_without_ld_uses_four_fidocad_layers() {
 fn file_without_ld_pads_generic_layers() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10 6\n").unwrap();
     assert_eq!(doc.layers.len(), 7);
+    assert_eq!(doc.layers.get(4).unwrap().name, "Layer 5");
+    assert_eq!(doc.layers.get(4).unwrap().color, [192, 0, 0, 255]);
     assert_eq!(doc.layers.get(6).unwrap().name, "Layer 7");
+    assert_eq!(doc.layers.get(6).unwrap().color, [192, 128, 0, 255]);
     match &doc.primitives[0] {
         Primitive::Line(Line { layer, .. }) => assert_eq!(layer.0, 6),
         _ => panic!(),
     }
+}
+
+#[test]
+fn file_without_ld_pads_layers_from_component_def() {
+    let src = "\
+[FIDOCAD]
+MC 10 20 0 0 project.C01
+[FIDOLIB project]
+[C01 Box]
+LI 0 0 10 10 6
+";
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text(src).unwrap();
+    assert_eq!(ed.doc().layers.len(), 7);
+    assert_eq!(ed.doc().layers.get(4).unwrap().name, "Layer 5");
+    assert_eq!(ed.doc().layers.get(4).unwrap().color, [192, 0, 0, 255]);
+    assert_eq!(ed.doc().layers.get(6).unwrap().name, "Layer 7");
+    assert_eq!(ed.doc().layers.get(6).unwrap().color, [192, 128, 0, 255]);
 }
 
 #[test]
@@ -709,8 +730,8 @@ fn new_document_has_four_fallback_layers() {
     let d = Document::default();
     assert_eq!(d.layers.len(), 4);
     let s = serialize_document(&d, None);
-    assert!(s.contains("LD 0 0 0 1 Schema"));
-    assert!(s.contains("LD 0 0 192 1 PCB lato rame"));
+    assert!(s.contains("LD 0 0 0 1 Schematic"));
+    assert!(s.contains("LD 0 0 192 1 PCB copper side"));
     assert!(s.contains("PS 5 5 5 5 1 1 1 25 0"));
 }
 

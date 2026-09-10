@@ -7,7 +7,7 @@
 
 	const app = getAppSession();
 
-	let others = $derived(otherLayers(app.layers.layers, index));
+	let others = $derived(otherLayers(app.layers.layers, index, app.t));
 	let moveTo = $state<number | null>(null);
 
 	function dest() {

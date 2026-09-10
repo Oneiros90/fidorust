@@ -84,6 +84,9 @@ pub struct Document {
     /// Default fill for newly drawn rectangles, ellipses, and polygons.
     pub default_filled: bool,
     pub warnings: u32,
+    /// True when the layer table was inferred (no `LD` lines in the file).
+    #[serde(default, skip_serializing)]
+    pub inferred_layers: bool,
 }
 
 impl Default for Document {
@@ -104,6 +107,7 @@ impl Default for Document {
             stroke_hundredths: s.stroke_hundredths,
             default_filled: s.default_filled,
             warnings: 0,
+            inferred_layers: false,
         }
     }
 }

@@ -71,11 +71,12 @@ impl LayerInfo {
     }
 
     fn generic(index: usize) -> Self {
-        Self::new(format!("Layer {}", index + 1), palette_color(index), true)
+        Self::new(standard_layer_name(index), palette_color(index), true)
     }
 }
 
-fn palette_color(index: usize) -> [u8; 4] {
+/// Classic FidoCAD sheets, then repeating palette colours for extra layers.
+pub fn palette_color(index: usize) -> [u8; 4] {
     const PALETTE: [[u8; 4]; 8] = [
         rgb(0, 0, 0),
         rgb(0, 0, 192),
@@ -89,14 +90,25 @@ fn palette_color(index: usize) -> [u8; 4] {
     PALETTE[index % PALETTE.len()]
 }
 
+/// Number of classic FidoCAD sheets used for new documents and files without `LD`.
+pub const FALLBACK_LAYER_COUNT: usize = 4;
+
+/// Stable English names stored in the document / `.fcd`. The UI localizes them.
+pub fn standard_layer_name(index: usize) -> String {
+    match index {
+        0 => "Schematic".into(),
+        1 => "PCB copper side".into(),
+        2 => "PCB component side".into(),
+        3 => "Silkscreen".into(),
+        _ => format!("Layer {}", index + 1),
+    }
+}
+
 /// The four classic FidoCAD layers used for new documents and files without `LD`.
 pub fn fidocad_fallback() -> Vec<LayerInfo> {
-    vec![
-        LayerInfo::new("Schema", rgb(0, 0, 0), true),
-        LayerInfo::new("PCB lato rame", rgb(0, 0, 192), true),
-        LayerInfo::new("PCB lato componenti", rgb(0, 192, 0), true),
-        LayerInfo::new("Serigrafie", rgb(0, 150, 150), true),
-    ]
+    (0..FALLBACK_LAYER_COUNT)
+        .map(|i| LayerInfo::new(standard_layer_name(i), palette_color(i), true))
+        .collect()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -264,5 +276,19 @@ mod tests {
         assert_eq!(remap_after_remove(1, 1), 1);
         assert_eq!(remap_after_remove(2, 1), 1);
         assert_eq!(remap_after_remove(3, 1), 2);
+    }
+
+    #[test]
+    fn fallback_uses_english_names_and_palette() {
+        let layers = fidocad_fallback();
+        assert_eq!(layers[0].name, "Schematic");
+        assert_eq!(layers[1].name, "PCB copper side");
+        assert_eq!(layers[2].name, "PCB component side");
+        assert_eq!(layers[3].name, "Silkscreen");
+        assert_eq!(layers[0].color, palette_color(0));
+        assert_eq!(layers[3].color, palette_color(3));
+        assert_eq!(standard_layer_name(4), "Layer 5");
+        assert_eq!(palette_color(4), rgb(192, 0, 0));
+        assert_eq!(palette_color(6), rgb(192, 128, 0));
     }
 }

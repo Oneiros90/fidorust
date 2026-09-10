@@ -9,7 +9,7 @@
 	const app = getAppSession();
 	let layer = $derived(app.layers.layers[index]);
 	let last = $derived(app.layers.layers.length - 1);
-	let others = $derived(otherLayers(app.layers.layers, index));
+	let others = $derived(otherLayers(app.layers.layers, index, app.t));
 </script>
 
 {#if layer}

@@ -634,6 +634,10 @@ impl Editor {
         let (doc, project) = crate::parse::parse_document_with_project_library(text)?;
         self.doc = doc;
         self.set_project_library(project);
+        if self.doc.inferred_layers {
+            let max = crate::library::max_used_layer_index(&self.doc.primitives, &self.libs);
+            self.doc.layers.ensure_len(max + 1);
+        }
         self.component_edit = None;
         self.clear_history();
         self.selected.clear();

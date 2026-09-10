@@ -5,8 +5,10 @@ use crate::consts::{
 };
 use crate::document::{Document, ProjectSettings};
 use crate::geom::Point;
-use crate::layers::{LayerId, LayerInfo, LayerSet};
-use crate::library::{ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM};
+use crate::layers::{standard_layer_name, LayerId, LayerInfo, LayerSet};
+use crate::library::{
+    max_used_layer_index, ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM,
+};
 use crate::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
     Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
@@ -120,22 +122,29 @@ pub fn parse_ps_line(line: &str) -> Option<ProjectSettings> {
     Some(s)
 }
 
-fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>) {
+fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>, project: Option<&Library>) {
     if !defined.is_empty() {
         for (i, layer) in defined.iter_mut().enumerate() {
             if layer.name.is_empty() {
-                layer.name = format!("Layer {}", i + 1);
+                layer.name = standard_layer_name(i);
             }
         }
         doc.layers = LayerSet::from_vec(defined);
+        doc.inferred_layers = false;
     } else {
         doc.layers = LayerSet::default();
-        let max = doc
+        doc.inferred_layers = true;
+        let mut max = doc
             .primitives
             .iter()
             .map(|p| p.layer().index())
             .max()
             .unwrap_or(0);
+        if let Some(lib) = project {
+            let mut libs = LibrarySet::new();
+            libs.add(lib.clone());
+            max = max.max(max_used_layer_index(&doc.primitives, &libs));
+        }
         doc.layers.ensure_len(max + 1);
     }
     for p in &mut doc.primitives {
@@ -475,7 +484,6 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
             }
         }
     }
-    apply_layers(&mut doc, defined);
     doc.warnings = warnings;
     let project = trailing.and_then(|t| {
         let mut lib = parse_library(t).ok()?;
@@ -484,6 +492,7 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
         lib.standard = false;
         Some(lib)
     });
+    apply_layers(&mut doc, defined, project.as_ref());
     Ok((doc, project))
 }
 

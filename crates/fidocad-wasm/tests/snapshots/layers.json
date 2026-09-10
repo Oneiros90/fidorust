@@ -7,7 +7,7 @@
         0,
         255
       ],
-      "name": "Schema",
+      "name": "Schematic",
       "show": true
     },
     {
@@ -17,7 +17,7 @@
         192,
         255
       ],
-      "name": "PCB lato rame",
+      "name": "PCB copper side",
       "show": true
     },
     {
@@ -27,7 +27,7 @@
         0,
         255
       ],
-      "name": "PCB lato componenti",
+      "name": "PCB component side",
       "show": true
     },
     {
@@ -37,7 +37,7 @@
         150,
         255
       ],
-      "name": "Serigrafie",
+      "name": "Silkscreen",
       "show": true
     }
   ]

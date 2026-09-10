@@ -1,8 +1,8 @@
 [FIDOCAD]
 LD 0 0 192 0 Renamed
-LD 9 8 7 1 Schema
-LD 0 192 0 1 PCB lato componenti
-LD 0 150 150 1 Serigrafie
+LD 9 8 7 1 Schematic
+LD 0 192 0 1 PCB component side
+LD 0 150 150 1 Silkscreen
 LD 192 0 0 1 Layer 5
 PS 5 5 1 5 1 1 1 25 0
 LI 78 78 78 68
