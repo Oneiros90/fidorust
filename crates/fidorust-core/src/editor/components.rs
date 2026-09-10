@@ -342,7 +342,8 @@ impl Editor {
             rewrite_component_names_in_libs(&mut self.libs, &old_full, &new_full);
             if let Some(session) = &mut self.component_edit {
                 rewrite_component_names(&mut session.saved_doc.primitives, &old_full, &new_full);
-                if session.stem.eq_ignore_ascii_case(stem) && session.key.eq_ignore_ascii_case(key) {
+                if session.stem.eq_ignore_ascii_case(stem) && session.key.eq_ignore_ascii_case(key)
+                {
                     session.key = new_key.to_string();
                 }
                 if session

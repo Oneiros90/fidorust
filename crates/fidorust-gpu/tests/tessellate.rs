@@ -23,14 +23,15 @@ fn tessellate_alimentatore_has_strokes() {
 #[test]
 fn tessellate_rounded_pcb_pad_uses_fills() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
-        pos: fidorust_core::Point::new(380, 65),
-        dx: 18,
-        dy: 18,
-        hole: 4,
-        style: fidorust_core::primitive::PadStyle::RoundedRect,
-        layer: fidorust_core::LayerId(0),
-    }));
+    doc.primitives
+        .push(fidorust_core::Primitive::PcbPad(PcbPad {
+            pos: fidorust_core::Point::new(380, 65),
+            dx: 18,
+            dy: 18,
+            hole: 4,
+            style: fidorust_core::primitive::PadStyle::RoundedRect,
+            layer: fidorust_core::LayerId(0),
+        }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
@@ -42,14 +43,15 @@ fn tessellate_rounded_pcb_pad_uses_fills() {
 #[test]
 fn tessellate_oval_pcb_pad_has_circular_hole() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
-        pos: fidorust_core::Point::new(260, 125),
-        dx: 40,
-        dy: 30,
-        hole: 25,
-        style: fidorust_core::primitive::PadStyle::Oval,
-        layer: fidorust_core::LayerId(0),
-    }));
+    doc.primitives
+        .push(fidorust_core::Primitive::PcbPad(PcbPad {
+            pos: fidorust_core::Point::new(260, 125),
+            dx: 40,
+            dy: 30,
+            hole: 25,
+            style: fidorust_core::primitive::PadStyle::Oval,
+            layer: fidorust_core::LayerId(0),
+        }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
     let scene = tessellate_editor(&ed);
@@ -72,14 +74,15 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
 fn dense_oval_pad_thumb_stays_compact() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     for i in 0..256 {
-        doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
-            pos: fidorust_core::Point::new(10 + (i % 16) * 20, 10 + (i / 16) * 20),
-            dx: 12,
-            dy: 12,
-            hole: 6,
-            style: fidorust_core::primitive::PadStyle::Oval,
-            layer: fidorust_core::LayerId(0),
-        }));
+        doc.primitives
+            .push(fidorust_core::Primitive::PcbPad(PcbPad {
+                pos: fidorust_core::Point::new(10 + (i % 16) * 20, 10 + (i / 16) * 20),
+                dx: 12,
+                dy: 12,
+                hole: 6,
+                style: fidorust_core::primitive::PadStyle::Oval,
+                layer: fidorust_core::LayerId(0),
+            }));
     }
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -229,14 +232,15 @@ fn export_svg_includes_ellipses_and_smart_holes() {
             filled: false,
             layer: fidorust_core::LayerId(0),
         }));
-    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
-        pos: fidorust_core::Point::new(80, 40),
-        dx: 20,
-        dy: 20,
-        hole: 8,
-        style: fidorust_core::primitive::PadStyle::Oval,
-        layer: fidorust_core::LayerId(0),
-    }));
+    doc.primitives
+        .push(fidorust_core::Primitive::PcbPad(PcbPad {
+            pos: fidorust_core::Point::new(80, 40),
+            dx: 20,
+            dy: 20,
+            hole: 8,
+            style: fidorust_core::primitive::PadStyle::Oval,
+            layer: fidorust_core::LayerId(0),
+        }));
     doc.primitives
         .push(fidorust_core::Primitive::PcbTrack(PcbTrack {
             a: fidorust_core::Point::new(60, 40),
@@ -303,14 +307,15 @@ fn export_svg_keeps_beziers_and_text_native() {
         text: "Vcc".into(),
         simple: false,
     }));
-    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
-        pos: fidorust_core::Point::new(50, 50),
-        dx: 20,
-        dy: 12,
-        hole: 6,
-        style: fidorust_core::primitive::PadStyle::RoundedRect,
-        layer: fidorust_core::LayerId(0),
-    }));
+    doc.primitives
+        .push(fidorust_core::Primitive::PcbPad(PcbPad {
+            pos: fidorust_core::Point::new(50, 50),
+            dx: 20,
+            dy: 12,
+            hole: 6,
+            style: fidorust_core::primitive::PadStyle::RoundedRect,
+            layer: fidorust_core::LayerId(0),
+        }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
     let svg = fidorust_gpu::export_svg(
