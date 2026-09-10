@@ -14,7 +14,10 @@ export type DialogState =
 	| { kind: 'discard' }
 	| { kind: 'shareLink'; url: string }
 	| { kind: 'shareFcd'; text: string }
-	| { kind: 'export'; format: ExportFormat };
+	| { kind: 'export'; format: ExportFormat }
+	| { kind: 'unresolvedComponents'; items: UnresolvedComponent[] };
+
+export type UnresolvedComponent = { name: string; count: number };
 
 /**
  * Single dialog slot. Kind `deleteLayer` is listed first: Escape used to clear

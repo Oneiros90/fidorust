@@ -3,7 +3,7 @@ use fidocad_core::parse::{
     builtin_libraries, parse_document, parse_document_with_project_library, parse_library,
 };
 use fidocad_core::serialize::{
-    serialize_document, serialize_document_with_policy, SaveLibraryPolicy,
+    serialize_document, serialize_document_with_policy, serialize_library, SaveLibraryPolicy,
 };
 use fidocad_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
@@ -281,7 +281,7 @@ fn create_user_library_unique_stem() {
     let a = ed.create_user_library("Mine");
     let b = ed.create_user_library("Mine");
     assert_eq!(a, "Mine");
-    assert_eq!(b, "Mine2");
+    assert_eq!(b, "Mine 2");
     assert!(ed.libs().library(&a).is_some());
     assert!(ed.libs().library(&b).is_some());
 }
@@ -304,7 +304,7 @@ LI 100 100 120 100
 }
 
 #[test]
-fn rename_user_library_rewrites_refs() {
+fn rename_user_library_keeps_fcd_prefix() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(0, 0),
@@ -315,10 +315,12 @@ fn rename_user_library_rewrites_refs() {
     let stem = ed.create_user_library("Mine");
     ed.create_component_from_selection(&stem, "Box").unwrap();
     let renamed = ed.rename_library(&stem, "Other").unwrap();
-    assert_eq!(renamed, "Other");
-    assert!(ed.libs().library(&stem).is_none());
+    assert_eq!(renamed, "Mine");
+    let lib = ed.libs().library(&stem).unwrap();
+    assert_eq!(lib.name, "Other");
+    assert_eq!(lib.file_stem, "Mine");
     match &ed.doc().primitives[0] {
-        Primitive::Component(c) => assert_eq!(c.name, "Other.C01"),
+        Primitive::Component(c) => assert_eq!(c.name, "Mine.C01"),
         other => panic!("expected component, got {other:?}"),
     }
 }
@@ -399,4 +401,134 @@ fn save_policy_explode_writes_primitives() {
         Primitive::Component(_) => {}
         other => panic!("editor must stay as instance, got {other:?}"),
     }
+}
+
+const SOLID_STATE_FCL: &str = "\
+[FIDOLIB Componenti stato solido]
+[CS11 Operazionale]
+LI 108 100 110 100
+PV 97 93 97 107 108 100
+";
+
+#[test]
+fn import_preserves_spaced_fidolib_title_as_stem() {
+    let mut ed = Editor::new(builtin_libraries());
+    let lib = parse_library(SOLID_STATE_FCL).unwrap();
+    let stem = ed.import_library(lib);
+    assert_eq!(stem, "Componenti stato solido");
+    let lib = ed.libs().library(&stem).unwrap();
+    assert_eq!(lib.name, "Componenti stato solido");
+    assert_eq!(lib.file_stem, "Componenti stato solido");
+    let fcl = serialize_library(lib);
+    assert!(fcl.contains("[FIDOLIB Componenti stato solido]"), "{fcl}");
+}
+
+#[test]
+fn lookup_resolves_spaced_mc_prefix_from_imported_fcl() {
+    let mut ed = Editor::new(builtin_libraries());
+    let lib = parse_library(SOLID_STATE_FCL).unwrap();
+    ed.import_library(lib);
+    let found = ed
+        .libs()
+        .lookup("Componenti stato solido.CS11")
+        .expect("CS11 should resolve");
+    assert_eq!(found.1.key, "CS11");
+    assert_eq!(found.1.name, "Operazionale");
+
+    ed.load_text("[FIDOCAD]\nMC 145 80 2 1 Componenti stato solido.CS11\n")
+        .unwrap();
+    let expanded = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    assert!(
+        expanded.iter().all(|p| !p.is_component()),
+        "CS11 must expand to drawing primitives"
+    );
+    assert!(expanded.len() >= 2, "got {} primitives", expanded.len());
+    assert_eq!(ed.unresolved_component_count(), 0);
+}
+
+#[test]
+fn lookup_resolves_spaced_prefix_against_already_sanitized_stem() {
+    let mut ed = Editor::new(builtin_libraries());
+    let mut lib = parse_library(SOLID_STATE_FCL).unwrap();
+    lib.file_stem = fidocad_core::library::sanitize_stem("Componenti stato solido");
+    assert_eq!(lib.file_stem, "Componentistatosolido");
+    ed.import_library(lib);
+    let found = ed
+        .libs()
+        .lookup("Componenti stato solido.CS11")
+        .expect("normalized stem match");
+    assert_eq!(found.0.file_stem, "Componentistatosolido");
+    assert_eq!(found.1.key, "CS11");
+}
+
+#[test]
+fn lookup_uses_fcl_filename_alias_when_it_differs_from_title() {
+    let mut ed = Editor::new(builtin_libraries());
+    let mut lib = parse_library(SOLID_STATE_FCL).unwrap();
+    lib.add_filename_alias("ihjh.fcl");
+    let stem = ed.import_library(lib);
+    assert_eq!(stem, "Componenti stato solido");
+    assert!(ed.libs().lookup("ihjh.CS11").is_some());
+    assert!(ed.libs().lookup("Componenti stato solido.CS11").is_some());
+}
+
+#[test]
+fn nested_mc_with_spaced_library_prefix_expands() {
+    let mut ed = Editor::new(builtin_libraries());
+    let dots = parse_library(
+        "\
+[FIDOLIB Cerchietti]
+[M01 Dot]
+LI 100 100 102 100
+",
+    )
+    .unwrap();
+    ed.import_library(dots);
+    let relay = parse_library(
+        "\
+[FIDOLIB Componenti elettromeccanici]
+[Ce1 Relè]
+MC 100 100 0 0 Cerchietti.M01
+",
+    )
+    .unwrap();
+    ed.import_library(relay);
+    let found = ed
+        .libs()
+        .lookup("Componenti elettromeccanici.Ce1")
+        .expect("relay");
+    let expanded = fidocad_core::library::expand_component(
+        found.1,
+        fidocad_core::Transform {
+            origin: Point::new(50, 50),
+            rotations: 0,
+            mirrored: false,
+        },
+        ed.libs(),
+        0,
+    );
+    assert_eq!(expanded.len(), 1);
+    assert!(!expanded[0].is_component());
+}
+
+#[test]
+fn unresolved_mc_is_counted_and_kept_as_instance() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\nMC 145 80 2 1 Componenti stato solido.CS11\nMC 170 95 2 1 Componenti stato solido.CS11\n")
+        .unwrap();
+    assert_eq!(ed.unresolved_component_count(), 2);
+    assert_eq!(
+        ed.unresolved_components(),
+        vec![("Componenti stato solido.CS11".into(), 2)]
+    );
+    let expanded = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    assert_eq!(expanded.len(), 1);
+    assert!(expanded[0].is_component());
+}
+
+#[test]
+fn create_user_library_keeps_spaces_in_stem() {
+    let mut ed = Editor::new(builtin_libraries());
+    let stem = ed.create_user_library("My Library");
+    assert_eq!(stem, "My Library");
 }

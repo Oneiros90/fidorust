@@ -33,7 +33,7 @@ export class App {
      */
     export_svg(opts_json: string): string;
     fit(): void;
-    import_library(text: string): string;
+    import_library(text: string, filename: string): string;
     invert_selection(): void;
     key(key: string, meta: boolean): boolean;
     layer_object_count(n: number): number;
@@ -89,6 +89,7 @@ export class App {
     split_selected_components(): void;
     status_json(): string;
     undo(): void;
+    unresolved_components_json(): string;
     user_libraries_blob(): string;
     user_libraries_json(): string;
     uses_user_library_components(): boolean;

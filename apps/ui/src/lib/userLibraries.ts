@@ -5,6 +5,7 @@ export type UserLibraryRecord = {
 	stem: string;
 	title: string;
 	fcl: string;
+	aliases?: string[];
 };
 
 function readRaw(key: string): string | null {

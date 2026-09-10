@@ -180,6 +180,10 @@ export const en = {
 	padSquareRounded: 'Rounded square',
 	layer: 'Layer',
 	statusReady: 'Ready',
+	unresolvedComponentsTitle: 'Missing library components',
+	unresolvedComponentsBody:
+		'These symbols are not in the loaded libraries. The drawing opened anyway; they will stay hidden until you import the matching .fcl files.',
+	unresolvedComponentTimes: '×{n}',
 	close: 'Close',
 	textPrompt: 'Text',
 	cancel: 'Cancel',

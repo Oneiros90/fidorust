@@ -181,6 +181,10 @@ export const it: typeof en = {
 	padSquareRounded: 'Quadrato arrotondato',
 	layer: 'Layer',
 	statusReady: 'Pronto',
+	unresolvedComponentsTitle: 'Componenti di libreria mancanti',
+	unresolvedComponentsBody:
+		'Questi simboli non sono nelle librerie caricate. Il disegno è stato aperto comunque; resteranno nascosti finché non importi i file .fcl corrispondenti.',
+	unresolvedComponentTimes: '×{n}',
 	close: 'Chiudi',
 	textPrompt: 'Testo',
 	cancel: 'Annulla',

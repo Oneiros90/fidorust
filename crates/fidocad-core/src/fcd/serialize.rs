@@ -248,7 +248,9 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
 
 pub fn serialize_library(lib: &Library) -> String {
     let mut out = String::new();
-    let header = if lib.file_stem.is_empty() {
+    let header = if lib.kind == crate::library::LibraryKind::Project {
+        lib.file_stem.as_str()
+    } else if !lib.name.is_empty() {
         lib.name.as_str()
     } else {
         lib.file_stem.as_str()

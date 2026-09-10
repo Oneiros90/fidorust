@@ -23,6 +23,33 @@ pub fn sanitize_stem(raw: &str) -> String {
     out
 }
 
+/// Alphanumeric-only key used to compare FidoCAD library prefixes that may contain spaces.
+fn stem_key(s: &str) -> String {
+    s.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
+fn normalized_stems_eq(a: &str, b: &str) -> bool {
+    let ka = stem_key(a);
+    !ka.is_empty() && ka == stem_key(b)
+}
+
+/// Filename without directory or `.fcl`, as used by FidoCadJ as the MC prefix.
+pub fn fcl_filename_stem(filename: &str) -> String {
+    let name = filename
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(filename)
+        .trim();
+    if name.len() >= 4 && name[name.len() - 4..].eq_ignore_ascii_case(".fcl") {
+        name[..name.len() - 4].trim().to_string()
+    } else {
+        name.to_string()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LibraryKind {
@@ -56,6 +83,9 @@ pub struct Library {
     #[serde(default)]
     pub kind: LibraryKind,
     pub components: Vec<ComponentDef>,
+    /// Extra MC prefixes (typically the original `.fcl` filename when it differs from the title).
+    #[serde(default)]
+    pub aliases: Vec<String>,
 }
 
 impl Default for Library {
@@ -66,6 +96,7 @@ impl Default for Library {
             standard: false,
             kind: LibraryKind::Builtin,
             components: Vec::new(),
+            aliases: Vec::new(),
         }
     }
 }
@@ -78,6 +109,7 @@ impl Library {
             standard: false,
             kind: LibraryKind::Project,
             components: Vec::new(),
+            aliases: Vec::new(),
         }
     }
 
@@ -88,6 +120,7 @@ impl Library {
             standard: false,
             kind: LibraryKind::Local,
             components: Vec::new(),
+            aliases: Vec::new(),
         }
     }
 
@@ -138,6 +171,38 @@ impl Library {
         self.components
             .iter_mut()
             .find(|c| c.key.eq_ignore_ascii_case(key))
+    }
+
+    /// Record the `.fcl` filename as an extra lookup prefix when it differs from title/stem.
+    pub fn add_filename_alias(&mut self, filename: &str) {
+        let stem = fcl_filename_stem(filename);
+        if stem.is_empty() {
+            return;
+        }
+        if self.file_stem.eq_ignore_ascii_case(&stem) || self.name.eq_ignore_ascii_case(&stem) {
+            return;
+        }
+        if self.aliases.iter().any(|a| a.eq_ignore_ascii_case(&stem)) {
+            return;
+        }
+        self.aliases.push(stem);
+    }
+
+    fn prefix_candidates(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.file_stem.as_str())
+            .chain(std::iter::once(self.name.as_str()))
+            .chain(self.aliases.iter().map(String::as_str))
+            .filter(|s| !s.is_empty())
+    }
+
+    fn matches_mc_prefix_exact(&self, prefix: &str) -> bool {
+        self.prefix_candidates()
+            .any(|s| s.eq_ignore_ascii_case(prefix))
+    }
+
+    fn matches_mc_prefix_normalized(&self, prefix: &str) -> bool {
+        self.prefix_candidates()
+            .any(|s| normalized_stems_eq(s, prefix))
     }
 }
 
@@ -265,13 +330,14 @@ impl LibrarySet {
     }
 
     pub fn unique_stem_excluding(&self, desired: &str, allow: &str) -> String {
-        let base = sanitize_stem(desired);
-        if !self.stem_taken(&base, allow) {
-            return base;
+        let base = desired.trim();
+        let base = if base.is_empty() { "user" } else { base };
+        if !self.stem_taken(base, allow) {
+            return base.to_string();
         }
         let mut n = 2u32;
         loop {
-            let candidate = format!("{base}{n}");
+            let candidate = format!("{base} {n}");
             if !self.stem_taken(&candidate, allow) {
                 return candidate;
             }
@@ -290,7 +356,11 @@ impl LibrarySet {
         lib.kind = LibraryKind::Local;
         lib.standard = false;
         let old_stem = if lib.file_stem.is_empty() {
-            sanitize_stem(&lib.name)
+            if lib.name.trim().is_empty() {
+                "user".into()
+            } else {
+                lib.name.clone()
+            }
         } else {
             lib.file_stem.clone()
         };
@@ -299,6 +369,9 @@ impl LibrarySet {
             rewrite_component_names_in_lib(&mut lib, &old_stem, &stem);
         }
         lib.file_stem = stem.clone();
+        if lib.name.trim().is_empty() {
+            lib.name = stem.clone();
+        }
         self.add(lib);
         stem
     }
@@ -306,13 +379,7 @@ impl LibrarySet {
     pub fn lookup(&self, mc_name: &str) -> Option<(&Library, &ComponentDef)> {
         let name = mc_name.trim_start_matches('~');
         if let Some((lib_stem, key)) = name.split_once('.') {
-            for lib in &self.libraries {
-                if lib.file_stem.eq_ignore_ascii_case(lib_stem) {
-                    if let Some(m) = lib.find(key) {
-                        return Some((lib, m));
-                    }
-                }
-            }
+            return self.lookup_prefixed(lib_stem, key);
         }
         for lib in &self.libraries {
             if lib.file_stem == "stdlib" {
@@ -324,6 +391,28 @@ impl LibrarySet {
         for lib in &self.libraries {
             if let Some(m) = lib.find(name) {
                 return Some((lib, m));
+            }
+        }
+        None
+    }
+
+    fn lookup_prefixed<'a>(
+        &'a self,
+        lib_stem: &str,
+        key: &str,
+    ) -> Option<(&'a Library, &'a ComponentDef)> {
+        for lib in &self.libraries {
+            if lib.matches_mc_prefix_exact(lib_stem) {
+                if let Some(m) = lib.find(key) {
+                    return Some((lib, m));
+                }
+            }
+        }
+        for lib in &self.libraries {
+            if lib.matches_mc_prefix_normalized(lib_stem) {
+                if let Some(m) = lib.find(key) {
+                    return Some((lib, m));
+                }
             }
         }
         None
@@ -445,6 +534,10 @@ pub fn expand_component(
                 nested_xf.rotations = (xf.rotations + m.rotations) % 4;
                 nested_xf.mirrored = xf.mirrored ^ m.mirrored;
                 out.extend(expand_component(nested, nested_xf, libs, depth + 1));
+            } else {
+                let mut q = p.clone();
+                q.apply_transform(xf);
+                out.push(q);
             }
         } else {
             let mut q = p.clone();
@@ -476,6 +569,37 @@ pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
     } else {
         vec![p.clone()]
     }
+}
+
+/// Top-level `MC` names that do not resolve, with instance counts (case-insensitive grouping).
+pub fn unresolved_components(prims: &[Primitive], libs: &LibrarySet) -> Vec<(String, usize)> {
+    let mut counts: Vec<(String, usize)> = Vec::new();
+    for p in prims {
+        let Primitive::Component(c) = p else {
+            continue;
+        };
+        if libs.lookup(&c.name).is_some() {
+            continue;
+        }
+        if let Some((_, n)) = counts
+            .iter_mut()
+            .find(|(name, _)| name.eq_ignore_ascii_case(&c.name))
+        {
+            *n += 1;
+        } else {
+            counts.push((c.name.clone(), 1));
+        }
+    }
+    counts.sort_by_key(|(name, _)| name.to_ascii_lowercase());
+    counts
+}
+
+/// Number of top-level `MC` instances that do not resolve in `libs`.
+pub fn unresolved_component_count(prims: &[Primitive], libs: &LibrarySet) -> usize {
+    unresolved_components(prims, libs)
+        .iter()
+        .map(|(_, n)| n)
+        .sum()
 }
 
 /// Assign every primitive (including nested component refs) to `layer`.

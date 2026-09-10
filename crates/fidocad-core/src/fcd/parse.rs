@@ -490,10 +490,7 @@ pub fn parse_library(text: &str) -> Result<Library, ParseError> {
     }
     let mut lib = Library {
         name: title,
-        file_stem: String::new(),
-        standard: false,
-        kind: LibraryKind::Builtin,
-        components: Vec::new(),
+        ..Library::default()
     };
     let mut category = String::new();
     let mut current: Option<ComponentDef> = None;

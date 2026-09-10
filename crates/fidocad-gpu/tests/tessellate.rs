@@ -462,3 +462,18 @@ fn duplicate_drag_ghost_adds_preview_geometry() {
         during.lines.len()
     );
 }
+
+#[test]
+fn unresolved_component_is_invisible() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\nMC 50 50 0 0 Missing.CS11\n")
+        .unwrap();
+    let scene = tessellate_editor(&ed);
+    assert!(
+        scene.lines.is_empty() && scene.fills.is_empty() && scene.circles.is_empty(),
+        "unresolved components must not draw, got lines={} fills={} circles={}",
+        scene.lines.len(),
+        scene.fills.len(),
+        scene.circles.len()
+    );
+}

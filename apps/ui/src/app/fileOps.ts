@@ -9,6 +9,7 @@ import { pushRecent } from '../lib/recentFiles';
 import type { Example } from '../lib/examples';
 import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
 import type { AppSession } from './appSession.svelte';
+import type { UnresolvedComponent } from './dialogs.svelte';
 
 export type SaveLibraryPolicy = 'keep' | 'fold' | 'explode';
 
@@ -66,8 +67,32 @@ export function applyLoaded(s: AppSession, load: (app: WasmApp) => void, name: s
 		s.error = '';
 		markClean(s);
 		rememberCurrent(s, name);
+		warnUnresolvedComponents(s);
 	} catch (err) {
 		s.error = String(err);
+	}
+}
+
+function warnUnresolvedComponents(s: AppSession) {
+	if (!s.engine) return;
+	let items: UnresolvedComponent[] = [];
+	try {
+		const raw = s.engine.query((app) => app.unresolved_components_json());
+		const parsed = JSON.parse(raw) as unknown;
+		if (Array.isArray(parsed)) {
+			items = parsed.filter(
+				(x): x is UnresolvedComponent =>
+					!!x &&
+					typeof x === 'object' &&
+					typeof (x as UnresolvedComponent).name === 'string' &&
+					typeof (x as UnresolvedComponent).count === 'number'
+			);
+		}
+	} catch {
+		return;
+	}
+	if (items.length > 0) {
+		s.dialogs.open({ kind: 'unresolvedComponents', items });
 	}
 }
 
@@ -159,7 +184,7 @@ export async function onPickedLibraries(s: AppSession, e: Event) {
 		try {
 			let stem = '';
 			s.engine.mutate((app) => {
-				stem = app.import_library(text);
+				stem = app.import_library(text, file.name);
 			});
 			if (stem) imported.push(stem);
 		} catch (err) {

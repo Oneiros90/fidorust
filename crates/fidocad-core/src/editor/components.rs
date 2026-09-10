@@ -7,8 +7,8 @@ use crate::layers::{LayerId, LayerSet};
 use crate::library::{
     component_full_name, drawing_uses_user_library_components, explode_library_instances,
     explode_named_everywhere, paint_primitives, rewrite_component_names,
-    rewrite_component_names_in_libs, rewrite_library_stem, translate_primitives, ComponentDef,
-    Library, LibraryKind, PROJECT_STEM,
+    rewrite_component_names_in_libs, translate_primitives, ComponentDef, Library, LibraryKind,
+    PROJECT_STEM,
 };
 use crate::primitive::{ComponentRef, Primitive};
 use crate::COMPONENT_ORIGIN;
@@ -548,30 +548,15 @@ impl Editor {
         if lib.kind != LibraryKind::Local {
             return None;
         }
-        let new_stem = self.libs.unique_stem_excluding(title, stem);
-        if lib.name == title && lib.file_stem == new_stem {
+        if lib.name == title {
             return None;
         }
         self.push_undo();
-        if new_stem != stem {
-            rewrite_library_stem(&mut self.doc.primitives, &mut self.libs, stem, &new_stem);
-            if let Some(pending) = self.pending_component.as_mut() {
-                let prefix = format!("{stem}.");
-                if pending.len() > prefix.len()
-                    && pending[..prefix.len()].eq_ignore_ascii_case(&prefix)
-                {
-                    *pending = format!("{new_stem}.{}", &pending[prefix.len()..]);
-                }
-            }
-            if let Some(lib) = self.libs.library_mut(stem) {
-                lib.file_stem = new_stem.clone();
-                lib.name = title.to_string();
-            }
-        } else if let Some(lib) = self.libs.library_mut(stem) {
+        if let Some(lib) = self.libs.library_mut(stem) {
             lib.name = title.to_string();
         }
         self.bump_libs_rev();
-        Some(new_stem)
+        Some(stem.to_string())
     }
 
     pub fn clear_project_library(&mut self) -> bool {
@@ -632,6 +617,14 @@ impl Editor {
 
     pub fn uses_user_library_components(&self) -> bool {
         drawing_uses_user_library_components(&self.persistent_doc().primitives, &self.libs)
+    }
+
+    pub fn unresolved_component_count(&self) -> usize {
+        crate::library::unresolved_component_count(&self.doc.primitives, &self.libs)
+    }
+
+    pub fn unresolved_components(&self) -> Vec<(String, usize)> {
+        crate::library::unresolved_components(&self.doc.primitives, &self.libs)
     }
 
     pub fn set_project_library(&mut self, lib: Option<Library>) {

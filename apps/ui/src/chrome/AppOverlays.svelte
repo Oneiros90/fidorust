@@ -13,6 +13,7 @@
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import ExportPreviewDialog from '../dialogs/ExportPreviewDialog.svelte';
+	import UnresolvedComponentsDialog from '../dialogs/UnresolvedComponentsDialog.svelte';
 	import ComponentGhost from '../library/ComponentGhost.svelte';
 	import LibraryItemContextMenu from '../library/LibraryItemContextMenu.svelte';
 	import LibraryContextMenu from '../library/LibraryContextMenu.svelte';
@@ -117,4 +118,6 @@
 	<ShareFcdDialog text={dialog.text} />
 {:else if dialog?.kind === 'export'}
 	<ExportPreviewDialog format={dialog.format} />
+{:else if dialog?.kind === 'unresolvedComponents'}
+	<UnresolvedComponentsDialog />
 {/if}

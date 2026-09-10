@@ -137,11 +137,19 @@ pub struct CreatedComponentDto {
     pub key: String,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct UnresolvedComponentDto {
+    pub name: String,
+    pub count: usize,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserLibBlob {
     pub stem: String,
     pub title: String,
     pub fcl: String,
+    #[serde(default)]
+    pub aliases: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

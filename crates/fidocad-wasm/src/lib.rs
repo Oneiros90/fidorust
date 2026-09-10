@@ -17,7 +17,7 @@ use web_sys::HtmlCanvasElement;
 
 use json::{
     dblclick_json, text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts,
-    StatusDto, UserLibBlob,
+    StatusDto, UnresolvedComponentDto, UserLibBlob,
 };
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
@@ -555,6 +555,17 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn unresolved_components_json(&self) -> String {
+        let items: Vec<UnresolvedComponentDto> = self
+            .editor
+            .unresolved_components()
+            .into_iter()
+            .map(|(name, count)| UnresolvedComponentDto { name, count })
+            .collect();
+        to_json(&items, "[]")
+    }
+
+    #[wasm_bindgen]
     pub fn library_json(&self) -> String {
         to_json(&self.editor.libs().tree(), "[]")
     }
@@ -632,14 +643,16 @@ impl App {
         for b in blobs {
             if b.fcl.trim().is_empty() {
                 if !b.stem.is_empty() {
-                    libs.push(fidocad_core::Library::empty_user(
+                    let mut lib = fidocad_core::Library::empty_user(
                         b.stem,
                         if b.title.is_empty() {
                             "Library".into()
                         } else {
                             b.title
                         },
-                    ));
+                    );
+                    lib.aliases = b.aliases;
+                    libs.push(lib);
                 }
                 continue;
             }
@@ -650,6 +663,7 @@ impl App {
                 if !b.title.is_empty() {
                     lib.name = b.title;
                 }
+                lib.aliases = b.aliases;
                 lib.kind = LibraryKind::Local;
                 lib.standard = false;
                 libs.push(lib);
@@ -668,6 +682,7 @@ impl App {
                 stem: lib.file_stem.clone(),
                 title: lib.name.clone(),
                 fcl: serialize_library(lib),
+                aliases: lib.aliases.clone(),
             })
             .collect();
         to_json(&blobs, "[]")
@@ -679,8 +694,9 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn import_library(&mut self, text: &str) -> Result<String, JsValue> {
-        let lib = parse_library(text).map_err(to_js)?;
+    pub fn import_library(&mut self, text: &str, filename: &str) -> Result<String, JsValue> {
+        let mut lib = parse_library(text).map_err(to_js)?;
+        lib.add_filename_alias(filename);
         Ok(self.editor.import_library(lib))
     }
 
