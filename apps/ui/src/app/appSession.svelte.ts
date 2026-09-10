@@ -515,9 +515,7 @@ export class AppSession {
 
 	saveComponentEdit = () => {
 		if (!this.engine) return;
-		const warn = this.engine.query((app) =>
-			app.editing_local_component_uses_nonzero_layers()
-		);
+		const warn = this.engine.query((app) => app.editing_local_component_uses_nonzero_layers());
 		this.engine.mutate((app) => {
 			app.save_component_edit();
 		});
@@ -536,9 +534,9 @@ export class AppSession {
 		this.ui.libraryFocus = { stem, key };
 	};
 
-	beginEditComponentDescription = (stem: string, key: string) => {
+	beginEditComponentKey = (stem: string, key: string) => {
 		this.ui.ctxMenu = null;
-		this.ui.editingLibraryField = { stem, key, field: 'description' };
+		this.ui.editingLibraryField = { stem, key, field: 'key' };
 		this.ui.libraryFocus = { stem, key };
 	};
 
@@ -549,11 +547,13 @@ export class AppSession {
 		this.editingLibraryField = null;
 	};
 
-	setComponentDescription = (stem: string, key: string, description: string) => {
+	renameComponentKey = (stem: string, key: string, newKey: string) => {
+		let ok = false;
 		this.engine?.mutate((app) => {
-			app.set_component_description(stem, key, description);
+			ok = app.rename_component_key(stem, key, newKey);
 		});
 		this.editingLibraryField = null;
+		if (ok) this.libraryFocus = { stem, key: newKey.trim() };
 	};
 
 	moveComponent = (stem: string, key: string, destStem: string) => {

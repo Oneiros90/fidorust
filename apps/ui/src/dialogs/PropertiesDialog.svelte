@@ -87,7 +87,11 @@
 	<div class="form">
 		{#each fields as field (field.id)}
 			<label
-				class={[field.id === 'text' || field.id === 'useComponentLayers' ? 'full' : '', field.id === 'useComponentLayers' ? 'check' : '']}
+				class={[
+					field.id === 'text' || field.id === 'useComponentLayers' ? 'full' : '',
+					field.id === 'useComponentLayers' && 'check',
+					field.kind.kind === 'layer' && (field.readOnly || useComponentLayersOn) && 'off'
+				]}
 				title={field.id === 'useComponentLayers' ? t.propUseComponentLayersTooltip : undefined}
 			>
 				{t[fieldLabels[field.id]]}
@@ -215,6 +219,15 @@
 	input[type='number'],
 	input[type='text'] {
 		width: 100%;
+	}
+	.off {
+		color: var(--fg-muted);
+	}
+	.off select:disabled {
+		background: var(--bg-panel);
+	}
+	.off .swatch {
+		opacity: 0.4;
 	}
 	.swatch {
 		position: absolute;

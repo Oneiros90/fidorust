@@ -178,22 +178,71 @@ fn component_edit_save_and_cancel() {
 }
 
 #[test]
-fn description_roundtrip() {
+fn ds_lines_are_ignored() {
+    let src = "\
+[FIDOLIB project]
+[C01 Named]
+DS A note
+LI 100 100 120 100
+";
+    let lib = parse_library(src).unwrap();
+    assert_eq!(lib.components.len(), 1);
+    assert_eq!(lib.components[0].name, "Named");
+    assert_eq!(lib.components[0].primitives.len(), 1);
+    let text = serialize_library(&lib);
+    assert!(!text.contains("DS"), "{text}");
+}
+
+#[test]
+fn rename_component_key_rewrites_refs() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
-        Point::new(1, 1),
-        Point::new(2, 2),
+        Point::new(0, 0),
+        Point::new(8, 0),
         LayerId(0),
     ));
     ed.set_selected(vec![0]);
     let (_, key) = ed
         .create_component_from_selection(PROJECT_STEM, "Named")
         .unwrap();
-    assert!(ed.set_component_description(PROJECT_STEM, &key, "A note"));
-    let text = serialize_document(ed.doc(), Some(ed.libs()));
-    assert!(text.contains("DS A note"));
-    let (_, project) = parse_document_with_project_library(&text).unwrap();
-    assert_eq!(project.unwrap().components[0].description, "A note");
+    assert!(ed.rename_component_key(PROJECT_STEM, &key, "R42"));
+    assert!(ed.libs().project().unwrap().find("R42").is_some());
+    assert!(ed.libs().project().unwrap().find(&key).is_none());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.R42"),
+        other => panic!("expected component, got {other:?}"),
+    }
+}
+
+#[test]
+fn rename_component_key_rejects_invalid() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(4, 0),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![0]);
+    let (_, key) = ed
+        .create_component_from_selection(PROJECT_STEM, "A")
+        .unwrap();
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 4),
+        Point::new(4, 4),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![1]);
+    let (_, key2) = ed
+        .create_component_from_selection(PROJECT_STEM, "B")
+        .unwrap();
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key, ""));
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key, "a b"));
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key, "a.b"));
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key, "a[b]"));
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key, &key));
+    assert!(!ed.rename_component_key(PROJECT_STEM, &key2, &key));
+    assert_eq!(ed.libs().project().unwrap().find(&key).unwrap().key, key);
+    assert_eq!(ed.libs().project().unwrap().find(&key2).unwrap().key, key2);
 }
 
 #[test]

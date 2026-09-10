@@ -532,22 +532,12 @@ pub fn parse_library(text: &str) -> Result<Library, ParseError> {
             current = Some(ComponentDef {
                 key,
                 name,
-                description: String::new(),
                 category: category.clone(),
                 primitives: Vec::new(),
             });
             continue;
         }
         if line.len() >= 2 && line[..2].eq_ignore_ascii_case("DS") {
-            let rest = line[2..].trim_start();
-            if let Some(m) = current.as_mut() {
-                if m.description.is_empty() {
-                    m.description = rest.to_string();
-                } else {
-                    m.description.push('\n');
-                    m.description.push_str(rest);
-                }
-            }
             continue;
         }
         if let Some(prim) = parse_primitive_line(line) {

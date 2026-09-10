@@ -644,9 +644,8 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_component_description(&mut self, stem: &str, key: &str, description: &str) -> bool {
-        self.editor
-            .set_component_description(stem, key, description)
+    pub fn rename_component_key(&mut self, stem: &str, key: &str, new_key: &str) -> bool {
+        self.editor.rename_component_key(stem, key, new_key)
     }
 
     #[wasm_bindgen]

@@ -75,9 +75,12 @@ button[aria-pressed='true'] {
 	color: var(--accent-fg);
 	border-color: var(--accent);
 }
-button:disabled {
+button:disabled,
+select:disabled,
+input:disabled {
 	opacity: 0.45;
 	cursor: default;
+	color: var(--fg-muted);
 }
 
 body.lib-dragging,

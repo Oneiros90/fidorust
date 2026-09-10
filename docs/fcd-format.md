@@ -96,11 +96,8 @@ LI 20 20 40 20
 MC 20 20 0 0 project.C01
 [FIDOLIB project]
 [C01 New component]
-DS optional description
 LI 100 100 120 100
 ```
-
-`DS` is a FidoRust extension for the component description. Classic FidoCAD ignores unknown lines.
 
 The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. The `[FIDOLIB project]` block is written so FidoRust keeps the definitions; older tools skip the unknown header.
 

@@ -15,9 +15,7 @@ export class UiState {
 	);
 	editingLayerName = $state<number | null>(null);
 	editingLibraryTitle = $state<string | null>(null);
-	editingLibraryField = $state<{ stem: string; key: string; field: 'name' | 'description' } | null>(
-		null
-	);
+	editingLibraryField = $state<{ stem: string; key: string; field: 'name' | 'key' } | null>(null);
 	expandedUserLibs = $state<Record<string, boolean>>({ project: true });
 	libraryFocus = $state<{ stem: string; key: string } | null>(null);
 

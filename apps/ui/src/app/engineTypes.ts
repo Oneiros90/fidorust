@@ -49,7 +49,6 @@ export type LibraryKind = 'builtin' | 'project' | 'local';
 export type LibraryComponent = {
 	key: string;
 	name: string;
-	description: string;
 };
 
 export type LibraryEntry = {

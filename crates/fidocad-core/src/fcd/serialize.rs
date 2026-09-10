@@ -285,11 +285,6 @@ pub fn serialize_library(lib: &Library) -> String {
         out.push(' ');
         out.push_str(&c.name);
         out.push_str("]\r\n");
-        if !c.description.is_empty() {
-            out.push_str("DS ");
-            out.push_str(&c.description);
-            out.push_str("\r\n");
-        }
         for p in &c.primitives {
             out.push_str(&serialize_primitive(p));
         }

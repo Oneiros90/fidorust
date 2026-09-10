@@ -71,7 +71,7 @@ export class App {
     save_fcd_with_policy(policy: string): string;
     selection_props_form_json(): string;
     selection_props_json(): string;
-    set_component_description(stem: string, key: string, description: string): boolean;
+    rename_component_key(stem: string, key: string, new_key: string): boolean;
     set_filled(on: boolean): void;
     set_grid(x: number, y: number): void;
     set_hide_component_origin(on: boolean): void;
@@ -168,7 +168,7 @@ export interface InitOutput {
     readonly app_save_fcd_with_policy: (a: number, b: number, c: number) => [number, number];
     readonly app_selection_props_form_json: (a: number) => [number, number];
     readonly app_selection_props_json: (a: number) => [number, number];
-    readonly app_set_component_description: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly app_rename_component_key: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly app_set_filled: (a: number, b: number) => void;
     readonly app_set_grid: (a: number, b: number, c: number) => void;
     readonly app_set_hide_component_origin: (a: number, b: number) => void;

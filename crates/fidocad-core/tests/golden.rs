@@ -442,6 +442,12 @@ fn click_places_pending_component_without_follow() {
     assert_eq!(ed.tool(), Tool::Component);
     assert_eq!(ed.pending_component(), Some("080"));
     assert!(ed.selected().is_empty());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => {
+            assert!(c.use_component_layers);
+        }
+        _ => panic!("expected component instance"),
+    }
 }
 
 #[test]
@@ -454,6 +460,12 @@ fn drop_places_component_and_returns_to_select() {
     assert_eq!(ed.tool(), Tool::Select);
     assert!(ed.pending_component().is_none());
     assert_eq!(ed.selected(), &[0]);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => {
+            assert!(c.use_component_layers);
+        }
+        _ => panic!("expected component instance"),
+    }
 }
 
 #[test]

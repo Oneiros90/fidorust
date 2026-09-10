@@ -23,12 +23,12 @@
 	onclick={() => app.enterComponentEdit(stem, componentKey)}
 />
 <MenuItem
-	label={app.t.renameComponent}
+	label={app.t.editComponentName}
 	onclick={() => app.beginRenameComponent(stem, componentKey)}
 />
 <MenuItem
-	label={app.t.editDescription}
-	onclick={() => app.beginEditComponentDescription(stem, componentKey)}
+	label={app.t.editComponentId}
+	onclick={() => app.beginEditComponentKey(stem, componentKey)}
 />
 {#if destinations.length > 0}
 	<MenuSubmenu label={app.t.moveComponentTo} side="left">

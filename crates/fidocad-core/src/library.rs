@@ -69,8 +69,6 @@ impl LibraryKind {
 pub struct ComponentDef {
     pub key: String,
     pub name: String,
-    #[serde(default)]
-    pub description: String,
     pub category: String,
     pub primitives: Vec<Primitive>,
 }
@@ -444,7 +442,6 @@ impl LibrarySet {
                     let item = LibComponentItem {
                         key: m.key.clone(),
                         name: m.name.clone(),
-                        description: m.description.clone(),
                     };
                     if let Some((_, items)) = cats.iter_mut().find(|(c, _)| c == &cat) {
                         items.push(item);
@@ -499,7 +496,6 @@ pub struct LibCategory {
 pub struct LibComponentItem {
     pub key: String,
     pub name: String,
-    pub description: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

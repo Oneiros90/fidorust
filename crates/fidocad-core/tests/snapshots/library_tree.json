@@ -11,73 +11,59 @@
         "components": [
           {
             "key": "000",
-            "name": "Terminale",
-            "description": ""
+            "name": "Terminale"
           },
           {
             "key": "010",
-            "name": "Terminale +",
-            "description": ""
+            "name": "Terminale +"
           },
           {
             "key": "020",
-            "name": "Terminale -",
-            "description": ""
+            "name": "Terminale -"
           },
           {
             "key": "030",
-            "name": "Ponticello",
-            "description": ""
+            "name": "Ponticello"
           },
           {
             "key": "040",
-            "name": "Terra",
-            "description": ""
+            "name": "Terra"
           },
           {
             "key": "045",
-            "name": "Massa elettrica",
-            "description": ""
+            "name": "Massa elettrica"
           },
           {
             "key": "050",
-            "name": "Coppia coassiale",
-            "description": ""
+            "name": "Coppia coassiale"
           },
           {
             "key": "060",
-            "name": "Corrente continua",
-            "description": ""
+            "name": "Corrente continua"
           },
           {
             "key": "070",
-            "name": "Corrente alternata",
-            "description": ""
+            "name": "Corrente alternata"
           },
           {
             "key": "071",
-            "name": "Ingresso triggerato",
-            "description": ""
+            "name": "Ingresso triggerato"
           },
           {
             "key": "072",
-            "name": "Uscita negata",
-            "description": ""
+            "name": "Uscita negata"
           },
           {
             "key": "073",
-            "name": "Iniezione di segnale",
-            "description": ""
+            "name": "Iniezione di segnale"
           },
           {
             "key": "074",
-            "name": "Freccia",
-            "description": ""
+            "name": "Freccia"
           },
           {
             "key": "075",
-            "name": "Simbolo del fronte",
-            "description": ""
+            "name": "Simbolo del fronte"
           }
         ]
       },
@@ -86,78 +72,63 @@
         "components": [
           {
             "key": "080",
-            "name": "Resistore",
-            "description": ""
+            "name": "Resistore"
           },
           {
             "key": "090",
-            "name": "Resistenza variabile",
-            "description": ""
+            "name": "Resistenza variabile"
           },
           {
             "key": "100",
-            "name": "Potenziometro",
-            "description": ""
+            "name": "Potenziometro"
           },
           {
             "key": "110",
-            "name": "Fotoresistenza",
-            "description": ""
+            "name": "Fotoresistenza"
           },
           {
             "key": "111",
-            "name": "Termistore",
-            "description": ""
+            "name": "Termistore"
           },
           {
             "key": "112",
-            "name": "Varistore",
-            "description": ""
+            "name": "Varistore"
           },
           {
             "key": "113",
-            "name": "VDR",
-            "description": ""
+            "name": "VDR"
           },
           {
             "key": "114",
-            "name": "Trimmer",
-            "description": ""
+            "name": "Trimmer"
           },
           {
             "key": "115",
-            "name": "Resistore",
-            "description": ""
+            "name": "Resistore"
           },
           {
             "key": "116",
-            "name": "Resistenza variabile",
-            "description": ""
+            "name": "Resistenza variabile"
           },
           {
             "key": "120",
-            "name": "Induttanza",
-            "description": ""
+            "name": "Induttanza"
           },
           {
             "key": "130",
-            "name": "Induttanza con nucleo",
-            "description": ""
+            "name": "Induttanza con nucleo"
           },
           {
             "key": "170",
-            "name": "Condensatore",
-            "description": ""
+            "name": "Condensatore"
           },
           {
             "key": "180",
-            "name": "Condensatore elettrolitico",
-            "description": ""
+            "name": "Condensatore elettrolitico"
           },
           {
             "key": "190",
-            "name": "Condensatore regolabile",
-            "description": ""
+            "name": "Condensatore regolabile"
           }
         ]
       },
@@ -166,138 +137,111 @@
         "components": [
           {
             "key": "200",
-            "name": "Diodo",
-            "description": ""
+            "name": "Diodo"
           },
           {
             "key": "210",
-            "name": "Diodo a 45 gradi",
-            "description": ""
+            "name": "Diodo a 45 gradi"
           },
           {
             "key": "220",
-            "name": "Diodo LED",
-            "description": ""
+            "name": "Diodo LED"
           },
           {
             "key": "230",
-            "name": "Diodo Zener",
-            "description": ""
+            "name": "Diodo Zener"
           },
           {
             "key": "240",
-            "name": "Fotodiodo",
-            "description": ""
+            "name": "Fotodiodo"
           },
           {
             "key": "250",
-            "name": "Diodo Tunnel",
-            "description": ""
+            "name": "Diodo Tunnel"
           },
           {
             "key": "255",
-            "name": "Diodo Varicap",
-            "description": ""
+            "name": "Diodo Varicap"
           },
           {
             "key": "260",
-            "name": "DIAC",
-            "description": ""
+            "name": "DIAC"
           },
           {
             "key": "270",
-            "name": "TRIAC",
-            "description": ""
+            "name": "TRIAC"
           },
           {
             "key": "280",
-            "name": "NPN senza schermo",
-            "description": ""
+            "name": "NPN senza schermo"
           },
           {
             "key": "290",
-            "name": "PNP senza schermo",
-            "description": ""
+            "name": "PNP senza schermo"
           },
           {
             "key": "300",
-            "name": "NPN",
-            "description": ""
+            "name": "NPN"
           },
           {
             "key": "310",
-            "name": "PNP",
-            "description": ""
+            "name": "PNP"
           },
           {
             "key": "320",
-            "name": "Fototransistor NPN",
-            "description": ""
+            "name": "Fototransistor NPN"
           },
           {
             "key": "330",
-            "name": "Fototransistor PNP",
-            "description": ""
+            "name": "Fototransistor PNP"
           },
           {
             "key": "340",
-            "name": "Fotoaccoppiatore NPN",
-            "description": ""
+            "name": "Fotoaccoppiatore NPN"
           },
           {
             "key": "350",
-            "name": "Fotoaccoppiatore PNP",
-            "description": ""
+            "name": "Fotoaccoppiatore PNP"
           },
           {
             "key": "360",
-            "name": "Darlington NPN",
-            "description": ""
+            "name": "Darlington NPN"
           },
           {
             "key": "370",
-            "name": "Darlington PNP",
-            "description": ""
+            "name": "Darlington PNP"
           },
           {
             "key": "380",
-            "name": "SCR",
-            "description": ""
+            "name": "SCR"
           },
           {
             "key": "390",
-            "name": "PJFET",
-            "description": ""
+            "name": "PJFET"
           },
           {
             "key": "400",
-            "name": "NJFET",
-            "description": ""
+            "name": "NJFET"
           },
           {
             "key": "410",
-            "name": "NMOS",
-            "description": ""
+            "name": "NMOS"
           },
           {
             "key": "420",
-            "name": "PMOS",
-            "description": ""
+            "name": "PMOS"
           },
           {
             "key": "430",
-            "name": "UJT canale N",
-            "description": ""
+            "name": "UJT canale N"
           },
           {
             "key": "440",
-            "name": "UJT canale P",
-            "description": ""
+            "name": "UJT canale P"
           },
           {
             "key": "445",
-            "name": "MOSpower canale N",
-            "description": ""
+            "name": "MOSpower canale N"
           }
         ]
       },
@@ -306,28 +250,23 @@
         "components": [
           {
             "key": "450",
-            "name": "Batteria 1 elemento",
-            "description": ""
+            "name": "Batteria 1 elemento"
           },
           {
             "key": "460",
-            "name": "Batteria 2 elementi",
-            "description": ""
+            "name": "Batteria 2 elementi"
           },
           {
             "key": "470",
-            "name": "Generatore Vcc",
-            "description": ""
+            "name": "Generatore Vcc"
           },
           {
             "key": "480",
-            "name": "Generatore Vac",
-            "description": ""
+            "name": "Generatore Vac"
           },
           {
             "key": "490",
-            "name": "Generatore Idc",
-            "description": ""
+            "name": "Generatore Idc"
           }
         ]
       },
@@ -336,38 +275,31 @@
         "components": [
           {
             "key": "500",
-            "name": "Trasformatore 1 secondario",
-            "description": ""
+            "name": "Trasformatore 1 secondario"
           },
           {
             "key": "510",
-            "name": "Trasformatore 2 secondari",
-            "description": ""
+            "name": "Trasformatore 2 secondari"
           },
           {
             "key": "520",
-            "name": "Trasformatore, simbolo unifilare",
-            "description": ""
+            "name": "Trasformatore, simbolo unifilare"
           },
           {
             "key": "530",
-            "name": "Autotrasformatore",
-            "description": ""
+            "name": "Autotrasformatore"
           },
           {
             "key": "540",
-            "name": "Motore CC",
-            "description": ""
+            "name": "Motore CC"
           },
           {
             "key": "550",
-            "name": "Motore monofase",
-            "description": ""
+            "name": "Motore monofase"
           },
           {
             "key": "560",
-            "name": "Motore trifase",
-            "description": ""
+            "name": "Motore trifase"
           }
         ]
       },
@@ -376,68 +308,55 @@
         "components": [
           {
             "key": "670",
-            "name": "Buffer",
-            "description": ""
+            "name": "Buffer"
           },
           {
             "key": "675",
-            "name": "Buffer 3-state",
-            "description": ""
+            "name": "Buffer 3-state"
           },
           {
             "key": "680",
-            "name": "NOT",
-            "description": ""
+            "name": "NOT"
           },
           {
             "key": "685",
-            "name": "NOT 3-state",
-            "description": ""
+            "name": "NOT 3-state"
           },
           {
             "key": "690",
-            "name": "AND a 2 gates",
-            "description": ""
+            "name": "AND a 2 gates"
           },
           {
             "key": "700",
-            "name": "NAND a 2 gates",
-            "description": ""
+            "name": "NAND a 2 gates"
           },
           {
             "key": "710",
-            "name": "OR a 2 gates",
-            "description": ""
+            "name": "OR a 2 gates"
           },
           {
             "key": "720",
-            "name": "NOR a 2 gates",
-            "description": ""
+            "name": "NOR a 2 gates"
           },
           {
             "key": "730",
-            "name": "EXOR a 2 gates",
-            "description": ""
+            "name": "EXOR a 2 gates"
           },
           {
             "key": "740",
-            "name": "EXNOR a 2 gates",
-            "description": ""
+            "name": "EXNOR a 2 gates"
           },
           {
             "key": "741",
-            "name": "Buffer Schmitt-trigger",
-            "description": ""
+            "name": "Buffer Schmitt-trigger"
           },
           {
             "key": "745",
-            "name": "Inverter Schmitt-trigger",
-            "description": ""
+            "name": "Inverter Schmitt-trigger"
           },
           {
             "key": "746",
-            "name": "NAND a 2 gates Schmitt-trigger",
-            "description": ""
+            "name": "NAND a 2 gates Schmitt-trigger"
           }
         ]
       },
@@ -446,8 +365,7 @@
         "components": [
           {
             "key": "580",
-            "name": "Ampli operazionale",
-            "description": ""
+            "name": "Ampli operazionale"
           }
         ]
       },
@@ -456,43 +374,35 @@
         "components": [
           {
             "key": "590",
-            "name": "DIL 6 terminali",
-            "description": ""
+            "name": "DIL 6 terminali"
           },
           {
             "key": "600",
-            "name": "DIL 8 terminali",
-            "description": ""
+            "name": "DIL 8 terminali"
           },
           {
             "key": "610",
-            "name": "DIL 10 terminali",
-            "description": ""
+            "name": "DIL 10 terminali"
           },
           {
             "key": "620",
-            "name": "DIL 12 terminali",
-            "description": ""
+            "name": "DIL 12 terminali"
           },
           {
             "key": "630",
-            "name": "DIL 14 terminali",
-            "description": ""
+            "name": "DIL 14 terminali"
           },
           {
             "key": "640",
-            "name": "DIL 16 terminali",
-            "description": ""
+            "name": "DIL 16 terminali"
           },
           {
             "key": "650",
-            "name": "DIL 18 terminali",
-            "description": ""
+            "name": "DIL 18 terminali"
           },
           {
             "key": "660",
-            "name": "DIL 20 terminali",
-            "description": ""
+            "name": "DIL 20 terminali"
           }
         ]
       },
@@ -501,83 +411,67 @@
         "components": [
           {
             "key": "750",
-            "name": "Interruttore NA",
-            "description": ""
+            "name": "Interruttore NA"
           },
           {
             "key": "760",
-            "name": "Interruttore NA di potenza",
-            "description": ""
+            "name": "Interruttore NA di potenza"
           },
           {
             "key": "770",
-            "name": "Interruttore NA automatico",
-            "description": ""
+            "name": "Interruttore NA automatico"
           },
           {
             "key": "780",
-            "name": "Interruttore NC",
-            "description": ""
+            "name": "Interruttore NC"
           },
           {
             "key": "790",
-            "name": "Interruttore NC di potenza",
-            "description": ""
+            "name": "Interruttore NC di potenza"
           },
           {
             "key": "800",
-            "name": "Interruttore NC automatico",
-            "description": ""
+            "name": "Interruttore NC automatico"
           },
           {
             "key": "810",
-            "name": "Intervento termico",
-            "description": ""
+            "name": "Intervento termico"
           },
           {
             "key": "820",
-            "name": "Intervento elettromagnetico",
-            "description": ""
+            "name": "Intervento elettromagnetico"
           },
           {
             "key": "830",
-            "name": "Rele'",
-            "description": ""
+            "name": "Rele'"
           },
           {
             "key": "840",
-            "name": "Rele' con ritardo alla ricaduta",
-            "description": ""
+            "name": "Rele' con ritardo alla ricaduta"
           },
           {
             "key": "850",
-            "name": "Rele' con ritardo all'attrazione",
-            "description": ""
+            "name": "Rele' con ritardo all'attrazione"
           },
           {
             "key": "860",
-            "name": "Pulsante NA",
-            "description": ""
+            "name": "Pulsante NA"
           },
           {
             "key": "870",
-            "name": "Pulsante NC",
-            "description": ""
+            "name": "Pulsante NC"
           },
           {
             "key": "880",
-            "name": "Deviatore",
-            "description": ""
+            "name": "Deviatore"
           },
           {
             "key": "890",
-            "name": "Fusibile",
-            "description": ""
+            "name": "Fusibile"
           },
           {
             "key": "900",
-            "name": "Lampada",
-            "description": ""
+            "name": "Lampada"
           }
         ]
       },
@@ -586,88 +480,71 @@
         "components": [
           {
             "key": "140",
-            "name": "Quarzo",
-            "description": ""
+            "name": "Quarzo"
           },
           {
             "key": "960",
-            "name": "Microfono",
-            "description": ""
+            "name": "Microfono"
           },
           {
             "key": "970",
-            "name": "Altoparlante",
-            "description": ""
+            "name": "Altoparlante"
           },
           {
             "key": "980",
-            "name": "Quarzo, simbolo alternativo",
-            "description": ""
+            "name": "Quarzo, simbolo alternativo"
           },
           {
             "key": "570",
-            "name": "Antenna",
-            "description": ""
+            "name": "Antenna"
           },
           {
             "key": "571",
-            "name": "Buzzer piezo",
-            "description": ""
+            "name": "Buzzer piezo"
           },
           {
             "key": "572",
-            "name": "Selettore decimale",
-            "description": ""
+            "name": "Selettore decimale"
           },
           {
             "key": "574",
-            "name": "Filtro ceramico 2 pin",
-            "description": ""
+            "name": "Filtro ceramico 2 pin"
           },
           {
             "key": "575",
-            "name": "Filtro ceramico 3 pin",
-            "description": ""
+            "name": "Filtro ceramico 3 pin"
           },
           {
             "key": "576",
-            "name": "Interruttore elettronico",
-            "description": ""
+            "name": "Interruttore elettronico"
           },
           {
             "key": "577",
-            "name": "Jack",
-            "description": ""
+            "name": "Jack"
           },
           {
             "key": "578",
-            "name": "Lampada flash",
-            "description": ""
+            "name": "Lampada flash"
           },
           {
             "key": "579",
-            "name": "Lampadina al NEON",
-            "description": ""
+            "name": "Lampadina al NEON"
           },
           {
             "key": "601",
-            "name": "Sensore di gas",
-            "description": ""
+            "name": "Sensore di gas"
           },
           {
             "key": "602",
-            "name": "Spina-presa coassiale",
-            "description": ""
+            "name": "Spina-presa coassiale"
           },
           {
             "key": "603",
-            "name": "Trasduttore ultrasonico",
-            "description": ""
+            "name": "Trasduttore ultrasonico"
           },
           {
             "key": "604",
-            "name": "Tubo fluorescente",
-            "description": ""
+            "name": "Tubo fluorescente"
           }
         ]
       },
@@ -676,48 +553,39 @@
         "components": [
           {
             "key": "150",
-            "name": "DIL 6 pin",
-            "description": ""
+            "name": "DIL 6 pin"
           },
           {
             "key": "151",
-            "name": "DIL 8 pin",
-            "description": ""
+            "name": "DIL 8 pin"
           },
           {
             "key": "152",
-            "name": "DIL 10 pin",
-            "description": ""
+            "name": "DIL 10 pin"
           },
           {
             "key": "153",
-            "name": "DIL 12 pin",
-            "description": ""
+            "name": "DIL 12 pin"
           },
           {
             "key": "154",
-            "name": "DIL 14 pin",
-            "description": ""
+            "name": "DIL 14 pin"
           },
           {
             "key": "155",
-            "name": "DIL 16 pin",
-            "description": ""
+            "name": "DIL 16 pin"
           },
           {
             "key": "156",
-            "name": "DIL 18 pin",
-            "description": ""
+            "name": "DIL 18 pin"
           },
           {
             "key": "157",
-            "name": "DIL 20 pin",
-            "description": ""
+            "name": "DIL 20 pin"
           },
           {
             "key": "158",
-            "name": "Connettore a vaschetta 40 pin (IDE)",
-            "description": ""
+            "name": "Connettore a vaschetta 40 pin (IDE)"
           }
         ]
       }
@@ -735,28 +603,23 @@
         "components": [
           {
             "key": "MECH0",
-            "name": "Scheda   50 x 100 mm",
-            "description": ""
+            "name": "Scheda   50 x 100 mm"
           },
           {
             "key": "MECH1",
-            "name": "Scheda 100 x 100 mm",
-            "description": ""
+            "name": "Scheda 100 x 100 mm"
           },
           {
             "key": "MECH2",
-            "name": "Scheda 100 x 160 mm",
-            "description": ""
+            "name": "Scheda 100 x 160 mm"
           },
           {
             "key": "MECH3",
-            "name": "Scheda 160 x 233 mm",
-            "description": ""
+            "name": "Scheda 160 x 233 mm"
           },
           {
             "key": "MECH4",
-            "name": "Foro per vite 3MA",
-            "description": ""
+            "name": "Foro per vite 3MA"
           }
         ]
       },
@@ -765,68 +628,55 @@
         "components": [
           {
             "key": "R00",
-            "name": "Resistore 1/8W 0,3i",
-            "description": ""
+            "name": "Resistore 1/8W 0,3i"
           },
           {
             "key": "R01",
-            "name": "Resistore 1/4 W 0,4i",
-            "description": ""
+            "name": "Resistore 1/4 W 0,4i"
           },
           {
             "key": "R02",
-            "name": "Resistore 1/2 W 0,5i",
-            "description": ""
+            "name": "Resistore 1/2 W 0,5i"
           },
           {
             "key": "R03",
-            "name": "Resistore 1 W 0,7i",
-            "description": ""
+            "name": "Resistore 1 W 0,7i"
           },
           {
             "key": "R04",
-            "name": "Resistore 2 W 0,9i",
-            "description": ""
+            "name": "Resistore 2 W 0,9i"
           },
           {
             "key": "R05",
-            "name": "Resistore 6 W 1i",
-            "description": ""
+            "name": "Resistore 6 W 1i"
           },
           {
             "key": "R06",
-            "name": "Res. 1/8-1/4W verticale",
-            "description": ""
+            "name": "Res. 1/8-1/4W verticale"
           },
           {
             "key": "R07",
-            "name": "Res. 1/4-1/2W verticale",
-            "description": ""
+            "name": "Res. 1/4-1/2W verticale"
           },
           {
             "key": "R08",
-            "name": "Trimmer orizzontale",
-            "description": ""
+            "name": "Trimmer orizzontale"
           },
           {
             "key": "R09",
-            "name": "Trimmer verticale",
-            "description": ""
+            "name": "Trimmer verticale"
           },
           {
             "key": "R10",
-            "name": "Trimmer 1 giro orizz.",
-            "description": ""
+            "name": "Trimmer 1 giro orizz."
           },
           {
             "key": "R11",
-            "name": "Trimmer 1 giro vert. in linea",
-            "description": ""
+            "name": "Trimmer 1 giro vert. in linea"
           },
           {
             "key": "R12",
-            "name": "Trimmer 1 giro vert. sfalsati",
-            "description": ""
+            "name": "Trimmer 1 giro vert. sfalsati"
           }
         ]
       },
@@ -835,28 +685,23 @@
         "components": [
           {
             "key": "CC0",
-            "name": "Disco passo 2,5mm",
-            "description": ""
+            "name": "Disco passo 2,5mm"
           },
           {
             "key": "CC1",
-            "name": "Disco passo 5mm",
-            "description": ""
+            "name": "Disco passo 5mm"
           },
           {
             "key": "CC2",
-            "name": "Disco passo 6,4mm",
-            "description": ""
+            "name": "Disco passo 6,4mm"
           },
           {
             "key": "CC3",
-            "name": "Disco passo 7,5mm",
-            "description": ""
+            "name": "Disco passo 7,5mm"
           },
           {
             "key": "CC4",
-            "name": "Disco passo 10mm",
-            "description": ""
+            "name": "Disco passo 10mm"
           }
         ]
       },
@@ -865,63 +710,51 @@
         "components": [
           {
             "key": "CP00",
-            "name": "Box 3 mm passo 2,5",
-            "description": ""
+            "name": "Box 3 mm passo 2,5"
           },
           {
             "key": "CP01",
-            "name": "Box 5 mm passo 2,5",
-            "description": ""
+            "name": "Box 5 mm passo 2,5"
           },
           {
             "key": "CP02",
-            "name": "Box 2,5 mm passo 5",
-            "description": ""
+            "name": "Box 2,5 mm passo 5"
           },
           {
             "key": "CP03",
-            "name": "Box 3,5 mm passo 5",
-            "description": ""
+            "name": "Box 3,5 mm passo 5"
           },
           {
             "key": "CP04",
-            "name": "Box 5 mm passo 5",
-            "description": ""
+            "name": "Box 5 mm passo 5"
           },
           {
             "key": "CP05",
-            "name": "Box 7,2 mm passo 5",
-            "description": ""
+            "name": "Box 7,2 mm passo 5"
           },
           {
             "key": "CP06",
-            "name": "Box 6 mm passo 7,5",
-            "description": ""
+            "name": "Box 6 mm passo 7,5"
           },
           {
             "key": "CP07",
-            "name": "Box 5 mm passo 10",
-            "description": ""
+            "name": "Box 5 mm passo 10"
           },
           {
             "key": "CP08",
-            "name": "Box 5 mm passo 15",
-            "description": ""
+            "name": "Box 5 mm passo 15"
           },
           {
             "key": "CP09",
-            "name": "Box 6 mm passo 15",
-            "description": ""
+            "name": "Box 6 mm passo 15"
           },
           {
             "key": "CP10",
-            "name": "Box 7,5 mm passo 15",
-            "description": ""
+            "name": "Box 7,5 mm passo 15"
           },
           {
             "key": "CP11",
-            "name": "Box 8,5 mm passo 15",
-            "description": ""
+            "name": "Box 8,5 mm passo 15"
           }
         ]
       },
@@ -930,118 +763,95 @@
         "components": [
           {
             "key": "CE00",
-            "name": "Vert. Ø  5 passo 2,5",
-            "description": ""
+            "name": "Vert. Ø  5 passo 2,5"
           },
           {
             "key": "CE01",
-            "name": "Vert. Ø6,5 passo 2,5",
-            "description": ""
+            "name": "Vert. Ø6,5 passo 2,5"
           },
           {
             "key": "CE02",
-            "name": "Vert. Ø  8 passo 3,5",
-            "description": ""
+            "name": "Vert. Ø  8 passo 3,5"
           },
           {
             "key": "CE03",
-            "name": "Vert. Ø 10 passo 3,5",
-            "description": ""
+            "name": "Vert. Ø 10 passo 3,5"
           },
           {
             "key": "CE04",
-            "name": "Vert. Ø 12 passo 3,5",
-            "description": ""
+            "name": "Vert. Ø 12 passo 3,5"
           },
           {
             "key": "CE05",
-            "name": "Vert. Ø  5 passo 5",
-            "description": ""
+            "name": "Vert. Ø  5 passo 5"
           },
           {
             "key": "CE06",
-            "name": "Vert. Ø6,5 passo 5",
-            "description": ""
+            "name": "Vert. Ø6,5 passo 5"
           },
           {
             "key": "CE07",
-            "name": "Vert. Ø  8 passo 5",
-            "description": ""
+            "name": "Vert. Ø  8 passo 5"
           },
           {
             "key": "CE08",
-            "name": "Vert. Ø 10 passo 5",
-            "description": ""
+            "name": "Vert. Ø 10 passo 5"
           },
           {
             "key": "CE09",
-            "name": "Vert. Ø 13 passo 5",
-            "description": ""
+            "name": "Vert. Ø 13 passo 5"
           },
           {
             "key": "CE10",
-            "name": "Vert. Ø 10 passo 6,3",
-            "description": ""
+            "name": "Vert. Ø 10 passo 6,3"
           },
           {
             "key": "CE11",
-            "name": "Vert. Ø 16 passo 7,5",
-            "description": ""
+            "name": "Vert. Ø 16 passo 7,5"
           },
           {
             "key": "CE12",
-            "name": "Vert. Ø 18 passo 7,5",
-            "description": ""
+            "name": "Vert. Ø 18 passo 7,5"
           },
           {
             "key": "CE13",
-            "name": "Oriz. Ø 4,5 passo 12,5",
-            "description": ""
+            "name": "Oriz. Ø 4,5 passo 12,5"
           },
           {
             "key": "CE14",
-            "name": "Oriz. Ø 6,3 passo 12,5",
-            "description": ""
+            "name": "Oriz. Ø 6,3 passo 12,5"
           },
           {
             "key": "CE15",
-            "name": "Oriz. Ø  6 passo 15",
-            "description": ""
+            "name": "Oriz. Ø  6 passo 15"
           },
           {
             "key": "CE16",
-            "name": "Oriz. Ø 8,5 passo 15",
-            "description": ""
+            "name": "Oriz. Ø 8,5 passo 15"
           },
           {
             "key": "CE17",
-            "name": "Oriz. Ø 6 passo 17,5",
-            "description": ""
+            "name": "Oriz. Ø 6 passo 17,5"
           },
           {
             "key": "CE18",
-            "name": "Oriz. Ø 8,5 passo 17,5",
-            "description": ""
+            "name": "Oriz. Ø 8,5 passo 17,5"
           },
           {
             "key": "CE19",
-            "name": "Oriz. Ø 8 passo 20",
-            "description": ""
+            "name": "Oriz. Ø 8 passo 20"
           },
           {
             "key": "CE20",
-            "name": "Oriz. Ø 10 passo 20",
-            "description": ""
+            "name": "Oriz. Ø 10 passo 20"
           },
           {
             "key": "CE21",
-            "name": "Oriz. Ø12,5 passo 25",
-            "description": ""
+            "name": "Oriz. Ø12,5 passo 25"
           },
           {
             "key": "CE22",
-            "name": "Oriz. Ø 16 passo 25",
-            "description": ""
+            "name": "Oriz. Ø 16 passo 25"
           }
         ]
       },
@@ -1050,198 +860,159 @@
         "components": [
           {
             "key": "D00",
-            "name": "DO35 (1N4148, zener1/2W)",
-            "description": ""
+            "name": "DO35 (1N4148, zener1/2W)"
           },
           {
             "key": "D01",
-            "name": "DO35 largo",
-            "description": ""
+            "name": "DO35 largo"
           },
           {
             "key": "D02",
-            "name": "DO41 (1N400x, zener 1W)",
-            "description": ""
+            "name": "DO41 (1N400x, zener 1W)"
           },
           {
             "key": "D03",
-            "name": "DO41 largo",
-            "description": ""
+            "name": "DO41 largo"
           },
           {
             "key": "D04",
-            "name": "CB417 (zener 5W)",
-            "description": ""
+            "name": "CB417 (zener 5W)"
           },
           {
             "key": "D05",
-            "name": "DO27/DO201 (1N540x)",
-            "description": ""
+            "name": "DO27/DO201 (1N540x)"
           },
           {
             "key": "D06",
-            "name": "AG (P600K)",
-            "description": ""
+            "name": "AG (P600K)"
           },
           {
             "key": "D07",
-            "name": "Fotodiodo (BPW34)",
-            "description": ""
+            "name": "Fotodiodo (BPW34)"
           },
           {
             "key": "D08",
-            "name": "LED Ø 3mm",
-            "description": ""
+            "name": "LED Ø 3mm"
           },
           {
             "key": "D09",
-            "name": "LED Ø 5mm",
-            "description": ""
+            "name": "LED Ø 5mm"
           },
           {
             "key": "D10",
-            "name": "LED Ø 8mm",
-            "description": ""
+            "name": "LED Ø 8mm"
           },
           {
             "key": "D11",
-            "name": "LED Ø10mm",
-            "description": ""
+            "name": "LED Ø10mm"
           },
           {
             "key": "D12",
-            "name": "LED Ø 3mm bicolore",
-            "description": ""
+            "name": "LED Ø 3mm bicolore"
           },
           {
             "key": "D13",
-            "name": "LED Ø 5mm bicolore",
-            "description": ""
+            "name": "LED Ø 5mm bicolore"
           },
           {
             "key": "D14",
-            "name": "LED Ø 8mm bicolore",
-            "description": ""
+            "name": "LED Ø 8mm bicolore"
           },
           {
             "key": "D15",
-            "name": "LED Ø10mm bicolore",
-            "description": ""
+            "name": "LED Ø10mm bicolore"
           },
           {
             "key": "D16",
-            "name": "LED rettangolare",
-            "description": ""
+            "name": "LED rettangolare"
           },
           {
             "key": "D17",
-            "name": "LED quadrato",
-            "description": ""
+            "name": "LED quadrato"
           },
           {
             "key": "D18",
-            "name": "TO220",
-            "description": ""
+            "name": "TO220"
           },
           {
             "key": "D19",
-            "name": "TO220 vert.",
-            "description": ""
+            "name": "TO220 vert."
           },
           {
             "key": "D20",
-            "name": "TO218 - SOD93",
-            "description": ""
+            "name": "TO218 - SOD93"
           },
           {
             "key": "D21",
-            "name": "TO218 - SOD93 vert.",
-            "description": ""
+            "name": "TO218 - SOD93 vert."
           },
           {
             "key": "D22",
-            "name": "DO247",
-            "description": ""
+            "name": "DO247"
           },
           {
             "key": "D23",
-            "name": "D0247 vert.",
-            "description": ""
+            "name": "D0247 vert."
           },
           {
             "key": "D24",
-            "name": "DOP3",
-            "description": ""
+            "name": "DOP3"
           },
           {
             "key": "D25",
-            "name": "DOP3 vert.",
-            "description": ""
+            "name": "DOP3 vert."
           },
           {
             "key": "D26",
-            "name": "Ponte 0,8÷1,5A (RB1L)",
-            "description": ""
+            "name": "Ponte 0,8÷1,5A (RB1L)"
           },
           {
             "key": "D27",
-            "name": "Ponte 0,9÷1,5A (WOG)",
-            "description": ""
+            "name": "Ponte 0,9÷1,5A (WOG)"
           },
           {
             "key": "D28",
-            "name": "Ponte 1A (DFM)",
-            "description": ""
+            "name": "Ponte 1A (DFM)"
           },
           {
             "key": "D29",
-            "name": "Ponte 1A (PDIP)",
-            "description": ""
+            "name": "Ponte 1A (PDIP)"
           },
           {
             "key": "D30",
-            "name": "Ponte 1,5÷2A (FB2F)",
-            "description": ""
+            "name": "Ponte 1,5÷2A (FB2F)"
           },
           {
             "key": "D31",
-            "name": "Ponte 2A (KBPM)",
-            "description": ""
+            "name": "Ponte 2A (KBPM)"
           },
           {
             "key": "D32",
-            "name": "Ponte 4A (KBU)",
-            "description": ""
+            "name": "Ponte 4A (KBU)"
           },
           {
             "key": "D33",
-            "name": "Ponte 3,7÷5A (FB4F)",
-            "description": ""
+            "name": "Ponte 3,7÷5A (FB4F)"
           },
           {
             "key": "D34",
-            "name": "Ponte 4÷8A (FB1L)",
-            "description": ""
+            "name": "Ponte 4÷8A (FB1L)"
           },
           {
             "key": "D35",
-            "name": "Ponte 6÷8A (GBU)",
-            "description": ""
+            "name": "Ponte 6÷8A (GBU)"
           },
           {
             "key": "D36",
-            "name": "Ponte 6A quadro (BPC6)",
-            "description": ""
+            "name": "Ponte 6A quadro (BPC6)"
           },
           {
             "key": "D37",
-            "name": "Ponte 12A quadro (GBPC)",
-            "description": ""
+            "name": "Ponte 12A quadro (GBPC)"
           },
           {
             "key": "D38",
-            "name": "Ponte 15A quadro (SKB25)",
-            "description": ""
+            "name": "Ponte 15A quadro (SKB25)"
           }
         ]
       },
@@ -1250,133 +1021,107 @@
         "components": [
           {
             "key": "SEMI00",
-            "name": "TO3",
-            "description": ""
+            "name": "TO3"
           },
           {
             "key": "SEMI01",
-            "name": "TO3 /45°",
-            "description": ""
+            "name": "TO3 /45°"
           },
           {
             "key": "SEMI02",
-            "name": "TO5 - TO39",
-            "description": ""
+            "name": "TO5 - TO39"
           },
           {
             "key": "SEMI03",
-            "name": "TO18",
-            "description": ""
+            "name": "TO18"
           },
           {
             "key": "SEMI04",
-            "name": "TO18 /45°",
-            "description": ""
+            "name": "TO18 /45°"
           },
           {
             "key": "SEMI05",
-            "name": "TO66",
-            "description": ""
+            "name": "TO66"
           },
           {
             "key": "SEMI06",
-            "name": "TO66 /45°",
-            "description": ""
+            "name": "TO66 /45°"
           },
           {
             "key": "SEMI07",
-            "name": "TO72",
-            "description": ""
+            "name": "TO72"
           },
           {
             "key": "SEMI08",
-            "name": "TO72 /45°",
-            "description": ""
+            "name": "TO72 /45°"
           },
           {
             "key": "SEMI09",
-            "name": "TO92",
-            "description": ""
+            "name": "TO92"
           },
           {
             "key": "SEMI10",
-            "name": "TO92 /45°",
-            "description": ""
+            "name": "TO92 /45°"
           },
           {
             "key": "SEMI11",
-            "name": "TO92 large",
-            "description": ""
+            "name": "TO92 large"
           },
           {
             "key": "SEMI12",
-            "name": "TO92 linea",
-            "description": ""
+            "name": "TO92 linea"
           },
           {
             "key": "SEMI13",
-            "name": "TO126",
-            "description": ""
+            "name": "TO126"
           },
           {
             "key": "SEMI14",
-            "name": "TO126 vert.",
-            "description": ""
+            "name": "TO126 vert."
           },
           {
             "key": "SEMI15",
-            "name": "TO202",
-            "description": ""
+            "name": "TO202"
           },
           {
             "key": "SEMI16",
-            "name": "TO202 vert.",
-            "description": ""
+            "name": "TO202 vert."
           },
           {
             "key": "SEMI17",
-            "name": "TO218 - SOT93",
-            "description": ""
+            "name": "TO218 - SOT93"
           },
           {
             "key": "SEMI18",
-            "name": "TO218 vert.",
-            "description": ""
+            "name": "TO218 vert."
           },
           {
             "key": "SEMI19",
-            "name": "TO220",
-            "description": ""
+            "name": "TO220"
           },
           {
             "key": "SEMI20",
-            "name": "TO220 vert.",
-            "description": ""
+            "name": "TO220 vert."
           },
           {
             "key": "SEMI21",
-            "name": "TOP3",
-            "description": ""
+            "name": "TOP3"
           },
           {
             "key": "SEMI22",
-            "name": "TOP3 vert.",
-            "description": ""
+            "name": "TOP3 vert."
           },
           {
             "key": "SEMI23",
-            "name": "TO247",
-            "description": ""
+            "name": "TO247"
           },
           {
             "key": "SEMI24",
-            "name": "SOT32",
-            "description": ""
+            "name": "SOT32"
           },
           {
             "key": "SEMI25",
-            "name": "SOT82",
-            "description": ""
+            "name": "SOT82"
           }
         ]
       },
@@ -1385,113 +1130,91 @@
         "components": [
           {
             "key": "NDIL00",
-            "name": "DIL 4 pin",
-            "description": ""
+            "name": "DIL 4 pin"
           },
           {
             "key": "NDIL0603",
-            "name": "DIL 6 pin",
-            "description": ""
+            "name": "DIL 6 pin"
           },
           {
             "key": "NDIL0803",
-            "name": "DIL 8 pin",
-            "description": ""
+            "name": "DIL 8 pin"
           },
           {
             "key": "NDIL1403",
-            "name": "DIL 14 pin",
-            "description": ""
+            "name": "DIL 14 pin"
           },
           {
             "key": "NDIL1603",
-            "name": "DIL 16 pin",
-            "description": ""
+            "name": "DIL 16 pin"
           },
           {
             "key": "NDIL1803",
-            "name": "DIL 18 pin",
-            "description": ""
+            "name": "DIL 18 pin"
           },
           {
             "key": "NDIL2003",
-            "name": "DIL 20 pin",
-            "description": ""
+            "name": "DIL 20 pin"
           },
           {
             "key": "NDIL2203",
-            "name": "DIL 22 pin",
-            "description": ""
+            "name": "DIL 22 pin"
           },
           {
             "key": "NDIL2204",
-            "name": "DIL 22 pin 0,4i",
-            "description": ""
+            "name": "DIL 22 pin 0,4i"
           },
           {
             "key": "NDIL2403",
-            "name": "DIL 24 pin",
-            "description": ""
+            "name": "DIL 24 pin"
           },
           {
             "key": "NDIL2404",
-            "name": "DIL 24 pin 0,4i",
-            "description": ""
+            "name": "DIL 24 pin 0,4i"
           },
           {
             "key": "NDIL2406",
-            "name": "DIL 24 pin 0,6i",
-            "description": ""
+            "name": "DIL 24 pin 0,6i"
           },
           {
             "key": "NDIL2803",
-            "name": "DIL 28 pin",
-            "description": ""
+            "name": "DIL 28 pin"
           },
           {
             "key": "NDIL2804",
-            "name": "DIL 28 pin 0,4i",
-            "description": ""
+            "name": "DIL 28 pin 0,4i"
           },
           {
             "key": "NDIL2806",
-            "name": "DIL 28 pin 0,6i",
-            "description": ""
+            "name": "DIL 28 pin 0,6i"
           },
           {
             "key": "NDIL3204",
-            "name": "DIL 32 pin 0,4i",
-            "description": ""
+            "name": "DIL 32 pin 0,4i"
           },
           {
             "key": "NDIL3206",
-            "name": "DIL 32 pin 0,6i",
-            "description": ""
+            "name": "DIL 32 pin 0,6i"
           },
           {
             "key": "NDIL4006",
-            "name": "DIL 40 pin 0,6i",
-            "description": ""
+            "name": "DIL 40 pin 0,6i"
           },
           {
             "key": "NDIL4806",
-            "name": "DIL 48 pin 0,6i",
-            "description": ""
+            "name": "DIL 48 pin 0,6i"
           },
           {
             "key": "NDIL5206",
-            "name": "DIL 52 pin 0,6i",
-            "description": ""
+            "name": "DIL 52 pin 0,6i"
           },
           {
             "key": "NDIL6406",
-            "name": "DIL 64 pin 0,6i",
-            "description": ""
+            "name": "DIL 64 pin 0,6i"
           },
           {
             "key": "NDIL6409",
-            "name": "DIL 64 pin 0,9i",
-            "description": ""
+            "name": "DIL 64 pin 0,9i"
           }
         ]
       },
@@ -1500,113 +1223,91 @@
         "components": [
           {
             "key": "WDIL0403",
-            "name": "DIL 4 pin",
-            "description": ""
+            "name": "DIL 4 pin"
           },
           {
             "key": "WDIL0603",
-            "name": "DIL 6 pin",
-            "description": ""
+            "name": "DIL 6 pin"
           },
           {
             "key": "WDIL0803",
-            "name": "DIL 8 pin",
-            "description": ""
+            "name": "DIL 8 pin"
           },
           {
             "key": "WDIL1403",
-            "name": "DIL 14 pin",
-            "description": ""
+            "name": "DIL 14 pin"
           },
           {
             "key": "WDIL1603",
-            "name": "DIL 16 pin",
-            "description": ""
+            "name": "DIL 16 pin"
           },
           {
             "key": "WDIL1803",
-            "name": "DIL 18 pin",
-            "description": ""
+            "name": "DIL 18 pin"
           },
           {
             "key": "WDIL2003",
-            "name": "DIL 20 pin",
-            "description": ""
+            "name": "DIL 20 pin"
           },
           {
             "key": "WDIL2203",
-            "name": "DIL 22 pin",
-            "description": ""
+            "name": "DIL 22 pin"
           },
           {
             "key": "WDIL2204",
-            "name": "DIL 22 pin 0,4i",
-            "description": ""
+            "name": "DIL 22 pin 0,4i"
           },
           {
             "key": "WDIL2403",
-            "name": "DIL 24 pin",
-            "description": ""
+            "name": "DIL 24 pin"
           },
           {
             "key": "WDIL2404",
-            "name": "DIL 24 pin 0,4i",
-            "description": ""
+            "name": "DIL 24 pin 0,4i"
           },
           {
             "key": "WDIL2406",
-            "name": "DIL 24 pin 0,6i",
-            "description": ""
+            "name": "DIL 24 pin 0,6i"
           },
           {
             "key": "WDIL2803",
-            "name": "DIL 28 pin",
-            "description": ""
+            "name": "DIL 28 pin"
           },
           {
             "key": "WDIL2804",
-            "name": "DIL 28 pin 0,4i",
-            "description": ""
+            "name": "DIL 28 pin 0,4i"
           },
           {
             "key": "WDIL2806",
-            "name": "DIL 28 pin 0,6i",
-            "description": ""
+            "name": "DIL 28 pin 0,6i"
           },
           {
             "key": "WDIL3204",
-            "name": "DIL 32 pin 0,4i",
-            "description": ""
+            "name": "DIL 32 pin 0,4i"
           },
           {
             "key": "WDIL3206",
-            "name": "DIL 32 pin 0,6i",
-            "description": ""
+            "name": "DIL 32 pin 0,6i"
           },
           {
             "key": "WDIL4006",
-            "name": "DIL 40 pin 0,6i",
-            "description": ""
+            "name": "DIL 40 pin 0,6i"
           },
           {
             "key": "WDIL4806",
-            "name": "DIL 48 pin 0,6i",
-            "description": ""
+            "name": "DIL 48 pin 0,6i"
           },
           {
             "key": "WDIL5206",
-            "name": "DIL 52 pin 0,6i",
-            "description": ""
+            "name": "DIL 52 pin 0,6i"
           },
           {
             "key": "WDIL6406",
-            "name": "DIL 64 pin 0,6i",
-            "description": ""
+            "name": "DIL 64 pin 0,6i"
           },
           {
             "key": "WDIL6409",
-            "name": "DIL 64 pin 0,9i",
-            "description": ""
+            "name": "DIL 64 pin 0,9i"
           }
         ]
       },
@@ -1615,43 +1316,35 @@
         "components": [
           {
             "key": "SOIC0815",
-            "name": "SOIC 8 pin",
-            "description": ""
+            "name": "SOIC 8 pin"
           },
           {
             "key": "SOIC1415",
-            "name": "SOIC 14 pin",
-            "description": ""
+            "name": "SOIC 14 pin"
           },
           {
             "key": "SOIC1430",
-            "name": "SOIC 14 pin 0,3i",
-            "description": ""
+            "name": "SOIC 14 pin 0,3i"
           },
           {
             "key": "SOIC1615",
-            "name": "SOIC 16 pin",
-            "description": ""
+            "name": "SOIC 16 pin"
           },
           {
             "key": "SOIC1630",
-            "name": "SOIC 16 pin 0,3i",
-            "description": ""
+            "name": "SOIC 16 pin 0,3i"
           },
           {
             "key": "SOIC1830",
-            "name": "SOIC 18 pin (0,3i)",
-            "description": ""
+            "name": "SOIC 18 pin (0,3i)"
           },
           {
             "key": "SOIC2030",
-            "name": "SOIC 20 pin (0,3i)",
-            "description": ""
+            "name": "SOIC 20 pin (0,3i)"
           },
           {
             "key": "SOIC2430",
-            "name": "SOIC 24 pin (0,3i)",
-            "description": ""
+            "name": "SOIC 24 pin (0,3i)"
           }
         ]
       },
@@ -1660,28 +1353,23 @@
         "components": [
           {
             "key": "SSOP1620",
-            "name": "SSOP 16 pin",
-            "description": ""
+            "name": "SSOP 16 pin"
           },
           {
             "key": "SSOP2020",
-            "name": "SSOP 20 pin",
-            "description": ""
+            "name": "SSOP 20 pin"
           },
           {
             "key": "SSOP2420",
-            "name": "SSOP 24 pin",
-            "description": ""
+            "name": "SSOP 24 pin"
           },
           {
             "key": "SSOP4830",
-            "name": "SSOP 48 pin",
-            "description": ""
+            "name": "SSOP 48 pin"
           },
           {
             "key": "SSOP5630",
-            "name": "SSOP 56 pin",
-            "description": ""
+            "name": "SSOP 56 pin"
           }
         ]
       },
@@ -1690,38 +1378,31 @@
         "components": [
           {
             "key": "LCC16",
-            "name": "LCC 16 pin",
-            "description": ""
+            "name": "LCC 16 pin"
           },
           {
             "key": "LCC20",
-            "name": "LCC 20 pin",
-            "description": ""
+            "name": "LCC 20 pin"
           },
           {
             "key": "LCC24",
-            "name": "LCC 24 pin",
-            "description": ""
+            "name": "LCC 24 pin"
           },
           {
             "key": "LCC28",
-            "name": "LCC 28 pin",
-            "description": ""
+            "name": "LCC 28 pin"
           },
           {
             "key": "LCC44",
-            "name": "LCC 44 pin",
-            "description": ""
+            "name": "LCC 44 pin"
           },
           {
             "key": "LCC68",
-            "name": "LCC 68 pin",
-            "description": ""
+            "name": "LCC 68 pin"
           },
           {
             "key": "LCC84",
-            "name": "LCC 84 pin",
-            "description": ""
+            "name": "LCC 84 pin"
           }
         ]
       },
@@ -1730,108 +1411,87 @@
         "components": [
           {
             "key": "ICPO00",
-            "name": "TO220-5",
-            "description": ""
+            "name": "TO220-5"
           },
           {
             "key": "ICPO01",
-            "name": "TO220-5 In-Line",
-            "description": ""
+            "name": "TO220-5 In-Line"
           },
           {
             "key": "ICPO02",
-            "name": "TO220-7",
-            "description": ""
+            "name": "TO220-7"
           },
           {
             "key": "ICPO03",
-            "name": "TO220-7 In-Line",
-            "description": ""
+            "name": "TO220-7 In-Line"
           },
           {
             "key": "ICPO04",
-            "name": "Pentawatt ©",
-            "description": ""
+            "name": "Pentawatt ©"
           },
           {
             "key": "ICPO05",
-            "name": "Pentawatt © V",
-            "description": ""
+            "name": "Pentawatt © V"
           },
           {
             "key": "ICPO06",
-            "name": "Pentawatt © HV",
-            "description": ""
+            "name": "Pentawatt © HV"
           },
           {
             "key": "ICPO07",
-            "name": "Heptawatt © H",
-            "description": ""
+            "name": "Heptawatt © H"
           },
           {
             "key": "ICPO08",
-            "name": "Heptawatt © V",
-            "description": ""
+            "name": "Heptawatt © V"
           },
           {
             "key": "ICPO09",
-            "name": "Multiwatt8 ©",
-            "description": ""
+            "name": "Multiwatt8 ©"
           },
           {
             "key": "ICPO10",
-            "name": "Clipwatt8 ©",
-            "description": ""
+            "name": "Clipwatt8 ©"
           },
           {
             "key": "ICPO11",
-            "name": "SIP9",
-            "description": ""
+            "name": "SIP9"
           },
           {
             "key": "ICPO12",
-            "name": "SIP10",
-            "description": ""
+            "name": "SIP10"
           },
           {
             "key": "ICPO13",
-            "name": "Multiwatt11 © V",
-            "description": ""
+            "name": "Multiwatt11 © V"
           },
           {
             "key": "ICPO14",
-            "name": "Multiwatt11 © In-Line",
-            "description": ""
+            "name": "Multiwatt11 © In-Line"
           },
           {
             "key": "ICPO15",
-            "name": "Multiwatt11 © H",
-            "description": ""
+            "name": "Multiwatt11 © H"
           },
           {
             "key": "ICPO16",
-            "name": "Clipwatt11 ©",
-            "description": ""
+            "name": "Clipwatt11 ©"
           },
           {
             "key": "ICPO17",
-            "name": "Multiwatt15 © V",
-            "description": ""
+            "name": "Multiwatt15 © V"
           },
           {
             "key": "ICPO18",
-            "name": "Multiwatt15 © In-Line",
-            "description": ""
+            "name": "Multiwatt15 © In-Line"
           },
           {
             "key": "ICPO19",
-            "name": "Multiwatt15 © H",
-            "description": ""
+            "name": "Multiwatt15 © H"
           },
           {
             "key": "ICPO20",
-            "name": "Clipwatt15 ©",
-            "description": ""
+            "name": "Clipwatt15 ©"
           }
         ]
       },
@@ -1840,18 +1500,15 @@
         "components": [
           {
             "key": "TO78",
-            "name": "TO78",
-            "description": ""
+            "name": "TO78"
           },
           {
             "key": "TO99",
-            "name": "TO99",
-            "description": ""
+            "name": "TO99"
           },
           {
             "key": "TO100",
-            "name": "TO100",
-            "description": ""
+            "name": "TO100"
           }
         ]
       },
@@ -1860,58 +1517,47 @@
         "components": [
           {
             "key": "CONDB9",
-            "name": "DB9",
-            "description": ""
+            "name": "DB9"
           },
           {
             "key": "CONDB15",
-            "name": "DB15",
-            "description": ""
+            "name": "DB15"
           },
           {
             "key": "CONDB25",
-            "name": "DB25",
-            "description": ""
+            "name": "DB25"
           },
           {
             "key": "CONDB37",
-            "name": "DB37",
-            "description": ""
+            "name": "DB37"
           },
           {
             "key": "CONDB9R",
-            "name": "DB9 90°",
-            "description": ""
+            "name": "DB9 90°"
           },
           {
             "key": "CONDB15R",
-            "name": "DB15 90°",
-            "description": ""
+            "name": "DB15 90°"
           },
           {
             "key": "CONDB25R",
-            "name": "DB25 90°",
-            "description": ""
+            "name": "DB25 90°"
           },
           {
             "key": "CONDB37R",
-            "name": "DB37 90°",
-            "description": ""
+            "name": "DB37 90°"
           },
           {
             "key": "CONSCART",
-            "name": "SCART",
-            "description": ""
+            "name": "SCART"
           },
           {
             "key": "CONRCA",
-            "name": "PIN RCA",
-            "description": ""
+            "name": "PIN RCA"
           },
           {
             "key": "CONRCAR",
-            "name": "PIN RCA 90°",
-            "description": ""
+            "name": "PIN RCA 90°"
           }
         ]
       },
@@ -1920,108 +1566,87 @@
         "components": [
           {
             "key": "DSMD00",
-            "name": "MELF",
-            "description": ""
+            "name": "MELF"
           },
           {
             "key": "DSMD01",
-            "name": "MINIMELF",
-            "description": ""
+            "name": "MINIMELF"
           },
           {
             "key": "DSMD02",
-            "name": "SMA",
-            "description": ""
+            "name": "SMA"
           },
           {
             "key": "DSMD03",
-            "name": "SMB",
-            "description": ""
+            "name": "SMB"
           },
           {
             "key": "DSMD04",
-            "name": "SMC",
-            "description": ""
+            "name": "SMC"
           },
           {
             "key": "DSMD05",
-            "name": "SOT-23",
-            "description": ""
+            "name": "SOT-23"
           },
           {
             "key": "DSMD06",
-            "name": "SOT-23-5",
-            "description": ""
+            "name": "SOT-23-5"
           },
           {
             "key": "DSMD07",
-            "name": "SOT-23-6",
-            "description": ""
+            "name": "SOT-23-6"
           },
           {
             "key": "DSMD08",
-            "name": "SOT-143",
-            "description": ""
+            "name": "SOT-143"
           },
           {
             "key": "DSMD09",
-            "name": "SOT-194",
-            "description": ""
+            "name": "SOT-194"
           },
           {
             "key": "DSMD10",
-            "name": "SOT-223",
-            "description": ""
+            "name": "SOT-223"
           },
           {
             "key": "DSMD11",
-            "name": "SC70-3",
-            "description": ""
+            "name": "SC70-3"
           },
           {
             "key": "DSMD12",
-            "name": "SC70-5",
-            "description": ""
+            "name": "SC70-5"
           },
           {
             "key": "DSMD13",
-            "name": "SC70-6",
-            "description": ""
+            "name": "SC70-6"
           },
           {
             "key": "DSMD14",
-            "name": "DPAK",
-            "description": ""
+            "name": "DPAK"
           },
           {
             "key": "DSMD15",
-            "name": "D2PAK",
-            "description": ""
+            "name": "D2PAK"
           },
           {
             "key": "DSMD16",
-            "name": "PPAK-5L",
-            "description": ""
+            "name": "PPAK-5L"
           },
           {
             "key": "8-µMAX",
-            "name": "8-µMAX",
-            "description": ""
+            "name": "8-µMAX"
           },
           {
             "key": "10-µMAX",
-            "name": "10-µMAX",
-            "description": ""
+            "name": "10-µMAX"
           },
           {
             "key": "10-µMAXP",
-            "name": "10-µMAX EP",
-            "description": ""
+            "name": "10-µMAX EP"
           },
           {
             "key": "DSMD17",
-            "name": "PowerSO-10 ®",
-            "description": ""
+            "name": "PowerSO-10 ®"
           }
         ]
       }
@@ -2039,53 +1664,43 @@
         "components": [
           {
             "key": "M01",
-            "name": "Connettore coassiale",
-            "description": ""
+            "name": "Connettore coassiale"
           },
           {
             "key": "M02",
-            "name": "Spina-presa coassiale",
-            "description": ""
+            "name": "Spina-presa coassiale"
           },
           {
             "key": "M03",
-            "name": "Induttanza",
-            "description": ""
+            "name": "Induttanza"
           },
           {
             "key": "M04",
-            "name": "Rele` DPST",
-            "description": ""
+            "name": "Rele` DPST"
           },
           {
             "key": "M05",
-            "name": "Rele` SPDT",
-            "description": ""
+            "name": "Rele` SPDT"
           },
           {
             "key": "M07",
-            "name": "Rele` SPST",
-            "description": ""
+            "name": "Rele` SPST"
           },
           {
             "key": "M08",
-            "name": "Rele` DPDT",
-            "description": ""
+            "name": "Rele` DPDT"
           },
           {
             "key": "M09",
-            "name": "Interruttore doppio",
-            "description": ""
+            "name": "Interruttore doppio"
           },
           {
             "key": "M10",
-            "name": "Deviatore",
-            "description": ""
+            "name": "Deviatore"
           },
           {
             "key": "M11",
-            "name": "Doppio deviatore",
-            "description": ""
+            "name": "Doppio deviatore"
           }
         ]
       }

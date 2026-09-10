@@ -170,7 +170,7 @@ impl Editor {
         let Some((_, def)) = self.libs.lookup(name) else {
             return Vec::new();
         };
-        let mut prims = crate::library::expand_component(
+        crate::library::expand_component(
             def,
             Transform {
                 origin: pos,
@@ -179,9 +179,7 @@ impl Editor {
             },
             &self.libs,
             0,
-        );
-        crate::library::paint_primitives(&mut prims, self.layer);
-        prims
+        )
     }
 
     pub fn clear_hover(&mut self) {
@@ -200,7 +198,7 @@ impl Editor {
             name,
             standard,
             layer: self.layer,
-            use_component_layers: false,
+            use_component_layers: true,
         })))
     }
 
@@ -263,7 +261,6 @@ impl Editor {
         lib.components.push(ComponentDef {
             key: key.clone(),
             name,
-            description: String::new(),
             category: String::new(),
             primitives: body,
         });
@@ -311,27 +308,61 @@ impl Editor {
         }
     }
 
-    pub fn set_component_description(&mut self, stem: &str, key: &str, description: &str) -> bool {
+    pub fn rename_component_key(&mut self, stem: &str, key: &str, new_key: &str) -> bool {
+        let new_key = new_key.trim();
+        if !is_valid_component_key(new_key) {
+            return false;
+        }
         let Some(lib) = self.libs.library(stem) else {
             return false;
         };
-        if !lib.writable() {
+        if !lib.writable() || lib.find(key).is_none() {
             return false;
         }
-        let Some(def) = lib.find(key) else {
+        if lib.find(key).is_some_and(|d| d.key == new_key) {
             return false;
-        };
-        if def.description == description {
+        }
+        if lib
+            .components
+            .iter()
+            .any(|c| c.key.eq_ignore_ascii_case(new_key) && !c.key.eq_ignore_ascii_case(key))
+        {
             return false;
         }
         self.push_undo();
+        let old_full = component_full_name(stem, key);
+        let new_full = component_full_name(stem, new_key);
         if let Some(def) = self.libs.library_mut(stem).and_then(|l| l.find_mut(key)) {
-            def.description = description.to_string();
-            self.bump_libs_rev();
-            true
+            def.key = new_key.to_string();
         } else {
-            false
+            return false;
         }
+        if old_full != new_full {
+            rewrite_component_names(&mut self.doc.primitives, &old_full, &new_full);
+            rewrite_component_names_in_libs(&mut self.libs, &old_full, &new_full);
+            if let Some(session) = &mut self.component_edit {
+                rewrite_component_names(&mut session.saved_doc.primitives, &old_full, &new_full);
+                if session.stem.eq_ignore_ascii_case(stem) && session.key.eq_ignore_ascii_case(key) {
+                    session.key = new_key.to_string();
+                }
+                if session
+                    .saved_pending
+                    .as_deref()
+                    .is_some_and(|p| p.eq_ignore_ascii_case(&old_full))
+                {
+                    session.saved_pending = Some(new_full.clone());
+                }
+            }
+            if self
+                .pending_component
+                .as_deref()
+                .is_some_and(|p| p.eq_ignore_ascii_case(&old_full))
+            {
+                self.pending_component = Some(new_full);
+            }
+        }
+        self.bump_libs_rev();
+        true
     }
 
     pub fn delete_component(&mut self, stem: &str, key: &str) -> bool {
@@ -661,4 +692,8 @@ impl Editor {
     pub(super) fn bump_libs_rev(&mut self) {
         self.libs_rev = self.libs_rev.wrapping_add(1);
     }
+}
+
+fn is_valid_component_key(key: &str) -> bool {
+    !key.is_empty() && !key.contains(['.', '[', ']']) && !key.chars().any(char::is_whitespace)
 }

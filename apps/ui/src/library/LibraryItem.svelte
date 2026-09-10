@@ -10,7 +10,7 @@
 		stem,
 		componentKey,
 		label,
-		description,
+		origin = '',
 		writable,
 		selected,
 		theme,
@@ -21,7 +21,7 @@
 		stem: string;
 		componentKey: string;
 		label: string;
-		description: string;
+		origin?: string;
 		writable: boolean;
 		selected: boolean;
 		theme: 'light' | 'dark';
@@ -38,7 +38,7 @@
 	);
 
 	let skipNameCommit = false;
-	let skipDescCommit = false;
+	let skipKeyCommit = false;
 
 	const previewSvg = $derived(app.previewCache.get(theme, name));
 
@@ -83,9 +83,9 @@
 	function onDblClick(e: MouseEvent) {
 		if (!writable) return;
 		const t = e.target as HTMLElement;
-		if (t.closest('.desc')) {
+		if (t.closest('.key')) {
 			e.stopPropagation();
-			app.beginEditComponentDescription(stem, componentKey);
+			app.beginEditComponentKey(stem, componentKey);
 		} else if (t.closest('.label')) {
 			e.stopPropagation();
 			app.beginRenameComponent(stem, componentKey);
@@ -130,13 +130,13 @@
 		app.renameComponent(stem, componentKey, value);
 	}
 
-	function commitDescription(value: string) {
-		if (skipDescCommit) {
-			skipDescCommit = false;
+	function commitKey(value: string) {
+		if (skipKeyCommit) {
+			skipKeyCommit = false;
 			app.editingLibraryField = null;
 			return;
 		}
-		app.setComponentDescription(stem, componentKey, value);
+		app.renameComponentKey(stem, componentKey, value);
 	}
 
 	function cancelName() {
@@ -144,8 +144,8 @@
 		app.editingLibraryField = null;
 	}
 
-	function cancelDescription() {
-		skipDescCommit = true;
+	function cancelKey() {
+		skipKeyCommit = true;
 		app.editingLibraryField = null;
 	}
 </script>
@@ -156,7 +156,7 @@
 	role="button"
 	tabindex="0"
 	aria-pressed={selected}
-	title={description ? `${label} — ${description}` : label}
+	title={origin ? `${label} — ${origin}` : label}
 	onclick={pick}
 	ondblclick={onDblClick}
 	onkeydown={onKey}
@@ -170,7 +170,28 @@
 		{@attach attachPreview}
 	></div>
 	<span class="meta">
-		<span class="key">{componentKey}</span>
+		{#if editing === 'key'}
+			<input
+				class="key-input"
+				value={componentKey}
+				{@attach focusAndSelect}
+				onpointerdown={(e) => e.stopPropagation()}
+				onclick={(e) => e.stopPropagation()}
+				onblur={(e) => commitKey(e.currentTarget.value)}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						e.currentTarget.blur();
+					}
+					if (e.key === 'Escape') {
+						e.preventDefault();
+						cancelKey();
+					}
+				}}
+			/>
+		{:else}
+			<span class="key">{componentKey}</span>
+		{/if}
 		{#if editing === 'name'}
 			<input
 				class="name-input"
@@ -193,27 +214,8 @@
 		{:else}
 			<span class="label">{label}</span>
 		{/if}
-		{#if editing === 'description'}
-			<input
-				class="desc-input"
-				value={description}
-				{@attach focusAndSelect}
-				onpointerdown={(e) => e.stopPropagation()}
-				onclick={(e) => e.stopPropagation()}
-				onblur={(e) => commitDescription(e.currentTarget.value)}
-				onkeydown={(e) => {
-					if (e.key === 'Enter') {
-						e.preventDefault();
-						e.currentTarget.blur();
-					}
-					if (e.key === 'Escape') {
-						e.preventDefault();
-						cancelDescription();
-					}
-				}}
-			/>
-		{:else if description || writable}
-			<span class={['desc', { empty: !description }]}>{description}</span>
+		{#if origin}
+			<span class="origin">{origin}</span>
 		{/if}
 	</span>
 </div>
@@ -291,26 +293,23 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.desc {
+	.origin {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-size: 11px;
 		color: var(--fg-muted);
-		min-height: 1.2em;
-	}
-	.desc.empty {
-		opacity: 0.45;
 	}
 	.name-input,
-	.desc-input {
+	.key-input {
 		width: 100%;
 		min-width: 0;
 		padding: 1px 4px;
 		font: inherit;
 		font-size: inherit;
 	}
-	.desc-input {
+	.key-input {
+		font-family: var(--mono);
 		font-size: 11px;
 	}
 </style>
