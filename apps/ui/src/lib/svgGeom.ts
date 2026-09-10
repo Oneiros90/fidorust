@@ -114,6 +114,24 @@ function attr(tag: string, name: string): string | undefined {
 	return tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
 }
 
+function decodeXml(s: string): string {
+	return s
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&apos;/g, "'")
+		.replace(/&amp;/g, '&');
+}
+
+/** First family from a CSS `font-family` list (`"Courier Prime",monospace`). */
+export function parseCssFontFamily(raw: string | undefined): string {
+	if (!raw) return 'Courier Prime';
+	const decoded = decodeXml(raw).trim();
+	const first = decoded.split(',')[0]?.trim() ?? '';
+	const unquoted = first.replace(/^["']|["']$/g, '').trim();
+	return unquoted || 'Courier Prime';
+}
+
 function rgbAttr(tag: string, name: string): Rgba | null {
 	const v = attr(tag, name);
 	if (!v || v === 'none') return null;
@@ -283,7 +301,7 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			y,
 			content: decodeXml(m[2]),
 			fontSize,
-			fontFamily: attr(tag, 'font-family') ?? 'Courier Prime',
+			fontFamily: parseCssFontFamily(attr(tag, 'font-family')),
 			fill,
 			italic: attr(tag, 'font-style') === 'italic',
 			bold: attr(tag, 'font-weight') === 'bold',
@@ -312,13 +330,4 @@ function pushEllipse(out: SvgPrim[], tag: string) {
 		stroke: rgbAttr(tag, 'stroke'),
 		strokeWidth: Number.isFinite(strokeWidth) ? strokeWidth : 0
 	});
-}
-
-function decodeXml(s: string): string {
-	return s
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&apos;/g, "'")
-		.replace(/&amp;/g, '&');
 }

@@ -45,4 +45,9 @@ fn registered_fonts_start_with_courier_prime() {
     let app = App::new();
     let fonts: Vec<String> = serde_json::from_str(&app.registered_fonts_json()).unwrap();
     assert_eq!(fonts.first().map(String::as_str), Some("Courier Prime"));
+    assert_eq!(
+        app.font_file_bytes("Courier Prime").len(),
+        app.font_file_bytes("").len()
+    );
+    assert!(app.font_file_bytes("Courier Prime").len() > 1000);
 }

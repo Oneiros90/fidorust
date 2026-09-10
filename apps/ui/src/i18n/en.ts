@@ -227,8 +227,7 @@ export const en = {
 	exportPrintActual: 'Actual size (1:1)',
 	exportPrintMargin: 'Print margin (mm)',
 	exportFitView: 'Fit',
-	exportSize: 'Size',
-	exportClipped: 'Preview is scaled down; export keeps full resolution.'
+	exportSize: 'Size'
 };
 
 export type Dict = typeof en;

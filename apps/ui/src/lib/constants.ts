@@ -16,6 +16,12 @@ export function formatLuAsMm(lu: number): string {
 export const LU_PER_INCH = 200;
 export const PT_PER_LU = (MM_PER_LU / 25.4) * 72;
 export const PNG_PPI_PRESETS = [72, 96, 150, 200, 300, 600, 1200] as const;
-export const PNG_MAX_EDGE = 8192;
+export const PNG_PPI_MIN = 36;
+export const PNG_PPI_MAX = 2400;
+
+export function clampPngPpi(ppi: number): number {
+	if (!Number.isFinite(ppi)) return 300;
+	return Math.min(PNG_PPI_MAX, Math.max(PNG_PPI_MIN, Math.round(ppi)));
+}
 export const A4_PT = { w: 595.28, h: 841.89 };
 export const LETTER_PT = { w: 612, h: 792 };

@@ -332,6 +332,12 @@ impl App {
         fidorust_gpu::font::register_font(name, data)
     }
 
+    /// TTF/OTF bytes for a family. Courier Prime is always the bundled face.
+    #[wasm_bindgen]
+    pub fn font_file_bytes(&self, name: &str) -> Vec<u8> {
+        fidorust_gpu::font::font_file_bytes(name)
+    }
+
     #[wasm_bindgen]
     pub fn registered_fonts_json(&self) -> String {
         to_json(&fidorust_gpu::font::registered_families(), "[]")

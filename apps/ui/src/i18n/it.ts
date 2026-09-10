@@ -228,6 +228,5 @@ export const it: typeof en = {
 	exportPrintActual: 'Dimensione reale (1:1)',
 	exportPrintMargin: 'Margine di stampa (mm)',
 	exportFitView: 'Adatta',
-	exportSize: 'Dimensioni',
-	exportClipped: 'L’anteprima è ridotta; l’esportazione resta a piena risoluzione.'
+	exportSize: 'Dimensioni'
 };

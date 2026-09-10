@@ -467,7 +467,7 @@ fn write_text_prim(out: &mut String, t: &Text, color: &str, stroke_w: f32) {
         attrs.push_str(&format!(r#" x="{px:.2}" y="{py:.2}""#));
     }
     attrs.push_str(&format!(
-        r#" font-family="{}" font-size="{size:.2}" fill="{color}" textLength="{:.2}" lengthAdjust="spacingAndGlyphs" dominant-baseline="hanging""#,
+        r#" font-family="&quot;{}&quot;,monospace" font-size="{size:.2}" fill="{color}" textLength="{:.2}" lengthAdjust="spacingAndGlyphs" dominant-baseline="hanging""#,
         xml_escape(font),
         n * wch,
     ));

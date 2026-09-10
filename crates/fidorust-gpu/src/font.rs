@@ -140,6 +140,27 @@ pub fn register_font(name: &str, data: &[u8]) -> bool {
     })
 }
 
+/// Bundled Courier Prime TTF (SIL OFL).
+pub fn bundled_font_data() -> &'static [u8] {
+    FONT_DATA
+}
+
+/// TTF/OTF bytes for `name`. Courier Prime (including empty/`*`) is always
+/// the bundled face; other families only if [`register_font`] succeeded.
+pub fn font_file_bytes(name: &str) -> Vec<u8> {
+    let key = cache_key(name);
+    if key == DEFAULT_FONT.to_ascii_lowercase() {
+        return FONT_DATA.to_vec();
+    }
+    FONTS.with(|fonts| {
+        fonts
+            .borrow()
+            .get(&key)
+            .map(|e| e.data.clone())
+            .unwrap_or_default()
+    })
+}
+
 /// Courier Prime first, then registered system families (no duplicates).
 pub fn registered_families() -> Vec<String> {
     let mut names = vec![DEFAULT_FONT.to_string()];
@@ -487,6 +508,17 @@ mod tests {
         let a = glyph_triangles("Test Mono", 'A');
         let b = glyph_triangles(DEFAULT_FONT, 'A');
         assert_eq!(a, b);
+        reset_registry();
+    }
+
+    #[test]
+    fn font_file_bytes_returns_bundled_prime_or_registered() {
+        reset_registry();
+        assert_eq!(font_file_bytes(""), bundled_font_data());
+        assert_eq!(font_file_bytes("Courier Prime"), bundled_font_data());
+        assert!(font_file_bytes("Missing Mono").is_empty());
+        assert!(register_font("Test Mono", FONT_DATA));
+        assert_eq!(font_file_bytes("Test Mono"), bundled_font_data());
         reset_registry();
     }
 

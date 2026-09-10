@@ -1,40 +1,40 @@
-import { LU_PER_INCH, PNG_MAX_EDGE } from './constants';
+import { LU_PER_INCH, clampPngPpi } from './constants';
 import { parseSvgViewBox, withSvgPixelSize } from './svgGeom';
 
 export type RasterOpts = {
 	ppi: number;
 	whiteBg: boolean;
 	antiAlias: boolean;
-	maxEdge?: number;
 };
 
-export function pngPixelSize(
-	svg: string,
-	ppi: number,
-	maxEdge = PNG_MAX_EDGE
-): { w: number; h: number; clipped: boolean } {
+export function pngPixelSize(svg: string, ppi: number): { w: number; h: number } {
 	const box = parseSvgViewBox(svg);
-	const scale = ppi / LU_PER_INCH;
-	let w = Math.max(1, Math.round(box.w * scale));
-	let h = Math.max(1, Math.round(box.h * scale));
-	const clipped = Math.max(w, h) > maxEdge;
-	if (clipped) {
-		const s = maxEdge / Math.max(w, h);
-		w = Math.max(1, Math.round(w * s));
-		h = Math.max(1, Math.round(h * s));
-	}
-	return { w, h, clipped };
+	const scale = clampPngPpi(ppi) / LU_PER_INCH;
+	return {
+		w: Math.max(1, Math.round(box.w * scale)),
+		h: Math.max(1, Math.round(box.h * scale))
+	};
+}
+
+/** SVG-as-image is 1:1, so canvas imageSmoothing never runs; disable AA in the SVG itself. */
+function withSvgCrispEdges(svg: string): string {
+	return svg.replace(/<svg\b([^>]*)>/, (_m, attrs: string) => {
+		const cleaned = String(attrs)
+			.replace(/\s*\bshape-rendering="[^"]*"/g, '')
+			.replace(/\s*\btext-rendering="[^"]*"/g, '');
+		return `<svg${cleaned} shape-rendering="crispEdges" text-rendering="optimizeSpeed">`;
+	});
 }
 
 export function rasterizeSvg(svg: string, opts: RasterOpts): Promise<HTMLCanvasElement> {
-	const { w, h } = pngPixelSize(svg, opts.ppi, opts.maxEdge ?? PNG_MAX_EDGE);
+	const { w, h } = pngPixelSize(svg, opts.ppi);
 	const sized = withSvgPixelSize(svg, w, h);
-	const blob = new Blob([sized], { type: 'image/svg+xml;charset=utf-8' });
-	const url = URL.createObjectURL(blob);
+	const raster = opts.antiAlias ? sized : withSvgCrispEdges(sized);
+	// Data URIs load `@font-face` inside SVG-as-image; blob: URLs often do not.
+	const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(raster)}`;
 	return new Promise((resolve, reject) => {
 		const img = new Image();
 		img.onload = () => {
-			URL.revokeObjectURL(url);
 			const canvas = document.createElement('canvas');
 			canvas.width = w;
 			canvas.height = h;
@@ -53,7 +53,6 @@ export function rasterizeSvg(svg: string, opts: RasterOpts): Promise<HTMLCanvasE
 			resolve(canvas);
 		};
 		img.onerror = () => {
-			URL.revokeObjectURL(url);
 			reject(new Error('Failed to rasterize SVG'));
 		};
 		img.src = url;

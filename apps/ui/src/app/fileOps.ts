@@ -3,6 +3,7 @@ import { svgToEmf } from '../lib/emf';
 import { canvasToPngBlob, rasterizeSvg } from '../lib/svgRaster';
 import { MM_PER_LU } from '../lib/constants';
 import { parseSvgViewBox, withSvgPixelSize, withSvgSizeAttrs } from '../lib/svgGeom';
+import { embedExportFonts } from '../lib/exportFonts';
 import { wasmExportJson, type ExportFormat, type ExportPreviewOpts } from '../lib/exportOptions';
 import type { RecentEntry } from '../lib/recentFiles';
 import { pushRecent } from '../lib/recentFiles';
@@ -202,7 +203,12 @@ export function openExport(s: AppSession, format: ExportFormat) {
 
 export function queryExportSvg(s: AppSession, opts: ExportPreviewOpts): string {
 	if (!s.engine) return '';
-	return s.engine.query((app) => app.export_svg(wasmExportJson(opts)));
+	return s.engine.query((app) =>
+		embedExportFonts(app.export_svg(wasmExportJson(opts)), (name) => {
+			const bytes = app.font_file_bytes(name);
+			return bytes?.length ? new Uint8Array(bytes) : null;
+		})
+	);
 }
 
 function baseName(s: AppSession): string {

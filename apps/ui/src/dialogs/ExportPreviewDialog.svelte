@@ -14,7 +14,7 @@
 	} from '../lib/exportOptions';
 	import { pngPixelSize, rasterizeSvg } from '../lib/svgRaster';
 	import { pdfLayout, svgToPdfBlob } from '../lib/svgPdf';
-	import { A4_PT, LETTER_PT, LU_PER_INCH } from '../lib/constants';
+	import { A4_PT, LETTER_PT, PNG_PPI_MAX, PNG_PPI_MIN } from '../lib/constants';
 	import { parseSvgViewBox } from '../lib/svgGeom';
 	import { displayLayerName } from '../app/layerOps';
 	import Modal from './Modal.svelte';
@@ -37,6 +37,9 @@
 	let dragging = false;
 	let lastX = 0;
 	let lastY = 0;
+	let fittedFormat: ExportFormat | null = null;
+	let artW = 0;
+	let artH = 0;
 
 	const svg = $derived.by(() => {
 		void opts.marginMm;
@@ -63,11 +66,7 @@
 	const pngInfo = $derived.by(() => {
 		if (opts.format !== 'png' || !svg) return null;
 		try {
-			const box = parseSvgViewBox(svg);
-			const w = Math.max(1, Math.round((box.w * opts.ppi) / LU_PER_INCH));
-			const h = Math.max(1, Math.round((box.h * opts.ppi) / LU_PER_INCH));
-			const clipped = pngPixelSize(svg, opts.ppi).clipped;
-			return { w, h, clipped };
+			return pngPixelSize(svg, opts.ppi);
 		} catch {
 			return null;
 		}
@@ -109,8 +108,7 @@
 		void rasterizeSvg(current, {
 			ppi: opts.ppi,
 			whiteBg: opts.whiteBg,
-			antiAlias: opts.antiAlias,
-			maxEdge: 2048
+			antiAlias: opts.antiAlias
 		})
 			.then((canvas) => {
 				if (!cancelled) pngUrl = canvas.toDataURL('image/png');
@@ -144,10 +142,11 @@
 	});
 
 	$effect(() => {
-		void svg;
-		void opts.format;
-		void pngUrl;
-		void pdfUrl;
+		const format = opts.format;
+		if (format === 'png' && !pngUrl) return;
+		if (format === 'pdf' && !pdfUrl) return;
+		if (format !== 'png' && format !== 'pdf' && !svg) return;
+		if (fittedFormat === format) return;
 		queueMicrotask(() => {
 			requestAnimationFrame(() => fitToView());
 		});
@@ -172,20 +171,44 @@
 		};
 	}
 
-	function fitToView() {
+	function measureArt() {
 		const view = viewerEl;
-		if (!view) return;
+		if (!view) return null;
 		const art = view.querySelector('.art') as HTMLElement | null;
-		if (!art) return;
+		if (!art) return null;
+		const w = art.offsetWidth || art.scrollWidth;
+		const h = art.offsetHeight || art.scrollHeight;
+		if (!(w > 0 && h > 0)) return null;
+		return { view, w, h };
+	}
+
+	function fitToView() {
+		const s = measureArt();
+		if (!s) return;
 		const pad = 24;
-		const vw = Math.max(1, view.clientWidth - pad);
-		const vh = Math.max(1, view.clientHeight - pad);
-		const aw = Math.max(1, art.offsetWidth || art.scrollWidth);
-		const ah = Math.max(1, art.offsetHeight || art.scrollHeight);
-		const z = Math.min(vw / aw, vh / ah, 8);
+		const vw = Math.max(1, s.view.clientWidth - pad);
+		const vh = Math.max(1, s.view.clientHeight - pad);
+		const z = Math.min(vw / s.w, vh / s.h, 8);
 		zoom = Number.isFinite(z) && z > 0 ? z : 1;
-		panX = (view.clientWidth - aw * zoom) / 2;
-		panY = (view.clientHeight - ah * zoom) / 2;
+		panX = (s.view.clientWidth - s.w * zoom) / 2;
+		panY = (s.view.clientHeight - s.h * zoom) / 2;
+		artW = s.w;
+		artH = s.h;
+		fittedFormat = opts.format;
+	}
+
+	/** Keep pan/zoom across option changes; refit only on first show or format switch. */
+	function syncPreviewView() {
+		const s = measureArt();
+		if (!s) return;
+		if (fittedFormat !== opts.format || artW === 0) {
+			fitToView();
+			return;
+		}
+		if (s.w === artW && s.h === artH) return;
+		zoom = Math.min(32, Math.max(0.05, zoom * (artW / s.w)));
+		artW = s.w;
+		artH = s.h;
 	}
 
 	function onWheel(e: WheelEvent) {
@@ -282,7 +305,13 @@
 					<div class="stage" style:transform="translate({panX}px, {panY}px) scale({zoom})">
 						{#if opts.format === 'png'}
 							{#if pngUrl}
-								<img class="art" src={pngUrl} alt="" draggable="false" onload={fitToView} />
+								<img
+									class={['art', { crisp: !opts.antiAlias }]}
+									src={pngUrl}
+									alt=""
+									draggable="false"
+									onload={syncPreviewView}
+								/>
 							{/if}
 						{:else if opts.format === 'pdf'}
 							{#if pdfUrl}
@@ -300,9 +329,6 @@
 					{/if}
 					{#if pngInfo}
 						<span>{pngInfo.w} × {pngInfo.h} px</span>
-						{#if pngInfo.clipped}
-							<span class="hint">{app.t.exportClipped}</span>
-						{/if}
 					{/if}
 					{#if scaledSheetLabel}
 						<span>{app.t.exportScale}: {scaledSheetLabel}</span>
@@ -337,11 +363,19 @@
 				{#if opts.format === 'png'}
 					<label>
 						{app.t.exportPpi}
-						<select bind:value={opts.ppi}>
+						<input
+							type="number"
+							min={PNG_PPI_MIN}
+							max={PNG_PPI_MAX}
+							step="1"
+							list="export-ppi-presets"
+							bind:value={opts.ppi}
+						/>
+						<datalist id="export-ppi-presets">
 							{#each ppiChoices as p (p)}
 								<option value={p}>{p}</option>
 							{/each}
-						</select>
+						</datalist>
 					</label>
 					<label class="chk">
 						<input type="checkbox" bind:checked={opts.antiAlias} />
@@ -553,6 +587,9 @@
 		max-width: none;
 		user-select: none;
 	}
+	.art.crisp {
+		image-rendering: pixelated;
+	}
 	.svg-art :global(svg) {
 		display: block;
 		width: 480px;
@@ -572,9 +609,6 @@
 		font-size: 12px;
 		color: var(--fg-muted);
 		flex-wrap: wrap;
-	}
-	.hint {
-		color: var(--accent);
 	}
 	.side {
 		display: flex;

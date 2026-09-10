@@ -331,6 +331,10 @@ fn export_svg_keeps_beziers_and_text_native() {
         svg.contains("<text"),
         "labels must stay as text, not glyph triangles"
     );
+    assert!(
+        svg.contains(r#"font-family="&quot;Courier Prime&quot;,monospace""#),
+        "default labels must quote Courier Prime so CSS does not split the name: {svg}"
+    );
     assert!(svg.contains(">Vcc</text>"));
     assert!(
         svg.contains("rx="),
