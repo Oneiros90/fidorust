@@ -1,6 +1,6 @@
 //! Path builders for GPU tessellation.
 
-use fidocad_core::geom::Point;
+use fidorust_core::geom::Point;
 use lyon::math::point;
 
 pub const PCB_PAD_CORNER_SEGS: u32 = 12;

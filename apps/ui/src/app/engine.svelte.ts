@@ -1,5 +1,5 @@
 import { untrack } from 'svelte';
-import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
+import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 import { defaultStatus, type LayersData, type LibraryEntry, type Status } from './engineTypes';
 
 export type MutateOpts = { refreshFirst?: boolean };

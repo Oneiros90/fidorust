@@ -11,7 +11,7 @@ struct SystemMonoFont {
 
 #[tauri::command]
 fn system_mono_fonts() -> Vec<SystemMonoFont> {
-    fidocad_gpu::font::load_system_monospace()
+    fidorust_gpu::font::load_system_monospace()
         .into_iter()
         .map(|(family, data)| SystemMonoFont {
             family,

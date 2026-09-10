@@ -84,7 +84,14 @@ export const fieldLabels: Record<PropFieldId, keyof Dict> = {
 	underlined: 'propUnderlined'
 };
 
-const BOOL_IDS = ['useComponentLayers', 'filled', 'bold', 'italic', 'mirrored', 'underlined'] as const;
+const BOOL_IDS = [
+	'useComponentLayers',
+	'filled',
+	'bold',
+	'italic',
+	'mirrored',
+	'underlined'
+] as const;
 const INT_IDS = [
 	'thickness',
 	'sizeX',
@@ -128,8 +135,7 @@ export function editStateToPatch(state: Partial<Record<PropFieldId, PropFieldVal
 			const flag = state.useComponentLayers;
 			if (flag?.state === 'bool' && flag.value) continue;
 			patch.layer = v.value;
-		}
-		else if (v.state === 'padStyle') patch.padStyle = v.value;
+		} else if (v.state === 'padStyle') patch.padStyle = v.value;
 	}
 	return patch;
 }

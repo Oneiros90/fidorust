@@ -1013,7 +1013,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "fidocad-core"
+name = "fidorust-core"
 version = "0.3.4"
 dependencies = [
  "encoding_rs",
@@ -1023,11 +1023,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "fidocad-gpu"
+name = "fidorust-gpu"
 version = "0.3.4"
 dependencies = [
  "bytemuck",
- "fidocad-core",
+ "fidorust-core",
  "glow",
  "js-sys",
  "lyon",
@@ -1037,11 +1037,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "fidocad-tauri"
+name = "fidorust-tauri"
 version = "0.3.4"
 dependencies = [
  "base64 0.22.1",
- "fidocad-gpu",
+ "fidorust-gpu",
  "serde",
  "serde_json",
  "tauri",
@@ -1052,11 +1052,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "fidocad-wasm"
+name = "fidorust-wasm"
 version = "0.3.4"
 dependencies = [
- "fidocad-core",
- "fidocad-gpu",
+ "fidorust-core",
+ "fidorust-gpu",
  "js-sys",
  "serde",
  "serde_json",

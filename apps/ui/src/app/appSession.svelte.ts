@@ -223,8 +223,8 @@ export class AppSession {
 
 	init = async () => {
 		this.applyTheme();
-		const initWasm = (await import('../wasm/fidocad_wasm.js')).default;
-		const { App } = await import('../wasm/fidocad_wasm.js');
+		const initWasm = (await import('../wasm/fidorust_wasm.js')).default;
+		const { App } = await import('../wasm/fidorust_wasm.js');
 		await initWasm();
 		this.engine = new Engine(new App());
 		await registerSystemMonospace(this.engine.app);

@@ -11,13 +11,13 @@ const cratesDir = path.resolve(uiRoot, '../../crates');
 function wasmPackDev(): Plugin {
 	const args = [
 		'build',
-		path.resolve(cratesDir, 'fidocad-wasm'),
+		path.resolve(cratesDir, 'fidorust-wasm'),
 		'--target',
 		'web',
 		'--out-dir',
 		path.resolve(uiRoot, 'src/wasm'),
 		'--out-name',
-		'fidocad_wasm',
+		'fidorust_wasm',
 		'--dev'
 	];
 

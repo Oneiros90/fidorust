@@ -22,7 +22,7 @@ apps/ui/src-tauri/gen/
 
 # WASM build artifacts (regenerated)
 apps/ui/src/wasm/
-crates/fidocad-wasm/pkg/
+crates/fidorust-wasm/pkg/
 
 # OS / editor
 .DS_Store

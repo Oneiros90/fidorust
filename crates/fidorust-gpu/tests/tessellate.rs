@@ -1,14 +1,14 @@
-use fidocad_core::parse::{builtin_libraries, parse_document};
-use fidocad_core::{
+use fidorust_core::parse::{builtin_libraries, parse_document};
+use fidorust_core::{
     Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Text, Tool, DEFAULT_FONT,
 };
-use fidocad_gpu::{tessellate_editor, tessellate_primitives};
+use fidorust_gpu::{tessellate_editor, tessellate_primitives};
 
 #[test]
 fn tessellate_alimentatore_has_strokes() {
     let libs = builtin_libraries();
     let mut ed = Editor::new(libs);
-    ed.load_text(include_str!("../../fidocad-core/tests/Alimentatore.fcd"))
+    ed.load_text(include_str!("../../fidorust-core/tests/Alimentatore.fcd"))
         .unwrap();
     let scene = tessellate_editor(&ed);
     assert!(
@@ -23,13 +23,13 @@ fn tessellate_alimentatore_has_strokes() {
 #[test]
 fn tessellate_rounded_pcb_pad_uses_fills() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
-        pos: fidocad_core::Point::new(380, 65),
+    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
+        pos: fidorust_core::Point::new(380, 65),
         dx: 18,
         dy: 18,
         hole: 4,
-        style: fidocad_core::primitive::PadStyle::RoundedRect,
-        layer: fidocad_core::LayerId(0),
+        style: fidorust_core::primitive::PadStyle::RoundedRect,
+        layer: fidorust_core::LayerId(0),
     }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -42,13 +42,13 @@ fn tessellate_rounded_pcb_pad_uses_fills() {
 #[test]
 fn tessellate_oval_pcb_pad_has_circular_hole() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
-        pos: fidocad_core::Point::new(260, 125),
+    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
+        pos: fidorust_core::Point::new(260, 125),
         dx: 40,
         dy: 30,
         hole: 25,
-        style: fidocad_core::primitive::PadStyle::Oval,
-        layer: fidocad_core::LayerId(0),
+        style: fidorust_core::primitive::PadStyle::Oval,
+        layer: fidorust_core::LayerId(0),
     }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -60,7 +60,7 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
     assert_eq!(scene.fills.len(), 0);
     assert_eq!(scene.pad_holes.len(), 1);
     assert!((scene.pad_holes[0].r - 12.5).abs() < 0.01);
-    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    let svg = fidorust_gpu::scene_to_thumb_svg(&scene, 40.0);
     assert_eq!(svg.matches("<polygon").count(), 0);
     assert!(
         svg.contains("fill-rule=\"evenodd\""),
@@ -72,13 +72,13 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
 fn dense_oval_pad_thumb_stays_compact() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     for i in 0..256 {
-        doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
-            pos: fidocad_core::Point::new(10 + (i % 16) * 20, 10 + (i / 16) * 20),
+        doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
+            pos: fidorust_core::Point::new(10 + (i % 16) * 20, 10 + (i / 16) * 20),
             dx: 12,
             dy: 12,
             hole: 6,
-            style: fidocad_core::primitive::PadStyle::Oval,
-            layer: fidocad_core::LayerId(0),
+            style: fidorust_core::primitive::PadStyle::Oval,
+            layer: fidorust_core::LayerId(0),
         }));
     }
     let mut ed = Editor::new(builtin_libraries());
@@ -86,7 +86,7 @@ fn dense_oval_pad_thumb_stays_compact() {
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.circles.len(), 256);
     assert_eq!(scene.fills.len(), 0);
-    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    let svg = fidorust_gpu::scene_to_thumb_svg(&scene, 40.0);
     assert_eq!(svg.matches("<polygon").count(), 0);
     assert_eq!(svg.matches("<path").count(), 256);
     assert!(
@@ -100,11 +100,11 @@ fn dense_oval_pad_thumb_stays_compact() {
 fn tessellate_pcb_track_is_filled_capsule() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives
-        .push(fidocad_core::Primitive::PcbTrack(PcbTrack {
-            a: fidocad_core::Point::new(80, 140),
-            b: fidocad_core::Point::new(140, 140),
+        .push(fidorust_core::Primitive::PcbTrack(PcbTrack {
+            a: fidorust_core::Point::new(80, 140),
+            b: fidorust_core::Point::new(140, 140),
             width: 16,
-            layer: fidocad_core::LayerId(0),
+            layer: fidorust_core::LayerId(0),
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -124,10 +124,10 @@ fn tessellate_pcb_track_is_filled_capsule() {
 fn tessellate_heavy_grid() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     for x in (0..400).step_by(4) {
-        doc.primitives.push(fidocad_core::Primitive::Line(Line {
-            a: fidocad_core::Point::new(x, 0),
-            b: fidocad_core::Point::new(x, 400),
-            layer: fidocad_core::LayerId(0),
+        doc.primitives.push(fidorust_core::Primitive::Line(Line {
+            a: fidorust_core::Point::new(x, 0),
+            b: fidorust_core::Point::new(x, 400),
+            layer: fidorust_core::LayerId(0),
         }));
     }
     let mut ed = Editor::new(builtin_libraries());
@@ -140,11 +140,11 @@ fn tessellate_heavy_grid() {
 fn tessellate_ellipse_is_stroked_not_annulus() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives
-        .push(fidocad_core::Primitive::Ellipse(Ellipse {
-            a: fidocad_core::Point::new(0, 0),
-            b: fidocad_core::Point::new(40, 20),
+        .push(fidorust_core::Primitive::Ellipse(Ellipse {
+            a: fidorust_core::Point::new(0, 0),
+            b: fidorust_core::Point::new(40, 20),
             filled: false,
-            layer: fidocad_core::LayerId(0),
+            layer: fidorust_core::LayerId(0),
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -179,18 +179,18 @@ fn draft_ellipse_previews_as_ellipse_not_line() {
 fn macro_thumb_svg_has_geometry() {
     let libs = builtin_libraries();
     let (_, def) = libs.lookup("080").expect("resistor");
-    let prims = fidocad_core::library::expand_component(
+    let prims = fidorust_core::library::expand_component(
         def,
-        fidocad_core::geom::Transform {
-            origin: fidocad_core::COMPONENT_ORIGIN,
+        fidorust_core::geom::Transform {
+            origin: fidorust_core::COMPONENT_ORIGIN,
             rotations: 0,
             mirrored: false,
         },
         &libs,
         0,
     );
-    let scene = fidocad_gpu::tessellate_primitives(&prims, &fidocad_core::LayerSet::default());
-    let svg = fidocad_gpu::scene_to_thumb_svg(&scene, 40.0);
+    let scene = fidorust_gpu::tessellate_primitives(&prims, &fidorust_core::LayerSet::default());
+    let svg = fidorust_gpu::scene_to_thumb_svg(&scene, 40.0);
     assert!(svg.contains("<svg"));
     assert!(svg.contains("<line") || svg.contains("<ellipse") || svg.contains("<polygon"));
 }
@@ -199,20 +199,20 @@ fn macro_thumb_svg_has_geometry() {
 fn macro_cursor_svg_has_hotspot() {
     let libs = builtin_libraries();
     let (_, def) = libs.lookup("080").expect("resistor");
-    let prims = fidocad_gpu::tessellate_primitives(
-        &fidocad_core::library::expand_component(
+    let prims = fidorust_gpu::tessellate_primitives(
+        &fidorust_core::library::expand_component(
             def,
-            fidocad_core::geom::Transform {
-                origin: fidocad_core::COMPONENT_ORIGIN,
+            fidorust_core::geom::Transform {
+                origin: fidorust_core::COMPONENT_ORIGIN,
                 rotations: 0,
                 mirrored: false,
             },
             &libs,
             0,
         ),
-        &fidocad_core::LayerSet::default(),
+        &fidorust_core::LayerSet::default(),
     );
-    let cur = fidocad_gpu::scene_to_cursor_svg(&prims, fidocad_core::COMPONENT_ORIGIN);
+    let cur = fidorust_gpu::scene_to_cursor_svg(&prims, fidorust_core::COMPONENT_ORIGIN);
     assert!(cur.w > 1.0 && cur.h > 1.0);
     assert!(
         cur.svg.contains("<line") || cur.svg.contains("<ellipse") || cur.svg.contains("<polygon")
@@ -223,30 +223,30 @@ fn macro_cursor_svg_has_hotspot() {
 fn export_svg_includes_ellipses_and_smart_holes() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives
-        .push(fidocad_core::Primitive::Ellipse(Ellipse {
-            a: fidocad_core::Point::new(0, 0),
-            b: fidocad_core::Point::new(40, 20),
+        .push(fidorust_core::Primitive::Ellipse(Ellipse {
+            a: fidorust_core::Point::new(0, 0),
+            b: fidorust_core::Point::new(40, 20),
             filled: false,
-            layer: fidocad_core::LayerId(0),
+            layer: fidorust_core::LayerId(0),
         }));
-    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
-        pos: fidocad_core::Point::new(80, 40),
+    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
+        pos: fidorust_core::Point::new(80, 40),
         dx: 20,
         dy: 20,
         hole: 8,
-        style: fidocad_core::primitive::PadStyle::Oval,
-        layer: fidocad_core::LayerId(0),
+        style: fidorust_core::primitive::PadStyle::Oval,
+        layer: fidorust_core::LayerId(0),
     }));
     doc.primitives
-        .push(fidocad_core::Primitive::PcbTrack(PcbTrack {
-            a: fidocad_core::Point::new(60, 40),
-            b: fidocad_core::Point::new(100, 40),
+        .push(fidorust_core::Primitive::PcbTrack(PcbTrack {
+            a: fidorust_core::Point::new(60, 40),
+            b: fidorust_core::Point::new(100, 40),
             width: 10,
-            layer: fidocad_core::LayerId(0),
+            layer: fidorust_core::LayerId(0),
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
-    let svg = fidocad_gpu::export_svg(
+    let svg = fidorust_gpu::export_svg(
         &ed.doc().primitives,
         &ed.doc().layers,
         ed.libs(),
@@ -285,35 +285,35 @@ fn export_svg_includes_ellipses_and_smart_holes() {
 fn export_svg_keeps_beziers_and_text_native() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives
-        .push(fidocad_core::Primitive::Bezier(fidocad_core::Bezier {
-            p0: fidocad_core::Point::new(0, 0),
-            p1: fidocad_core::Point::new(10, 20),
-            p2: fidocad_core::Point::new(20, 20),
-            p3: fidocad_core::Point::new(30, 0),
-            layer: fidocad_core::LayerId(0),
+        .push(fidorust_core::Primitive::Bezier(fidorust_core::Bezier {
+            p0: fidorust_core::Point::new(0, 0),
+            p1: fidorust_core::Point::new(10, 20),
+            p2: fidorust_core::Point::new(20, 20),
+            p3: fidorust_core::Point::new(30, 0),
+            layer: fidorust_core::LayerId(0),
         }));
-    doc.primitives.push(fidocad_core::Primitive::Text(Text {
-        pos: fidocad_core::Point::new(0, 40),
+    doc.primitives.push(fidorust_core::Primitive::Text(Text {
+        pos: fidorust_core::Point::new(0, 40),
         sy: 10,
         sx: 6,
         angle: 0,
         style: 0,
-        layer: fidocad_core::LayerId(0),
+        layer: fidorust_core::LayerId(0),
         font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
     }));
-    doc.primitives.push(fidocad_core::Primitive::PcbPad(PcbPad {
-        pos: fidocad_core::Point::new(50, 50),
+    doc.primitives.push(fidorust_core::Primitive::PcbPad(PcbPad {
+        pos: fidorust_core::Point::new(50, 50),
         dx: 20,
         dy: 12,
         hole: 6,
-        style: fidocad_core::primitive::PadStyle::RoundedRect,
-        layer: fidocad_core::LayerId(0),
+        style: fidorust_core::primitive::PadStyle::RoundedRect,
+        layer: fidorust_core::LayerId(0),
     }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
-    let svg = fidocad_gpu::export_svg(
+    let svg = fidorust_gpu::export_svg(
         &ed.doc().primitives,
         &ed.doc().layers,
         ed.libs(),
@@ -344,7 +344,7 @@ fn pending_macro_ghost_appears_at_hover() {
     ed.set_tool(Tool::Component);
     ed.set_pending_component(Some("080".into()));
     ed.set_pending_follow(true);
-    ed.set_hover(Some(fidocad_core::Point::new(40, 40)));
+    ed.set_hover(Some(fidorust_core::Point::new(40, 40)));
     let scene = tessellate_editor(&ed);
     assert!(
         !scene.lines.is_empty() || !scene.circles.is_empty() || !scene.fills.is_empty(),
@@ -357,7 +357,7 @@ fn pending_component_without_follow_has_no_ghost() {
     let mut ed = Editor::new(builtin_libraries());
     ed.set_tool(Tool::Component);
     ed.set_pending_component(Some("080".into()));
-    ed.set_hover(Some(fidocad_core::Point::new(40, 40)));
+    ed.set_hover(Some(fidorust_core::Point::new(40, 40)));
     let scene = tessellate_editor(&ed);
     assert!(
         scene.lines.is_empty() && scene.circles.is_empty() && scene.fills.is_empty(),
@@ -368,13 +368,13 @@ fn pending_component_without_follow_has_no_ghost() {
 #[test]
 fn tessellate_text_uses_filled_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Text(Text {
-        pos: fidocad_core::Point::new(0, 0),
+    doc.primitives.push(fidorust_core::Primitive::Text(Text {
+        pos: fidorust_core::Point::new(0, 0),
         sy: 10,
         sx: 6,
         angle: 0,
         style: 0,
-        layer: fidocad_core::LayerId(0),
+        layer: fidorust_core::LayerId(0),
         font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
@@ -393,13 +393,13 @@ fn tessellate_text_uses_filled_glyphs() {
 #[test]
 fn tessellate_unknown_font_falls_back_to_courier_prime() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Text(Text {
-        pos: fidocad_core::Point::new(0, 0),
+    doc.primitives.push(fidorust_core::Primitive::Text(Text {
+        pos: fidorust_core::Point::new(0, 0),
         sy: 10,
         sx: 6,
         angle: 0,
         style: 0,
-        layer: fidocad_core::LayerId(0),
+        layer: fidorust_core::LayerId(0),
         font: String::new(),
         text: "Vcc".into(),
         simple: false,
@@ -417,13 +417,13 @@ fn tessellate_unknown_font_falls_back_to_courier_prime() {
 #[test]
 fn editing_text_hides_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
-    doc.primitives.push(fidocad_core::Primitive::Text(Text {
+    doc.primitives.push(fidorust_core::Primitive::Text(Text {
         pos: Point::new(0, 0),
         sy: 10,
         sx: 6,
         angle: 0,
         style: 0,
-        layer: fidocad_core::LayerId(0),
+        layer: fidorust_core::LayerId(0),
         font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
@@ -447,10 +447,10 @@ fn tessellate_layer_alpha() {
 #[test]
 fn selection_handles_store_world_centers() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc_mut().insert(fidocad_core::Primitive::Line(Line {
+    ed.doc_mut().insert(fidorust_core::Primitive::Line(Line {
         a: Point::new(10, 20),
         b: Point::new(40, 20),
-        layer: fidocad_core::LayerId(0),
+        layer: fidorust_core::LayerId(0),
     }));
     ed.set_selected(vec![0]);
     let scene = tessellate_editor(&ed);

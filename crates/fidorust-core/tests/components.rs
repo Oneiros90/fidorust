@@ -1,12 +1,12 @@
-use fidocad_core::library::{LibraryKind, PROJECT_STEM};
-use fidocad_core::parse::{
+use fidorust_core::library::{LibraryKind, PROJECT_STEM};
+use fidorust_core::parse::{
     builtin_libraries, parse_document, parse_document_with_project_library, parse_library,
 };
-use fidocad_core::serialize::{
+use fidorust_core::serialize::{
     serialize_document, serialize_document_with_policy, serialize_library, serialize_primitive,
     SaveLibraryPolicy,
 };
-use fidocad_core::{Editor, LayerId, Line, Point, Primitive, Tool};
+use fidorust_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
 #[test]
 fn create_from_selection_replaces_with_instance() {
@@ -288,7 +288,7 @@ fn instance_expansion_uses_instance_layer() {
     ed.set_selected(vec![0]);
     ed.set_layer(1);
     assert_eq!(ed.doc().primitives[0].layer().0, 1);
-    let flat = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    let flat = fidorust_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
     assert!(!flat.is_empty());
     assert!(flat.iter().all(|p| p.layer().0 == 1));
 }
@@ -313,7 +313,7 @@ fn instance_expansion_keeps_definition_layers_when_flag_set() {
         Primitive::Component(c) => c.use_component_layers = true,
         _ => panic!(),
     }
-    let flat = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    let flat = fidorust_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
     let layers: Vec<u8> = flat.iter().map(|p| p.layer().0).collect();
     assert_eq!(layers, vec![0, 1]);
 }
@@ -371,7 +371,7 @@ fn component_edit_keeps_project_layers() {
     assert!(ed
         .selection_props_form()
         .iter()
-        .any(|f| f.id == fidocad_core::properties::PropField::Layer));
+        .any(|f| f.id == fidorust_core::properties::PropField::Layer));
 }
 
 #[test]
@@ -581,7 +581,7 @@ fn lookup_resolves_spaced_mc_prefix_from_imported_fcl() {
 
     ed.load_text("[FIDOCAD]\nMC 145 80 2 1 Componenti stato solido.CS11\n")
         .unwrap();
-    let expanded = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    let expanded = fidorust_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
     assert!(
         expanded.iter().all(|p| !p.is_component()),
         "CS11 must expand to drawing primitives"
@@ -594,7 +594,7 @@ fn lookup_resolves_spaced_mc_prefix_from_imported_fcl() {
 fn lookup_resolves_spaced_prefix_against_already_sanitized_stem() {
     let mut ed = Editor::new(builtin_libraries());
     let mut lib = parse_library(SOLID_STATE_FCL).unwrap();
-    lib.file_stem = fidocad_core::library::sanitize_stem("Componenti stato solido");
+    lib.file_stem = fidorust_core::library::sanitize_stem("Componenti stato solido");
     assert_eq!(lib.file_stem, "Componentistatosolido");
     ed.import_library(lib);
     let found = ed
@@ -641,9 +641,9 @@ MC 100 100 0 0 Cerchietti.M01
         .libs()
         .lookup("Componenti elettromeccanici.Ce1")
         .expect("relay");
-    let expanded = fidocad_core::library::expand_component(
+    let expanded = fidorust_core::library::expand_component(
         found.1,
-        fidocad_core::Transform {
+        fidorust_core::Transform {
             origin: Point::new(50, 50),
             rotations: 0,
             mirrored: false,
@@ -665,7 +665,7 @@ fn unresolved_mc_is_counted_and_kept_as_instance() {
         ed.unresolved_components(),
         vec![("Componenti stato solido.CS11".into(), 2)]
     );
-    let expanded = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    let expanded = fidorust_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
     assert_eq!(expanded.len(), 1);
     assert!(expanded[0].is_component());
 }

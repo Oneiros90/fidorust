@@ -27,9 +27,9 @@ pub use primitive::{
 };
 pub use properties::{PropFormField, PropPatch};
 
-/// Compatibility path used by tests and sibling crates (`fidocad_core::parse::…`).
+/// Compatibility path used by tests and sibling crates (`fidorust_core::parse::…`).
 pub use fcd as parse;
-/// Compatibility path used by tests and sibling crates (`fidocad_core::serialize::…`).
+/// Compatibility path used by tests and sibling crates (`fidorust_core::serialize::…`).
 pub use fcd as serialize;
 
 /// Insertion origin in component definition space (FidoCAD `MC` local origin).

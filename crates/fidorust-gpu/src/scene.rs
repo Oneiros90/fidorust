@@ -1,6 +1,6 @@
 //! GPU batches (world LU coordinates).
 
-use fidocad_core::geom::Point;
+use fidorust_core::geom::Point;
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::{

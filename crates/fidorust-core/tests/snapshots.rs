@@ -1,9 +1,9 @@
 mod common;
 
-use fidocad_core::parse::{builtin_libraries, parse_document, parse_library};
-use fidocad_core::properties::{apply_selection_props, selection_props_form, PropPatch};
-use fidocad_core::serialize::{serialize_clipboard, serialize_document};
-use fidocad_core::{
+use fidorust_core::parse::{builtin_libraries, parse_document, parse_library};
+use fidorust_core::properties::{apply_selection_props, selection_props_form, PropPatch};
+use fidorust_core::serialize::{serialize_clipboard, serialize_document};
+use fidorust_core::{
     Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point,
     Poly, Primitive, Rect, Text, Tool, DEFAULT_FONT,
 };
@@ -41,8 +41,8 @@ fn snapshot_stdlib_expanded_macros() {
     for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
-            for q in fidocad_core::library::expand_primitive(p, &libs) {
-                out.push_str(&fidocad_core::serialize::serialize_primitive(&q));
+            for q in fidorust_core::library::expand_primitive(p, &libs) {
+                out.push_str(&fidorust_core::serialize::serialize_primitive(&q));
             }
         }
     }
@@ -51,15 +51,15 @@ fn snapshot_stdlib_expanded_macros() {
 
 #[test]
 fn snapshot_pcb_expanded_macros() {
-    let text = fidocad_core::parse::decode_bytes(include_bytes!("../libraries/PCB.fcl"));
+    let text = fidorust_core::parse::decode_bytes(include_bytes!("../libraries/PCB.fcl"));
     let lib = parse_library(&text).unwrap();
     let libs = builtin_libraries();
     let mut out = String::new();
     for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
-            for q in fidocad_core::library::expand_primitive(p, &libs) {
-                out.push_str(&fidocad_core::serialize::serialize_primitive(&q));
+            for q in fidorust_core::library::expand_primitive(p, &libs) {
+                out.push_str(&fidorust_core::serialize::serialize_primitive(&q));
             }
         }
     }
@@ -75,8 +75,8 @@ fn snapshot_lib1_expanded_macros() {
     for m in &lib.components {
         out.push_str(&format!("# {}\n", m.key));
         for p in &m.primitives {
-            for q in fidocad_core::library::expand_primitive(p, &libs) {
-                out.push_str(&fidocad_core::serialize::serialize_primitive(&q));
+            for q in fidorust_core::library::expand_primitive(p, &libs) {
+                out.push_str(&fidorust_core::serialize::serialize_primitive(&q));
             }
         }
     }
@@ -112,7 +112,7 @@ fn snapshot_selection_props_mixed() {
         dx: 18,
         dy: 18,
         hole: 8,
-        style: fidocad_core::PadStyle::Oval,
+        style: fidorust_core::PadStyle::Oval,
         layer: LayerId(2),
     });
     let homogeneous = selection_props_form(&[&rect, &rect]);
@@ -187,7 +187,7 @@ fn snapshot_primitive_json_shapes() {
             dx: 18,
             dy: 12,
             hole: 8,
-            style: fidocad_core::PadStyle::RoundedRect,
+            style: fidorust_core::PadStyle::RoundedRect,
             layer: LayerId(1),
         }),
         Primitive::Component(ComponentRef {

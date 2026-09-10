@@ -1,9 +1,9 @@
 //! SVG export: native primitives for file export, tessellated [`Scene`] for view/thumbs.
 
-use fidocad_core::geom::{Aabb, Point};
-use fidocad_core::layers::LayerSet;
-use fidocad_core::library::{expand_primitive, LibrarySet};
-use fidocad_core::primitive::{
+use fidorust_core::geom::{Aabb, Point};
+use fidorust_core::layers::LayerSet;
+use fidorust_core::library::{expand_primitive, LibrarySet};
+use fidorust_core::primitive::{
     Bezier, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     DEFAULT_FONT, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED, STYLE_UNDERLINE,
 };
@@ -483,7 +483,7 @@ fn write_text_prim(out: &mut String, t: &Text, color: &str, stroke_w: f32) {
         let x1 = if mirrored { 0.0 } else { n * wch };
         let (sin, cos) = angle.to_radians().sin_cos();
         let map = |lx: f32, ly: f32| {
-            let (dx, dy) = fidocad_core::TextLayout::map_offset(lx, ly, sin, cos);
+            let (dx, dy) = fidorust_core::TextLayout::map_offset(lx, ly, sin, cos);
             (px + dx, py + dy)
         };
         let (ax, ay) = map(x0, size);

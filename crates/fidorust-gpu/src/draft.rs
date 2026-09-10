@@ -1,7 +1,7 @@
 //! Live draft / rubber-band preview.
 
-use fidocad_core::geom::Point;
-use fidocad_core::{Editor, Tool};
+use fidorust_core::geom::Point;
+use fidorust_core::{Editor, Tool};
 
 use crate::scene::Scene;
 use crate::shapes::rect_corners;

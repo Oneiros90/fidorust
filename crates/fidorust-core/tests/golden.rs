@@ -1,7 +1,7 @@
-use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
-use fidocad_core::primitive::STYLE_MIRRORED;
-use fidocad_core::serialize::{serialize_document, serialize_primitive};
-use fidocad_core::{
+use fidorust_core::parse::{builtin_libraries, parse_document, parse_primitive_line};
+use fidorust_core::primitive::STYLE_MIRRORED;
+use fidorust_core::serialize::{serialize_document, serialize_primitive};
+use fidorust_core::{
     ComponentRef, Connection, DblClickAction, Document, Editor, LayerId, Line, PcbPad, PcbTrack,
     Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform, COMPONENT_ORIGIN, DEFAULT_FONT,
 };
@@ -99,8 +99,8 @@ fn builtin_stdlib_has_resistor() {
 
 #[test]
 fn macro_transform_matches_fidocad() {
-    use fidocad_core::geom::{Point, Transform};
-    use fidocad_core::COMPONENT_ORIGIN;
+    use fidorust_core::geom::{Point, Transform};
+    use fidorust_core::COMPONENT_ORIGIN;
 
     let xf = |origin, rotations, mirrored| Transform {
         origin,
@@ -137,7 +137,7 @@ fn macro_transform_matches_fidocad() {
 fn expand_terminal() {
     let libs = builtin_libraries();
     let doc = parse_document("[FIDOCAD]\nMC 10 10 0 0 000\n").unwrap();
-    let flat = fidocad_core::library::expand_primitive(&doc.primitives[0], &libs);
+    let flat = fidorust_core::library::expand_primitive(&doc.primitives[0], &libs);
     assert!(flat.len() >= 2);
 }
 
@@ -759,7 +759,7 @@ fn missing_ps_keeps_defaults() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\n").unwrap();
     assert_eq!(
         doc.project_settings(),
-        fidocad_core::ProjectSettings::default()
+        fidorust_core::ProjectSettings::default()
     );
 }
 
@@ -963,7 +963,7 @@ fn apply_props_and_grid_are_undoable() {
     ed.undo();
     assert!(!ed.doc().pcb_mode);
 
-    let custom = fidocad_core::ProjectSettings {
+    let custom = fidorust_core::ProjectSettings {
         grid: 12,
         stroke_hundredths: 80,
         default_filled: true,
@@ -980,7 +980,7 @@ fn apply_props_and_grid_are_undoable() {
     ed.undo();
     assert_eq!(
         ed.doc().project_settings(),
-        fidocad_core::ProjectSettings::default()
+        fidorust_core::ProjectSettings::default()
     );
 }
 

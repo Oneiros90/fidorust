@@ -1,12 +1,12 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/fidocad-core",
-    "crates/fidocad-gpu",
-    "crates/fidocad-wasm",
+    "crates/fidorust-core",
+    "crates/fidorust-gpu",
+    "crates/fidorust-wasm",
     "apps/ui/src-tauri",
 ]
-default-members = ["crates/fidocad-core", "crates/fidocad-gpu"]
+default-members = ["crates/fidorust-core", "crates/fidorust-gpu"]
 
 [workspace.package]
 edition = "2021"
@@ -15,8 +15,8 @@ version = "0.3.4"
 repository = "https://github.com/Oneiros90/fidorust"
 
 [workspace.dependencies]
-fidocad-core = { path = "crates/fidocad-core" }
-fidocad-gpu = { path = "crates/fidocad-gpu" }
+fidorust-core = { path = "crates/fidorust-core" }
+fidorust-gpu = { path = "crates/fidorust-gpu" }
 encoding_rs = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

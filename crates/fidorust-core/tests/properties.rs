@@ -1,9 +1,9 @@
 //! Property dialog tests.
 
-use fidocad_core::geom::Point;
-use fidocad_core::layers::LayerId;
-use fidocad_core::primitive::{Line, Primitive, Rect};
-use fidocad_core::properties::{apply_selection_props, selection_props_form, PropField, PropPatch};
+use fidorust_core::geom::Point;
+use fidorust_core::layers::LayerId;
+use fidorust_core::primitive::{Line, Primitive, Rect};
+use fidorust_core::properties::{apply_selection_props, selection_props_form, PropField, PropPatch};
 
 #[test]
 fn integration_mixed_selection_layer_only() {

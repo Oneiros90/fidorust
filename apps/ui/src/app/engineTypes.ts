@@ -1,4 +1,4 @@
-/** Mirror of fidocad-wasm json DTOs. */
+/** Mirror of fidorust-wasm json DTOs. */
 
 export type Status = {
 	tool: string;

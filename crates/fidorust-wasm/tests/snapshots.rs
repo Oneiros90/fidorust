@@ -1,6 +1,6 @@
 mod common;
 
-use fidocad_wasm::App;
+use fidorust_wasm::App;
 
 #[test]
 fn snapshot_empty_status_layers_library() {
@@ -17,7 +17,7 @@ fn snapshot_empty_status_layers_library() {
 #[test]
 fn snapshot_alimentatore_status_and_dblclick() {
     let mut app = App::new();
-    app.load_fcd(include_str!("../../fidocad-core/tests/Alimentatore.fcd"))
+    app.load_fcd(include_str!("../../fidorust-core/tests/Alimentatore.fcd"))
         .unwrap();
     common::assert_snapshot("alimentatore_status.json", &pretty(&app.status_json()));
     common::assert_snapshot("alimentatore_layers.json", &pretty(&app.layers_json()));

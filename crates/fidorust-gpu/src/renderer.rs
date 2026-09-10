@@ -4,7 +4,7 @@
 
 use crate::scene::{CircleInstance, FillVertexGpu, HandleInstance, LineInstance, PadHole, Scene};
 use crate::theme::{Rgb, Theme};
-use fidocad_core::consts::HANDLE_RADIUS_PX;
+use fidorust_core::consts::HANDLE_RADIUS_PX;
 use glow::{Context, HasContext};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlCanvasElement;

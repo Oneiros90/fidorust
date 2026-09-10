@@ -1,4 +1,4 @@
-import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
+import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 import { canvasLocal, cssPerLu } from '../lib/canvasCoords';
 import { DRAG_THRESHOLD_PX } from '../lib/constants';
 import { parseComponentCursor } from '../lib/libraryDrag';

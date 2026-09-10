@@ -1,13 +1,13 @@
 //! Render backend: WebGL on wasm32, no-op elsewhere.
 
-use fidocad_core::Editor;
-use fidocad_gpu::tessellate::tessellate_view;
-use fidocad_gpu::{Scene, Theme};
+use fidorust_core::Editor;
+use fidorust_gpu::tessellate::tessellate_view;
+use fidorust_gpu::{Scene, Theme};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
 #[cfg(target_arch = "wasm32")]
-use fidocad_gpu::renderer::Renderer;
+use fidorust_gpu::renderer::Renderer;
 
 pub struct Backend {
     #[cfg(target_arch = "wasm32")]

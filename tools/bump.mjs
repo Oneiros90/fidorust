@@ -20,7 +20,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
 const SEMVER = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-const WORKSPACE_CRATES = ['fidocad-core', 'fidocad-gpu', 'fidocad-tauri', 'fidocad-wasm'];
+const WORKSPACE_CRATES = ['fidorust-core', 'fidorust-gpu', 'fidorust-tauri', 'fidorust-wasm'];
 const VERSION_FILES = [
 	'apps/ui/package.json',
 	'apps/ui/package-lock.json',

@@ -5,9 +5,7 @@
 
 	const app = getAppSession();
 	let toggleLabel = $derived(app.rightCollapsed ? app.t.showLibrary : app.t.hideLibrary);
-	let panelLabel = $derived(
-		app.rightTab === 'layers' ? app.t.layersTab : app.t.libraries
-	);
+	let panelLabel = $derived(app.rightTab === 'layers' ? app.t.layersTab : app.t.libraries);
 	const showLayers = $derived(app.rightTab === 'layers');
 </script>
 

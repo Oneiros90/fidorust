@@ -1,6 +1,6 @@
 //! JSON DTOs for the WASM ↔ UI bridge.
 
-use fidocad_core::{DblClickAction, Document, Editor, TextEditSession, Tool};
+use fidorust_core::{DblClickAction, Document, Editor, TextEditSession, Tool};
 use serde::{Deserialize, Serialize};
 
 pub fn to_json<T: Serialize>(v: &T, fallback: &'static str) -> String {
@@ -46,7 +46,7 @@ pub struct StatusDto {
 
 impl StatusDto {
     pub fn from_editor(ed: &Editor) -> Self {
-        let hover = ed.hover().unwrap_or(fidocad_core::Point::new(0, 0));
+        let hover = ed.hover().unwrap_or(fidorust_core::Point::new(0, 0));
         let editing = ed
             .editing_component()
             .map(|(stem, key)| format!("{stem}.{key}"));

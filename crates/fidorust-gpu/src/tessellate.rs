@@ -1,13 +1,13 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
-use fidocad_core::geom::{bezier_point, Point};
-use fidocad_core::layers::{LayerId, LayerSet};
-use fidocad_core::library::LibrarySet;
-use fidocad_core::primitive::{
+use fidorust_core::geom::{bezier_point, Point};
+use fidorust_core::layers::{LayerId, LayerSet};
+use fidorust_core::library::LibrarySet;
+use fidorust_core::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
-use fidocad_core::Editor;
+use fidorust_core::Editor;
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::FillRule;
@@ -113,7 +113,7 @@ impl Tessellate for Text {
         let wch = (self.sx as f32).max(1.5);
         let mirrored = self.style & STYLE_MIRRORED != 0;
         let italic = self.style & STYLE_ITALIC != 0;
-        let layout = fidocad_core::TextLayout::from_params(
+        let layout = fidorust_core::TextLayout::from_params(
             self.sx, self.sy, self.angle, self.style, &self.text,
         );
         let mut x_off = 0.0f32;
@@ -197,7 +197,7 @@ fn add_pcb_pad(
     dx: i32,
     dy: i32,
     hole: i32,
-    style: fidocad_core::PadStyle,
+    style: fidorust_core::PadStyle,
     rgb: [f32; 4],
     selected: bool,
 ) {
@@ -207,7 +207,7 @@ fn add_pcb_pad(
     let hy = dy as f32 / 2.0;
     let hole_r = hole as f32 / 2.0;
     match style {
-        fidocad_core::PadStyle::Oval => {
+        fidorust_core::PadStyle::Oval => {
             let inner = if hole_r > 0.001 {
                 (hole_r / hx.max(hy).max(0.001)).clamp(0.0, 0.98)
             } else {
@@ -215,7 +215,7 @@ fn add_pcb_pad(
             };
             scene.push_circle(cx, cy, hx.max(0.5), hy.max(0.5), inner, 0.0, rgb, selected);
         }
-        fidocad_core::PadStyle::Rectangular => {
+        fidorust_core::PadStyle::Rectangular => {
             let mut builder = Path::builder();
             path_rect(&mut builder, cx, cy, hx, hy);
             if hole_r > 0.001 {
@@ -223,7 +223,7 @@ fn add_pcb_pad(
             }
             scene.fill_path(&builder.build(), FillRule::EvenOdd, rgb, selected);
         }
-        fidocad_core::PadStyle::RoundedRect => {
+        fidorust_core::PadStyle::RoundedRect => {
             let mut builder = Path::builder();
             path_rounded_rect(&mut builder, cx, cy, hx, hy, hx * 0.5, hy * 0.5);
             if hole_r > 0.001 {
@@ -253,7 +253,7 @@ fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool,
         return;
     }
     let rgb = color(layers, p, selected);
-    fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
+    fidorust_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
 fn group_by_layer<T>(
@@ -347,7 +347,7 @@ pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
         .doc()
         .primitives
         .iter()
-        .flat_map(|p| fidocad_core::library::expand_primitive(p, ed.libs()))
+        .flat_map(|p| fidorust_core::library::expand_primitive(p, ed.libs()))
         .collect();
     tessellate_primitives_with_stroke(&expanded, layers, ed.doc().stroke_width())
 }
@@ -366,7 +366,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         let y0 = ((0.0 - input.pan.1) / z).floor() as i32 - 50;
         let x1 = ((w - input.pan.0) / z).ceil() as i32 + 50;
         let y1 = ((h - input.pan.1) / z).ceil() as i32 + 50;
-        fidocad_core::geom::Aabb {
+        fidorust_core::geom::Aabb {
             min: Point::new(x0, y0),
             max: Point::new(x1, y1),
         }
@@ -381,7 +381,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         .filter(|(i, _)| input.editing_text != Some(*i))
         .flat_map(|(i, p)| {
             let sel = input.selected.contains(&i);
-            fidocad_core::library::expand_primitive(p, input.libs)
+            fidorust_core::library::expand_primitive(p, input.libs)
                 .into_iter()
                 .filter(|q| {
                     view.as_ref()

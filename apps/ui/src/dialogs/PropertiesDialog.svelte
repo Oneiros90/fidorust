@@ -107,8 +107,7 @@
 								node.indeterminate = !st || st.state === 'unset';
 							});
 						}}
-						onchange={(e) =>
-							setValue(field.id, 'bool', e.currentTarget.checked ? 'true' : 'false')}
+						onchange={(e) => setValue(field.id, 'bool', e.currentTarget.checked ? 'true' : 'false')}
 					/>
 				{:else if field.kind.kind === 'bool'}
 					<select

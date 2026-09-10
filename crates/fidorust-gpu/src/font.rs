@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use fidocad_core::primitive::DEFAULT_FONT;
+use fidorust_core::primitive::DEFAULT_FONT;
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::{BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers};

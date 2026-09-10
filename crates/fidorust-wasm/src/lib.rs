@@ -1,18 +1,18 @@
-//! WASM façade: JSON glue around `fidocad-core::Editor` and the GPU backend.
+//! WASM façade: JSON glue around `fidorust-core::Editor` and the GPU backend.
 
 mod json;
 mod render_backend;
 
-use fidocad_core::parse::{builtin_libraries, parse_library};
-use fidocad_core::properties::{
+use fidorust_core::parse::{builtin_libraries, parse_library};
+use fidorust_core::properties::{
     PropField, PropFieldKind, PropFieldValue, PropFormField, PropPatch,
 };
-use fidocad_core::serialize::{
+use fidorust_core::serialize::{
     serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_library,
     SaveLibraryPolicy,
 };
-use fidocad_core::{Editor, EditorError, LibraryKind, Tool};
-use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
+use fidorust_core::{Editor, EditorError, LibraryKind, Tool};
+use fidorust_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
@@ -100,7 +100,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn load_fcd_bytes(&mut self, bytes: &[u8]) -> Result<(), JsValue> {
-        let text = fidocad_core::parse::decode_bytes(bytes);
+        let text = fidorust_core::parse::decode_bytes(bytes);
         self.load_fcd(&text)
     }
 
@@ -312,7 +312,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn apply_project_settings(&mut self, json: &str) -> Result<(), JsValue> {
-        let s: fidocad_core::ProjectSettings = serde_json::from_str(json).map_err(to_js)?;
+        let s: fidorust_core::ProjectSettings = serde_json::from_str(json).map_err(to_js)?;
         self.editor.apply_project_settings(s);
         Ok(())
     }
@@ -329,12 +329,12 @@ impl App {
 
     #[wasm_bindgen]
     pub fn register_font(&mut self, name: &str, data: &[u8]) -> bool {
-        fidocad_gpu::font::register_font(name, data)
+        fidorust_gpu::font::register_font(name, data)
     }
 
     #[wasm_bindgen]
     pub fn registered_fonts_json(&self) -> String {
-        to_json(&fidocad_gpu::font::registered_families(), "[]")
+        to_json(&fidorust_gpu::font::registered_families(), "[]")
     }
 
     #[wasm_bindgen]
@@ -431,8 +431,8 @@ impl App {
 
     #[wasm_bindgen]
     pub fn component_cursor_json(&self, name: &str) -> String {
-        use fidocad_core::COMPONENT_ORIGIN;
-        use fidocad_gpu::scene_to_cursor_svg;
+        use fidorust_core::COMPONENT_ORIGIN;
+        use fidorust_gpu::scene_to_cursor_svg;
         let scene = self.component_scene(name);
         let cur = scene_to_cursor_svg(&scene, COMPONENT_ORIGIN);
         to_json(
@@ -447,12 +447,12 @@ impl App {
         )
     }
 
-    fn component_scene(&self, name: &str) -> fidocad_gpu::Scene {
-        use fidocad_core::geom::Transform;
-        use fidocad_core::library::expand_component;
-        use fidocad_core::COMPONENT_ORIGIN;
+    fn component_scene(&self, name: &str) -> fidorust_gpu::Scene {
+        use fidorust_core::geom::Transform;
+        use fidorust_core::library::expand_component;
+        use fidorust_core::COMPONENT_ORIGIN;
         let Some((_, def)) = self.editor.libs().lookup(name) else {
-            return fidocad_gpu::Scene::default();
+            return fidorust_gpu::Scene::default();
         };
         let prims = expand_component(
             def,
@@ -667,7 +667,7 @@ impl App {
         for b in blobs {
             if b.fcl.trim().is_empty() {
                 if !b.stem.is_empty() {
-                    let mut lib = fidocad_core::Library::empty_user(
+                    let mut lib = fidorust_core::Library::empty_user(
                         b.stem,
                         if b.title.is_empty() {
                             "Library".into()
@@ -765,7 +765,7 @@ impl App {
 }
 
 fn patch_font_face_choices(fields: &mut [PropFormField]) {
-    let mut options = fidocad_gpu::font::registered_families();
+    let mut options = fidorust_gpu::font::registered_families();
     for f in fields.iter_mut() {
         if f.id != PropField::FontFace {
             continue;

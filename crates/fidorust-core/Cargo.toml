@@ -1,5 +1,5 @@
 [package]
-name = "fidocad-core"
+name = "fidorust-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

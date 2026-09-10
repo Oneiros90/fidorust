@@ -7,7 +7,7 @@ import { wasmExportJson, type ExportFormat, type ExportPreviewOpts } from '../li
 import type { RecentEntry } from '../lib/recentFiles';
 import { pushRecent } from '../lib/recentFiles';
 import type { Example } from '../lib/examples';
-import type { App as WasmApp } from '../wasm/fidocad_wasm.js';
+import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 import type { AppSession } from './appSession.svelte';
 import type { UnresolvedComponent } from './dialogs.svelte';
 

@@ -1,12 +1,12 @@
 [package]
-name = "fidocad-gpu"
+name = "fidorust-gpu"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "GPU tessellation and WebGL2 renderer for FidoRust drawings"
 
 [dependencies]
-fidocad-core.workspace = true
+fidorust-core.workspace = true
 bytemuck.workspace = true
 glow.workspace = true
 lyon = { workspace = true }
