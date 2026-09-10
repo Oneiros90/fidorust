@@ -4,12 +4,11 @@
 	import LibraryPanel from '../library/LibraryPanel.svelte';
 
 	const app = getAppSession();
-	const editing = $derived(!!app.status.editing_component);
 	let toggleLabel = $derived(app.rightCollapsed ? app.t.showLibrary : app.t.hideLibrary);
 	let panelLabel = $derived(
-		!editing && app.rightTab === 'layers' ? app.t.layersTab : app.t.libraries
+		app.rightTab === 'layers' ? app.t.layersTab : app.t.libraries
 	);
-	const showLayers = $derived(!editing && app.rightTab === 'layers');
+	const showLayers = $derived(app.rightTab === 'layers');
 </script>
 
 <aside class={['libs', { collapsed: app.rightCollapsed }]} aria-label={panelLabel}>
@@ -40,26 +39,24 @@
 			</svg>
 		</button>
 		<div class="tabs" role="tablist" aria-label={panelLabel}>
-			{#if !editing}
-				<button
-					type="button"
-					role="tab"
-					id="tab-layers"
-					aria-selected={app.rightTab === 'layers'}
-					aria-controls="right-panel-body"
-					tabindex={app.rightTab === 'layers' ? 0 : -1}
-					onclick={() => (app.rightTab = 'layers')}
-				>
-					{app.t.layersTab}
-				</button>
-			{/if}
+			<button
+				type="button"
+				role="tab"
+				id="tab-layers"
+				aria-selected={app.rightTab === 'layers'}
+				aria-controls="right-panel-body"
+				tabindex={app.rightTab === 'layers' ? 0 : -1}
+				onclick={() => (app.rightTab = 'layers')}
+			>
+				{app.t.layersTab}
+			</button>
 			<button
 				type="button"
 				role="tab"
 				id="tab-library"
-				aria-selected={editing || app.rightTab === 'library'}
+				aria-selected={app.rightTab === 'library'}
 				aria-controls="right-panel-body"
-				tabindex={editing || app.rightTab === 'library' ? 0 : -1}
+				tabindex={app.rightTab === 'library' ? 0 : -1}
 				onclick={() => (app.rightTab = 'library')}
 			>
 				{app.t.libraries}

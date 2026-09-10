@@ -127,6 +127,7 @@ pub fn serialize_primitive(p: &Primitive) -> String {
             mirrored,
             name,
             layer,
+            use_component_layers,
             ..
         }) => {
             s.push_str(&format!(
@@ -137,7 +138,13 @@ pub fn serialize_primitive(p: &Primitive) -> String {
                 if *mirrored { 1 } else { 0 },
                 name
             ));
-            push_layer(&mut s, *layer);
+            if *use_component_layers {
+                s.push_str("\r\n");
+            } else {
+                s.push(' ');
+                s.push_str(&layer.0.to_string());
+                s.push_str("\r\n");
+            }
         }
     }
     s

@@ -161,6 +161,9 @@ export const en = {
 	yes: 'Yes',
 	no: 'No',
 	propFilled: 'Filled',
+	propUseComponentLayers: 'Use component layers',
+	propUseComponentLayersTooltip:
+		'When checked, this instance uses the layers stored inside the symbol (classic FidoCAD). Parts can sit on different project layers, so colours and overlap follow those layers. When unchecked, the instance is a single object on the layer you choose; inner layers are ignored.',
 	propThickness: 'Track width',
 	propSizeX: 'Width',
 	propSizeY: 'Height',
@@ -179,6 +182,9 @@ export const en = {
 	padSquare: 'Square',
 	padSquareRounded: 'Rounded square',
 	layer: 'Layer',
+	componentLayerWarningTitle: 'Component layers',
+	componentLayerWarningBody:
+		'This symbol is stored in a library on this device and uses layers other than layer 0. Those layer numbers refer to whatever project the symbol is placed into, so colours and visibility may look different in other drawings.',
 	statusReady: 'Ready',
 	unresolvedComponentsTitle: 'Missing library components',
 	unresolvedComponentsBody:

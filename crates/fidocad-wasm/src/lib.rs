@@ -624,6 +624,16 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {
+        self.editor.local_component_uses_nonzero_layers(stem, key)
+    }
+
+    #[wasm_bindgen]
+    pub fn editing_local_component_uses_nonzero_layers(&self) -> bool {
+        self.editor.editing_local_component_uses_nonzero_layers()
+    }
+
+    #[wasm_bindgen]
     pub fn cancel_component_edit(&mut self) -> bool {
         self.editor.cancel_component_edit()
     }

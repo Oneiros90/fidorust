@@ -17,6 +17,10 @@ pub struct ComponentRef {
     pub name: String,
     pub standard: bool,
     pub layer: LayerId,
+    /// When true, expanded primitives keep the layers stored in the definition
+    /// (classic FidoCAD). When false, the instance is painted onto [`Self::layer`].
+    #[serde(default)]
+    pub use_component_layers: bool,
 }
 
 impl Geometry for ComponentRef {

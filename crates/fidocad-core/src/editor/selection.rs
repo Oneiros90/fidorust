@@ -229,6 +229,9 @@ impl Editor {
         self.push_undo();
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
+                if p.uses_component_layers() {
+                    continue;
+                }
                 p.set_layer(layer);
             }
         }

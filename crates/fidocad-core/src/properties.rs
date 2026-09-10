@@ -13,6 +13,7 @@ use std::str::FromStr;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PropField {
+    UseComponentLayers,
     Filled,
     Layer,
     Thickness,
@@ -67,6 +68,8 @@ pub struct PropFormField {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PropPatch {
+    #[serde(default)]
+    pub use_component_layers: Option<bool>,
     #[serde(default)]
     pub filled: Option<bool>,
     #[serde(default)]
@@ -374,13 +377,28 @@ impl PropSource for Text {
 
 impl PropSource for ComponentRef {
     fn fields() -> &'static [PropField] {
-        &[]
+        &[PropField::UseComponentLayers]
     }
     fn read(&self, field: PropField) -> Option<PropFieldValue> {
-        read_layer(self.layer, field)
+        match field {
+            PropField::UseComponentLayers => Some(PropFieldValue::Bool {
+                value: self.use_component_layers,
+            }),
+            _ => read_layer(self.layer, field),
+        }
     }
     fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
-        apply_layer(&mut self.layer, field, value)
+        match (field, value) {
+            (PropField::UseComponentLayers, PropFieldValue::Bool { value: v }) => {
+                if self.use_component_layers == *v {
+                    return false;
+                }
+                self.use_component_layers = *v;
+                true
+            }
+            (PropField::Layer, _) if self.use_component_layers => false,
+            _ => apply_layer(&mut self.layer, field, value),
+        }
     }
 }
 
@@ -401,7 +419,8 @@ fn attrib_order(first: &Primitive) -> &'static [PropField] {
 
 fn field_kind(field: PropField) -> PropFieldKind {
     match field {
-        PropField::Filled
+        PropField::UseComponentLayers
+        | PropField::Filled
         | PropField::Bold
         | PropField::Italic
         | PropField::Mirrored
@@ -477,11 +496,14 @@ pub fn selection_props_form(primitives: &[&Primitive]) -> Vec<PropFormField> {
             }
         }
     }
+    let layer_read_only = primitives
+        .iter()
+        .all(|p| matches!(p, Primitive::Component(c) if c.use_component_layers));
     fields.push(PropFormField {
         id: PropField::Layer,
         kind: PropFieldKind::Layer,
         value: layer_val,
-        read_only: false,
+        read_only: layer_read_only,
     });
 
     fields
@@ -493,6 +515,12 @@ fn apply_field(p: &mut Primitive, field: PropField, value: &PropFieldValue) -> b
 
 fn patch_to_fields(patch: &PropPatch) -> BTreeMap<PropField, PropFieldValue> {
     let mut m = BTreeMap::new();
+    if let Some(v) = patch.use_component_layers {
+        m.insert(
+            PropField::UseComponentLayers,
+            PropFieldValue::Bool { value: v },
+        );
+    }
     if let Some(v) = patch.filled {
         m.insert(PropField::Filled, PropFieldValue::Bool { value: v });
     }
@@ -552,12 +580,19 @@ fn patch_to_fields(patch: &PropPatch) -> BTreeMap<PropField, PropFieldValue> {
 
 /// Apply a partial property patch to the given primitives (only set fields).
 pub fn apply_selection_props(primitives: &mut [Primitive], patch: &PropPatch) -> bool {
-    let fields = patch_to_fields(patch);
+    let mut fields = patch_to_fields(patch);
     if fields.is_empty() {
         return false;
     }
+    // Apply the flag first so a following layer assign sees the new mode.
+    let flag = fields.remove(&PropField::UseComponentLayers);
     let mut changed = false;
     for p in primitives.iter_mut() {
+        if let Some(value) = &flag {
+            if apply_field(p, PropField::UseComponentLayers, value) {
+                changed = true;
+            }
+        }
         for (field, value) in &fields {
             if apply_field(p, *field, value) {
                 changed = true;

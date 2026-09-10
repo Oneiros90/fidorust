@@ -46,7 +46,7 @@ pub fn hit_test(
     let handle_r2 = handle_r2_world(zoom);
     // Top-most first.
     for (index, p) in prims.iter().enumerate().rev() {
-        if !layers.visible(p.layer()) {
+        if !p.uses_component_layers() && !layers.visible(p.layer()) {
             continue;
         }
         let expanded = crate::library::expand_primitive(p, libs);

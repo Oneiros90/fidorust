@@ -3,6 +3,7 @@
 import type { Dict } from '../i18n';
 
 export type PropFieldId =
+	| 'useComponentLayers'
 	| 'filled'
 	| 'layer'
 	| 'thickness'
@@ -44,6 +45,7 @@ export type PropFormField = {
 };
 
 export type PropPatch = Partial<{
+	useComponentLayers: boolean;
 	filled: boolean;
 	layer: number;
 	thickness: number;
@@ -63,6 +65,7 @@ export type PropPatch = Partial<{
 }>;
 
 export const fieldLabels: Record<PropFieldId, keyof Dict> = {
+	useComponentLayers: 'propUseComponentLayers',
 	filled: 'propFilled',
 	layer: 'layer',
 	thickness: 'propThickness',
@@ -81,7 +84,7 @@ export const fieldLabels: Record<PropFieldId, keyof Dict> = {
 	underlined: 'propUnderlined'
 };
 
-const BOOL_IDS = ['filled', 'bold', 'italic', 'mirrored', 'underlined'] as const;
+const BOOL_IDS = ['useComponentLayers', 'filled', 'bold', 'italic', 'mirrored', 'underlined'] as const;
 const INT_IDS = [
 	'thickness',
 	'sizeX',
@@ -121,7 +124,11 @@ export function editStateToPatch(state: Partial<Record<PropFieldId, PropFieldVal
 		if (v.state === 'bool' && isBoolId(id)) patch[id] = v.value;
 		else if (v.state === 'int' && isIntId(id)) patch[id] = v.value;
 		else if (v.state === 'string' && isStringId(id)) patch[id] = v.value;
-		else if (v.state === 'layer') patch.layer = v.value;
+		else if (v.state === 'layer') {
+			const flag = state.useComponentLayers;
+			if (flag?.state === 'bool' && flag.value) continue;
+			patch.layer = v.value;
+		}
 		else if (v.state === 'padStyle') patch.padStyle = v.value;
 	}
 	return patch;

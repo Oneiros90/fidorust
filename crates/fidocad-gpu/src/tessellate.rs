@@ -241,39 +241,18 @@ fn add_pcb_pad(
     }
 }
 
-fn color(
-    layers: &LayerSet,
-    p: &Primitive,
-    selected: bool,
-    component_edit: bool,
-    dark: bool,
-) -> [f32; 4] {
+fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 4] {
     if selected {
         return Rgb::SELECTION.rgba(1.0);
-    }
-    if component_edit {
-        return if dark {
-            [1.0, 1.0, 1.0, 1.0]
-        } else {
-            [0.0, 0.0, 0.0, 1.0]
-        };
     }
     Rgb::from_rgba_u8(layers.color(p.layer()))
 }
 
-fn add_prim(
-    scene: &mut Scene,
-    p: &Primitive,
-    layers: &LayerSet,
-    selected: bool,
-    stroke_w: f32,
-    component_edit: bool,
-    dark: bool,
-) {
-    if !component_edit && !layers.visible(p.layer()) {
+fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, stroke_w: f32) {
+    if !layers.visible(p.layer()) {
         return;
     }
-    let rgb = color(layers, p, selected, component_edit, dark);
+    let rgb = color(layers, p, selected);
     fidocad_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
@@ -306,7 +285,7 @@ fn tessellate_primitives_with_stroke(
     let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
     for bucket in by_layer {
         for p in bucket {
-            add_prim(&mut scene, p, layers, false, stroke_w, false, false);
+            add_prim(&mut scene, p, layers, false, stroke_w);
         }
         scene.mark_layer_end();
     }
@@ -328,7 +307,6 @@ struct TessellateInput<'a> {
     dark: bool,
     pending: Vec<Primitive>,
     marquee: Option<(f32, f32, f32, f32)>,
-    component_edit: bool,
 }
 
 impl<'a> TessellateInput<'a> {
@@ -352,7 +330,6 @@ impl<'a> TessellateInput<'a> {
                 pending
             },
             marquee: ed.marquee_screen_rect(),
-            component_edit: ed.editing_component().is_some(),
         }
     }
 }
@@ -424,15 +401,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
         for (sel, q) in &bucket {
-            add_prim(
-                &mut scene,
-                q,
-                layers,
-                *sel,
-                input.stroke_w,
-                input.component_edit,
-                input.dark,
-            );
+            add_prim(&mut scene, q, layers, *sel, input.stroke_w);
         }
         if input.layer.index() == li {
             add_draft(&mut scene, draft, preview, input.stroke_w);

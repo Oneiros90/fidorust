@@ -143,20 +143,21 @@ fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>) {
     }
 }
 
-/// `MC x y rot mir name [layer]` — a trailing integer is the instance layer.
-fn mc_name_and_layer(rest: &str) -> (String, LayerId) {
+/// `MC x y rot mir name [layer]` — a trailing integer assigns the instance to a
+/// project layer. No trailing integer means classic FidoCAD (use definition layers).
+fn mc_name_and_layer(rest: &str) -> (String, Option<LayerId>) {
     let rest = rest.trim();
     if rest.is_empty() {
-        return (String::new(), LayerId(0));
+        return (String::new(), None);
     }
     if let Some((name, last)) = rest.rsplit_once(char::is_whitespace) {
         if !last.is_empty() && last.bytes().all(|b| b.is_ascii_digit()) {
             if let Ok(n) = last.parse::<i32>() {
-                return (name.trim_end().to_string(), LayerId::from_i32(n));
+                return (name.trim_end().to_string(), Some(LayerId::from_i32(n)));
             }
         }
     }
-    (rest.to_string(), LayerId(0))
+    (rest.to_string(), None)
 }
 
 pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
@@ -283,11 +284,15 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
             if rest.is_empty() {
                 return None;
             }
-            let (name, layer) = mc_name_and_layer(&rest);
+            let (name, layer_tok) = mc_name_and_layer(&rest);
             if name.is_empty() {
                 return None;
             }
             let standard = name.starts_with('~') || !name.contains('.');
+            let (layer, use_component_layers) = match layer_tok {
+                Some(layer) => (layer, false),
+                None => (LayerId(0), true),
+            };
             Some(Primitive::Component(ComponentRef {
                 pos: t.point(0)?,
                 rotations: (t.i32(2)? as u8) % 4,
@@ -295,6 +300,7 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
                 name: name.trim_start_matches('~').to_string(),
                 standard,
                 layer,
+                use_component_layers,
             }))
         }
         "TE" => {

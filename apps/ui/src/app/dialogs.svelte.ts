@@ -15,7 +15,8 @@ export type DialogState =
 	| { kind: 'shareLink'; url: string }
 	| { kind: 'shareFcd'; text: string }
 	| { kind: 'export'; format: ExportFormat }
-	| { kind: 'unresolvedComponents'; items: UnresolvedComponent[] };
+	| { kind: 'unresolvedComponents'; items: UnresolvedComponent[] }
+	| { kind: 'componentLayerWarning' };
 
 export type UnresolvedComponent = { name: string; count: number };
 

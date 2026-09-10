@@ -71,6 +71,10 @@
 		else if (kind === 'layer') edit[id] = { state: 'layer', value: Number(raw) };
 		else edit[id] = { state: 'padStyle', value: raw };
 	}
+
+	const useComponentLayersOn = $derived(
+		edit.useComponentLayers?.state === 'bool' && edit.useComponentLayers.value
+	);
 </script>
 
 <Modal
@@ -82,9 +86,26 @@
 >
 	<div class="form">
 		{#each fields as field (field.id)}
-			<label class={field.id === 'text' ? 'full' : ''}>
+			<label
+				class={[field.id === 'text' || field.id === 'useComponentLayers' ? 'full' : '', field.id === 'useComponentLayers' ? 'check' : '']}
+				title={field.id === 'useComponentLayers' ? t.propUseComponentLayersTooltip : undefined}
+			>
 				{t[fieldLabels[field.id]]}
-				{#if field.kind.kind === 'bool'}
+				{#if field.id === 'useComponentLayers'}
+					<input
+						type="checkbox"
+						disabled={field.readOnly}
+						checked={edit.useComponentLayers?.state === 'bool' && edit.useComponentLayers.value}
+						{@attach (node) => {
+							$effect(() => {
+								const st = edit.useComponentLayers;
+								node.indeterminate = !st || st.state === 'unset';
+							});
+						}}
+						onchange={(e) =>
+							setValue(field.id, 'bool', e.currentTarget.checked ? 'true' : 'false')}
+					/>
+				{:else if field.kind.kind === 'bool'}
 					<select
 						disabled={field.readOnly}
 						value={getValue(field.id)}
@@ -125,7 +146,7 @@
 					</select>
 				{:else if field.kind.kind === 'layer'}
 					<select
-						disabled={field.readOnly}
+						disabled={field.readOnly || useComponentLayersOn}
 						value={getValue(field.id)}
 						onchange={(e) => setValue(field.id, 'layer', e.currentTarget.value)}
 					>
@@ -180,6 +201,15 @@
 	}
 	.full {
 		grid-column: 1 / -1;
+	}
+	.check {
+		flex-direction: row;
+		align-items: center;
+		gap: 8px;
+	}
+	.check input[type='checkbox'] {
+		width: auto;
+		margin: 0;
 	}
 	select,
 	input[type='number'],

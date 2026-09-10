@@ -3,10 +3,9 @@
 use super::{history::HistorySnapshot, Drag, Editor, Tool};
 use crate::geom::{Point, Transform};
 use crate::hit::hit_test;
-use crate::layers::{LayerId, LayerSet};
 use crate::library::{
     component_full_name, drawing_uses_user_library_components, explode_library_instances,
-    explode_named_everywhere, paint_primitives, rewrite_component_names,
+    explode_named_everywhere, primitives_use_nonzero_layers, rewrite_component_names,
     rewrite_component_names_in_libs, translate_primitives, ComponentDef, Library, LibraryKind,
     PROJECT_STEM,
 };
@@ -201,6 +200,7 @@ impl Editor {
             name,
             standard,
             layer: self.layer,
+            use_component_layers: false,
         })))
     }
 
@@ -257,7 +257,6 @@ impl Editor {
             COMPONENT_ORIGIN.x - origin.x,
             COMPONENT_ORIGIN.y - origin.y,
         );
-        paint_primitives(&mut body, LayerId(0));
         let lib = self.libs.library_mut(stem)?;
         let key = lib.next_key();
         let name = lib.unique_display_name(display_name);
@@ -277,6 +276,7 @@ impl Editor {
             name: full,
             standard: false,
             layer: self.layer,
+            use_component_layers: false,
         }));
         let new_index = remaining.len() - 1;
         self.doc.primitives = remaining;
@@ -402,8 +402,7 @@ impl Editor {
         let Some(def) = lib.find(key) else {
             return false;
         };
-        let mut primitives = def.primitives.clone();
-        paint_primitives(&mut primitives, LayerId(0));
+        let primitives = def.primitives.clone();
         self.cancel_draft();
         let session = ComponentEditSession {
             stem: stem.to_string(),
@@ -426,8 +425,6 @@ impl Editor {
             original_primitives: primitives.clone(),
         };
         self.doc.primitives = primitives;
-        self.doc.layers = LayerSet::component_edit();
-        self.layer = LayerId(0);
         self.selected.clear();
         self.pending_component = None;
         self.tool = Tool::Select;
@@ -443,12 +440,16 @@ impl Editor {
         let Some(session) = self.component_edit.take() else {
             return false;
         };
-        let mut primitives = self.doc.primitives.clone();
-        paint_primitives(&mut primitives, LayerId(0));
+        let primitives = self.doc.primitives.clone();
+        let layers = self.doc.layers.clone();
+        let layer = self.layer;
         let stem = session.stem.clone();
         let key = session.key.clone();
         self.restore_from_component_edit(session);
         self.push_undo();
+        self.doc.layers = layers;
+        self.layer = layer;
+        self.clamp_current_layer();
         if let Some(def) = self.libs.library_mut(&stem).and_then(|l| l.find_mut(&key)) {
             def.primitives = primitives;
             self.bump_libs_rev();
@@ -617,6 +618,30 @@ impl Editor {
 
     pub fn uses_user_library_components(&self) -> bool {
         drawing_uses_user_library_components(&self.persistent_doc().primitives, &self.libs)
+    }
+
+    pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {
+        let Some(lib) = self.libs.library(stem) else {
+            return false;
+        };
+        if lib.kind != LibraryKind::Local {
+            return false;
+        }
+        lib.find(key)
+            .is_some_and(|d| primitives_use_nonzero_layers(&d.primitives))
+    }
+
+    pub fn editing_local_component_uses_nonzero_layers(&self) -> bool {
+        let Some(session) = &self.component_edit else {
+            return false;
+        };
+        let Some(lib) = self.libs.library(&session.stem) else {
+            return false;
+        };
+        if lib.kind != LibraryKind::Local {
+            return false;
+        }
+        primitives_use_nonzero_layers(&self.doc.primitives)
     }
 
     pub fn unresolved_component_count(&self) -> usize {

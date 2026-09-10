@@ -40,7 +40,9 @@ A drawing is a stack of transparent sheets. Each object sits on one layer. Lower
 
 FidoRust does **not** keep a fixed list of layers in the program. Each file carries its own layer table: name, colour, and whether the layer is shown. That table is written as `LD` lines (Layer Definition), described below.
 
-Every object sits on one of these layers, including each **component instance** (`MC`): the instance is a single object, so hiding or recolouring that layer applies to the whole symbol. In the text, the layer is often a number at the end of the line. If the number is missing, the object is on layer **0**. Component *definitions* (the artwork inside a library) are stored on layer 0; the instance layer is applied when the drawing is shown.
+Every object sits on one of these layers. For most opcodes the layer is a number at the end of the line; if it is missing, the object is on layer **0**.
+
+A **component instance** (`MC`) is special. If the line **ends with a layer number** (including `0`), the instance is a single object on that layer: inner artwork is painted onto it. If the layer number is **omitted**, the instance uses the layers stored in the symbol definition (classic FidoCAD): parts can sit on different project layers, so colours and overlap follow those layers.
 
 ### Drawing commands you will see
 
@@ -60,7 +62,7 @@ You do not need to memorise these. They are listed so that a pasted block looks 
 | `TY` | Normal text (size, angle, font, layer) |
 | `PL` | PCB track (with width) |
 | `PA` | PCB pad |
-| `MC` | Library component (FidoCAD opcode; historically called a “macro”). Optional layer number at the end. |
+| `MC` | Library component (FidoCAD opcode; historically called a “macro”). Optional trailing layer: present → instance belongs to that layer; absent → use the definition’s layers. |
 
 A small complete example:
 

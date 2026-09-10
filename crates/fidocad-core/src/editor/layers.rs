@@ -9,7 +9,7 @@ impl Editor {
     }
 
     pub fn add_layer(&mut self) -> Option<LayerId> {
-        if self.component_edit.is_some() || self.doc.layers.len() >= MAX_LAYERS {
+        if self.doc.layers.len() >= MAX_LAYERS {
             return None;
         }
         self.push_undo();
@@ -20,9 +20,6 @@ impl Editor {
 
     /// Remove layer `index`. `move_to` relocates its objects; `None` deletes them.
     pub fn delete_layer(&mut self, index: usize, move_to: Option<usize>) -> bool {
-        if self.component_edit.is_some() {
-            return false;
-        }
         let n = self.doc.layers.len();
         if n <= 1 || index >= n {
             return false;
@@ -37,12 +34,14 @@ impl Editor {
         if let Some(dest) = move_to {
             let dest_id = LayerId(dest as u8);
             for p in &mut self.doc.primitives {
-                if p.layer() == removed {
+                if p.assigned_layer() == Some(removed) {
                     p.set_layer(dest_id);
                 }
             }
         } else {
-            self.doc.primitives.retain(|p| p.layer() != removed);
+            self.doc
+                .primitives
+                .retain(|p| p.assigned_layer() != Some(removed));
         }
         remap_primitive_layers(&mut self.doc.primitives, |id| {
             id.remap_after_remove(index as u8)
@@ -59,9 +58,6 @@ impl Editor {
     }
 
     pub fn reorder_layer(&mut self, from: usize, to: usize) -> bool {
-        if self.component_edit.is_some() {
-            return false;
-        }
         let n = self.doc.layers.len();
         if from >= n || to >= n || from == to {
             return false;
@@ -76,9 +72,6 @@ impl Editor {
     }
 
     pub fn update_layer(&mut self, index: usize, f: impl FnOnce(&mut LayerInfo)) -> bool {
-        if self.component_edit.is_some() {
-            return false;
-        }
         let Some(before) = self.doc.layers.get(index).cloned() else {
             return false;
         };
@@ -101,9 +94,6 @@ impl Editor {
     }
 
     pub fn set_layer_color(&mut self, index: usize, color: [u8; 4]) -> bool {
-        if self.component_edit.is_some() {
-            return false;
-        }
         let Some(before) = self.doc.layers.get(index).cloned() else {
             return false;
         };

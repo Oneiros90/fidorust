@@ -27,6 +27,7 @@ export class App {
     delete_layer(n: number, mode: string, move_to: number): void;
     duplicate_selection(): void;
     edit_selected_component(): boolean;
+    editing_local_component_uses_nonzero_layers(): boolean;
     enter_component_edit(stem: string, key: string): boolean;
     export_library_fcl(stem: string): string;
     /**
@@ -43,6 +44,7 @@ export class App {
     load_fcd(text: string): void;
     load_fcd_bytes(bytes: Uint8Array): void;
     load_user_libraries(json: string): void;
+    local_component_uses_nonzero_layers(stem: string, key: string): boolean;
     mirror(): void;
     move_component(stem: string, key: string, dest_stem: string): string;
     constructor();

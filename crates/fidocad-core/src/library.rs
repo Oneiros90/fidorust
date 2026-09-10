@@ -533,7 +533,11 @@ pub fn expand_component(
                 nested_xf.origin = xf.apply(m.pos, COMPONENT_ORIGIN);
                 nested_xf.rotations = (xf.rotations + m.rotations) % 4;
                 nested_xf.mirrored = xf.mirrored ^ m.mirrored;
-                out.extend(expand_component(nested, nested_xf, libs, depth + 1));
+                let mut nested_out = expand_component(nested, nested_xf, libs, depth + 1);
+                if !m.use_component_layers {
+                    paint_primitives(&mut nested_out, m.layer);
+                }
+                out.extend(nested_out);
             } else {
                 let mut q = p.clone();
                 q.apply_transform(xf);
@@ -561,7 +565,9 @@ pub fn expand_primitive(p: &Primitive, libs: &LibrarySet) -> Vec<Primitive> {
                 libs,
                 0,
             );
-            paint_primitives(&mut out, m.layer);
+            if !m.use_component_layers {
+                paint_primitives(&mut out, m.layer);
+            }
             out
         } else {
             vec![p.clone()]
@@ -607,6 +613,14 @@ pub fn paint_primitives(prims: &mut [Primitive], layer: LayerId) {
     for p in prims {
         p.set_layer(layer);
     }
+}
+
+/// True if any primitive is assigned to a layer other than 0.
+/// Instances with `use_component_layers` do not count (their stored layer is unused).
+pub fn primitives_use_nonzero_layers(prims: &[Primitive]) -> bool {
+    prims
+        .iter()
+        .any(|p| p.assigned_layer().is_some_and(|id| id.0 != 0))
 }
 
 /// World AABB of a primitive after expanding nested components.

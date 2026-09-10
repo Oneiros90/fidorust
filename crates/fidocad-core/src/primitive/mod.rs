@@ -124,6 +124,20 @@ impl Primitive {
         matches!(self, Self::Component(_))
     }
 
+    /// Classic FidoCAD instance: expanded primitives keep definition layers.
+    pub fn uses_component_layers(&self) -> bool {
+        matches!(self, Self::Component(c) if c.use_component_layers)
+    }
+
+    /// Layer this object belongs to for assign/delete/count, if any.
+    pub fn assigned_layer(&self) -> Option<LayerId> {
+        if self.uses_component_layers() {
+            None
+        } else {
+            Some(self.layer())
+        }
+    }
+
     pub fn layer(&self) -> LayerId {
         dispatch_primitive!(self, |p| p.layer())
     }

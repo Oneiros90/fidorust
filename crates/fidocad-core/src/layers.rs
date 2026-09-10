@@ -117,14 +117,6 @@ impl LayerSet {
         Self { layers }
     }
 
-    /// Single always-visible sheet used only while editing a component definition.
-    /// Not written to FCD; colour is overridden at tessellate time from the canvas theme.
-    pub fn component_edit() -> Self {
-        Self {
-            layers: vec![LayerInfo::new("", rgb(0, 0, 0), true)],
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.layers.len()
     }
@@ -238,7 +230,10 @@ pub fn remap_primitive_layers(prims: &mut [Primitive], f: impl Fn(LayerId) -> La
 }
 
 pub fn count_on_layer(prims: &[Primitive], id: LayerId) -> usize {
-    prims.iter().filter(|p| p.layer() == id).count()
+    prims
+        .iter()
+        .filter(|p| p.assigned_layer() == Some(id))
+        .count()
 }
 
 #[cfg(test)]

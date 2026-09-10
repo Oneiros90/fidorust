@@ -489,7 +489,13 @@ export class AppSession {
 				/* ignore */
 			}
 		});
-		if (created.stem && created.key) this.revealLibraryItem(created.stem, created.key);
+		if (created.stem && created.key) {
+			this.revealLibraryItem(created.stem, created.key);
+			const warn = this.engine.query((app) =>
+				app.local_component_uses_nonzero_layers(created.stem, created.key)
+			);
+			if (warn) this.dialogs.open({ kind: 'componentLayerWarning' });
+		}
 	};
 
 	enterComponentEdit = (stem: string, key: string) => {
@@ -508,9 +514,14 @@ export class AppSession {
 	};
 
 	saveComponentEdit = () => {
-		this.engine?.mutate((app) => {
+		if (!this.engine) return;
+		const warn = this.engine.query((app) =>
+			app.editing_local_component_uses_nonzero_layers()
+		);
+		this.engine.mutate((app) => {
 			app.save_component_edit();
 		});
+		if (warn) this.dialogs.open({ kind: 'componentLayerWarning' });
 	};
 
 	cancelComponentEdit = () => {

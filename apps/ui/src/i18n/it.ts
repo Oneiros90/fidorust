@@ -162,6 +162,9 @@ export const it: typeof en = {
 	yes: 'Sì',
 	no: 'No',
 	propFilled: 'Pieno',
+	propUseComponentLayers: 'Usa layer del componente',
+	propUseComponentLayersTooltip:
+		'Se attivo, l’istanza usa i layer salvati nel simbolo (come FidoCAD): le parti possono stare su layer diversi del progetto, con i relativi colori e sovrapposizioni. Se disattivo, l’istanza è un unico oggetto sul layer che scegli; i layer interni vengono ignorati.',
 	propThickness: 'Spessore',
 	propSizeX: 'Larghezza',
 	propSizeY: 'Altezza',
@@ -180,6 +183,9 @@ export const it: typeof en = {
 	padSquare: 'Quadrato',
 	padSquareRounded: 'Quadrato arrotondato',
 	layer: 'Layer',
+	componentLayerWarningTitle: 'Layer del componente',
+	componentLayerWarningBody:
+		'Questo simbolo è in una libreria locale sul dispositivo e usa layer diversi dal layer 0. Quei numeri di layer sono quelli del progetto in cui viene piazzato: colori e visibilità possono cambiare da un disegno all’altro.',
 	statusReady: 'Pronto',
 	unresolvedComponentsTitle: 'Componenti di libreria mancanti',
 	unresolvedComponentsBody:

@@ -14,6 +14,7 @@
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
 	import ExportPreviewDialog from '../dialogs/ExportPreviewDialog.svelte';
 	import UnresolvedComponentsDialog from '../dialogs/UnresolvedComponentsDialog.svelte';
+	import ComponentLayerWarningDialog from '../dialogs/ComponentLayerWarningDialog.svelte';
 	import ComponentGhost from '../library/ComponentGhost.svelte';
 	import LibraryItemContextMenu from '../library/LibraryItemContextMenu.svelte';
 	import LibraryContextMenu from '../library/LibraryContextMenu.svelte';
@@ -120,4 +121,6 @@
 	<ExportPreviewDialog format={dialog.format} />
 {:else if dialog?.kind === 'unresolvedComponents'}
 	<UnresolvedComponentsDialog />
+{:else if dialog?.kind === 'componentLayerWarning'}
+	<ComponentLayerWarningDialog />
 {/if}

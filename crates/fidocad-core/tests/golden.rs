@@ -148,11 +148,38 @@ fn mc_optional_layer_token() {
         Primitive::Component(c) => {
             assert_eq!(c.name, "080");
             assert_eq!(c.layer.0, 2);
+            assert!(!c.use_component_layers);
         }
         _ => panic!(),
     }
     let out = serialize_document(&doc, None);
     assert!(out.contains("MC 10 20 0 0 080 2"), "{out}");
+}
+
+#[test]
+fn mc_missing_layer_uses_component_layers() {
+    let p = parse_primitive_line("MC 10 20 0 0 080").unwrap();
+    match &p {
+        Primitive::Component(c) => {
+            assert!(c.use_component_layers);
+            assert_eq!(c.layer.0, 0);
+        }
+        _ => panic!(),
+    }
+    assert_eq!(serialize_primitive(&p), "MC 10 20 0 0 080\r\n");
+}
+
+#[test]
+fn mc_layer_zero_token_assigns_layer() {
+    let p = parse_primitive_line("MC 10 20 0 0 080 0").unwrap();
+    match &p {
+        Primitive::Component(c) => {
+            assert!(!c.use_component_layers);
+            assert_eq!(c.layer.0, 0);
+        }
+        _ => panic!(),
+    }
+    assert_eq!(serialize_primitive(&p), "MC 10 20 0 0 080 0\r\n");
 }
 
 #[test]

@@ -197,7 +197,7 @@ fn description_roundtrip() {
 }
 
 #[test]
-fn create_flattens_body_and_places_instance_on_current_layer() {
+fn create_preserves_body_layers_and_places_instance_on_current_layer() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(0, 0),
@@ -214,14 +214,15 @@ fn create_flattens_body_and_places_instance_on_current_layer() {
     ed.create_component_from_selection(PROJECT_STEM, "Mix")
         .unwrap();
     match &ed.doc().primitives[0] {
-        Primitive::Component(c) => assert_eq!(c.layer.0, 2),
+        Primitive::Component(c) => {
+            assert_eq!(c.layer.0, 2);
+            assert!(!c.use_component_layers);
+        }
         _ => panic!("expected component instance"),
     }
     let def = ed.libs().project().unwrap().components.last().unwrap();
-    assert!(
-        def.primitives.iter().all(|p| p.layer().0 == 0),
-        "definition must be flattened to layer 0"
-    );
+    let layers: Vec<u8> = def.primitives.iter().map(|p| p.layer().0).collect();
+    assert_eq!(layers, vec![0, 1]);
 }
 
 #[test]
@@ -244,7 +245,62 @@ fn instance_expansion_uses_instance_layer() {
 }
 
 #[test]
-fn component_edit_locks_layers() {
+fn instance_expansion_keeps_definition_layers_when_flag_set() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(0),
+    ));
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 10),
+        Point::new(10, 10),
+        LayerId(1),
+    ));
+    ed.set_selected(vec![0, 1]);
+    ed.create_component_from_selection(PROJECT_STEM, "A")
+        .unwrap();
+    match &mut ed.doc_mut().primitives[0] {
+        Primitive::Component(c) => c.use_component_layers = true,
+        _ => panic!(),
+    }
+    let flat = fidocad_core::library::expand_primitive(&ed.doc().primitives[0], ed.libs());
+    let layers: Vec<u8> = flat.iter().map(|p| p.layer().0).collect();
+    assert_eq!(layers, vec![0, 1]);
+}
+
+#[test]
+fn set_layer_skips_instance_using_component_layers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![0]);
+    ed.create_component_from_selection(PROJECT_STEM, "A")
+        .unwrap();
+    match &mut ed.doc_mut().primitives[0] {
+        Primitive::Component(c) => {
+            c.use_component_layers = true;
+            c.layer = LayerId(0);
+        }
+        _ => panic!(),
+    }
+    ed.set_selected(vec![0]);
+    ed.set_layer(2);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => {
+            assert!(c.use_component_layers);
+            assert_eq!(c.layer.0, 0);
+        }
+        _ => panic!(),
+    }
+    assert_eq!(ed.layer().0, 2);
+}
+
+#[test]
+fn component_edit_keeps_project_layers() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(0, 0),
@@ -255,17 +311,55 @@ fn component_edit_locks_layers() {
     let (_, key) = ed
         .create_component_from_selection(PROJECT_STEM, "A")
         .unwrap();
+    let n_layers = ed.doc().layers.len();
     assert!(ed.enter_component_edit(PROJECT_STEM, &key));
-    assert_eq!(ed.doc().layers.len(), 1);
-    assert_eq!(ed.layer().0, 0);
-    assert!(ed.add_layer().is_none());
-    ed.set_layer(3);
-    assert_eq!(ed.layer().0, 0);
+    assert_eq!(ed.doc().layers.len(), n_layers);
+    assert!(ed.add_layer().is_some());
+    ed.set_selected(vec![0]);
+    ed.set_layer(2);
+    assert_eq!(ed.doc().primitives[0].layer().0, 2);
     ed.set_selected(vec![0]);
     assert!(ed
         .selection_props_form()
         .iter()
-        .all(|f| f.id != fidocad_core::properties::PropField::Layer));
+        .any(|f| f.id == fidocad_core::properties::PropField::Layer));
+}
+
+#[test]
+fn local_component_nonzero_layers_warns() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(10, 0),
+        LayerId(1),
+    ));
+    ed.set_selected(vec![0]);
+    let stem = ed.create_user_library("Mine");
+    let (_, key) = ed.create_component_from_selection(&stem, "Box").unwrap();
+    assert!(ed.local_component_uses_nonzero_layers(&stem, &key));
+
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(20, 0),
+        Point::new(30, 0),
+        LayerId(1),
+    ));
+    ed.set_selected(vec![ed.doc().primitives.len() - 1]);
+    let (_, pkey) = ed
+        .create_component_from_selection(PROJECT_STEM, "Proj")
+        .unwrap();
+    assert!(!ed.local_component_uses_nonzero_layers(PROJECT_STEM, &pkey));
+
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(40, 0),
+        Point::new(50, 0),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![ed.doc().primitives.len() - 1]);
+    let (_, zkey) = ed.create_component_from_selection(&stem, "Zero").unwrap();
+    assert!(!ed.local_component_uses_nonzero_layers(&stem, &zkey));
+
+    assert!(ed.enter_component_edit(&stem, &key));
+    assert!(ed.editing_local_component_uses_nonzero_layers());
 }
 
 #[test]
