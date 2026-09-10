@@ -458,7 +458,8 @@ fn write_text_prim(out: &mut String, t: &Text, color: &str, stroke_w: f32) {
     let mut attrs = String::new();
     if angle.abs() > 0.001 || mirrored {
         attrs.push_str(&format!(
-            r#" transform="translate({px:.2},{py:.2}) rotate({angle}){}""#,
+            r#" transform="translate({px:.2},{py:.2}) rotate({}){}""#,
+            -angle,
             if mirrored { " scale(-1,1)" } else { "" }
         ));
         attrs.push_str(r#" x="0" y="0""#);
@@ -481,7 +482,10 @@ fn write_text_prim(out: &mut String, t: &Text, color: &str, stroke_w: f32) {
         let x0 = if mirrored { -n * wch } else { 0.0 };
         let x1 = if mirrored { 0.0 } else { n * wch };
         let (sin, cos) = angle.to_radians().sin_cos();
-        let map = |lx: f32, ly: f32| (px + lx * cos - ly * sin, py + lx * sin + ly * cos);
+        let map = |lx: f32, ly: f32| {
+            let (dx, dy) = fidocad_core::TextLayout::map_offset(lx, ly, sin, cos);
+            (px + dx, py + dy)
+        };
         let (ax, ay) = map(x0, size);
         let (bx, by) = map(x1, size);
         write_stroke_line(out, ax, ay, bx, by, color, stroke_w);

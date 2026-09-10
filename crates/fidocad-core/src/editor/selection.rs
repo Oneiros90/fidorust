@@ -177,8 +177,14 @@ impl Editor {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
                 p.transform(|q| q.rotate90_cw(origin));
-                if let Primitive::Component(ComponentRef { rotations, .. }) = p {
-                    *rotations = (*rotations + 1) % 4;
+                match p {
+                    Primitive::Component(ComponentRef { rotations, .. }) => {
+                        *rotations = (*rotations + 1) % 4;
+                    }
+                    Primitive::Text(t) => {
+                        t.angle = (t.angle + 90).rem_euclid(360);
+                    }
+                    _ => {}
                 }
             }
         }

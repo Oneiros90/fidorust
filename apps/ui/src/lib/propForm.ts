@@ -25,7 +25,8 @@ export type PropFieldKind =
 	| { kind: 'int'; min: number; max: number }
 	| { kind: 'string' }
 	| { kind: 'layer' }
-	| { kind: 'padStyle' };
+	| { kind: 'padStyle' }
+	| { kind: 'choice'; options: string[] };
 
 export type PropFieldValue =
 	| { state: 'unset' }

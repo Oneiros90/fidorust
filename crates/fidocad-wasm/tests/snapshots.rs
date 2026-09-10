@@ -39,3 +39,10 @@ fn set_view_roundtrip() {
     assert_eq!(status["pan_x"].as_f64(), Some(12.0));
     assert_eq!(status["pan_y"].as_f64(), Some(34.0));
 }
+
+#[test]
+fn registered_fonts_start_with_courier_prime() {
+    let app = App::new();
+    let fonts: Vec<String> = serde_json::from_str(&app.registered_fonts_json()).unwrap();
+    assert_eq!(fonts.first().map(String::as_str), Some("Courier Prime"));
+}

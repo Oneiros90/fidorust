@@ -77,6 +77,20 @@ impl TextLayout {
             cos,
         }
     }
+
+    /// Local text offsets (x right, y down) → world delta. Positive angle is CCW on Y-down.
+    pub fn map_offset(lx: f32, ly: f32, sin: f32, cos: f32) -> (f32, f32) {
+        (lx * cos + ly * sin, -lx * sin + ly * cos)
+    }
+
+    pub fn map(&self, lx: f32, ly: f32) -> (f32, f32) {
+        Self::map_offset(lx, ly, self.sin, self.cos)
+    }
+
+    /// Inverse of [`Self::map_offset`].
+    pub fn unmap_offset(dx: f64, dy: f64, sin: f64, cos: f64) -> (f64, f64) {
+        (dx * cos - dy * sin, dx * sin + dy * cos)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -109,9 +123,11 @@ impl Geometry for Text {
             (layout.x0, layout.h),
             (layout.x1, layout.h),
         ] {
-            let wx = self.pos.x as f32 + lx * layout.cos - ly * layout.sin;
-            let wy = self.pos.y as f32 + lx * layout.sin + ly * layout.cos;
-            bb.include(Point::new(wx.round() as i32, wy.round() as i32));
+            let (dx, dy) = layout.map(lx, ly);
+            bb.include(Point::new(
+                (self.pos.x as f32 + dx).round() as i32,
+                (self.pos.y as f32 + dy).round() as i32,
+            ));
         }
         bb
     }
@@ -135,8 +151,7 @@ impl HitTest for Text {
         let dy = (pt.y - self.pos.y) as f64;
         let rad = (self.angle as f64).to_radians();
         let (sin, cos) = (rad.sin(), rad.cos());
-        let mut lx = dx * cos + dy * sin;
-        let ly = -dx * sin + dy * cos;
+        let (mut lx, ly) = TextLayout::unmap_offset(dx, dy, sin, cos);
         if self.style & STYLE_MIRRORED != 0 {
             lx = -lx;
         }

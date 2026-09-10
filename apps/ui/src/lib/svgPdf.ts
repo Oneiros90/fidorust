@@ -229,7 +229,7 @@ function emitPdfText(
 ) {
 	const size = Math.max(prim.fontSize * scale, 0.5);
 	const ascent = prim.fontSize * 0.8;
-	const rad = (prim.angle * Math.PI) / 180;
+	const rad = (-prim.angle * Math.PI) / 180;
 	const cos = Math.cos(rad);
 	const sin = Math.sin(rad);
 	const e = px(prim.x - ascent * sin);

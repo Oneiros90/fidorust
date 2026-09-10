@@ -67,7 +67,7 @@
 		}
 		if (kind === 'bool') edit[id] = { state: 'bool', value: raw === 'true' };
 		else if (kind === 'int') edit[id] = { state: 'int', value: Number(raw) };
-		else if (kind === 'string') edit[id] = { state: 'string', value: raw };
+		else if (kind === 'string' || kind === 'choice') edit[id] = { state: 'string', value: raw };
 		else if (kind === 'layer') edit[id] = { state: 'layer', value: Number(raw) };
 		else edit[id] = { state: 'padStyle', value: raw };
 	}
@@ -112,6 +112,17 @@
 						value={getValue(field.id)}
 						oninput={(e) => setValue(field.id, 'string', e.currentTarget.value)}
 					/>
+				{:else if field.kind.kind === 'choice'}
+					<select
+						disabled={field.readOnly}
+						value={getValue(field.id)}
+						onchange={(e) => setValue(field.id, 'choice', e.currentTarget.value)}
+					>
+						<option value="">{t.indeterminate}</option>
+						{#each field.kind.options as name (name)}
+							<option value={name}>{name}</option>
+						{/each}
+					</select>
 				{:else if field.kind.kind === 'layer'}
 					<select
 						disabled={field.readOnly}

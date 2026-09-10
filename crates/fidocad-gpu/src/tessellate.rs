@@ -113,12 +113,13 @@ impl Tessellate for Text {
         let wch = (self.sx as f32).max(1.5);
         let mirrored = self.style & STYLE_MIRRORED != 0;
         let italic = self.style & STYLE_ITALIC != 0;
-        let rad = (self.angle as f32).to_radians();
-        let (sin, cos) = rad.sin_cos();
+        let layout = fidocad_core::TextLayout::from_params(
+            self.sx, self.sy, self.angle, self.style, &self.text,
+        );
         let mut x_off = 0.0f32;
         let sel_f = Scene::flag(selected);
         for ch in self.text.chars() {
-            for v in crate::font::glyph_triangles(ch) {
+            for v in crate::font::glyph_triangles(&self.font, ch) {
                 let mut ax = v[0] * wch + x_off;
                 let ay = v[1] * h;
                 if italic {
@@ -127,7 +128,7 @@ impl Tessellate for Text {
                 if mirrored {
                     ax = -ax;
                 }
-                let ra = rot(ax, ay, cos, sin);
+                let ra = layout.map(ax, ay);
                 scene.fills.push(FillVertexGpu {
                     x: self.pos.x as f32 + ra.0,
                     y: self.pos.y as f32 + ra.1,
@@ -145,10 +146,6 @@ impl Tessellate for Text {
 
 impl Tessellate for ComponentRef {
     fn tessellate(&self, _scene: &mut Scene, _rgb: [f32; 4], _selected: bool, _stroke_w: f32) {}
-}
-
-fn rot(x: f32, y: f32, cos: f32, sin: f32) -> (f32, f32) {
-    (x * cos - y * sin, x * sin + y * cos)
 }
 
 fn add_pcb_track(scene: &mut Scene, a: Point, b: Point, width: i32, rgb: [f32; 4], selected: bool) {

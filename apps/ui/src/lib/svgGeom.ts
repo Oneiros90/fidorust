@@ -283,7 +283,7 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			y,
 			content: decodeXml(m[2]),
 			fontSize,
-			fontFamily: attr(tag, 'font-family') ?? 'Courier New',
+			fontFamily: attr(tag, 'font-family') ?? 'Courier Prime',
 			fill,
 			italic: attr(tag, 'font-style') === 'italic',
 			bold: attr(tag, 'font-weight') === 'bold',

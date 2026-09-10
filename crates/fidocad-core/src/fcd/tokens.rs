@@ -92,3 +92,21 @@ pub fn push_layer(out: &mut String, layer: LayerId) {
     }
     out.push_str("\r\n");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn star_is_courier_prime() {
+        assert_eq!(font_from_token("*"), "Courier Prime");
+        assert_eq!(font_token("Courier Prime"), "*");
+        assert_eq!(font_token("courier prime"), "*");
+    }
+
+    #[test]
+    fn spaces_roundtrip_via_plus() {
+        assert_eq!(font_from_token("Lucida++Console"), "Lucida Console");
+        assert_eq!(font_token("Lucida Console"), "Lucida++Console");
+    }
+}

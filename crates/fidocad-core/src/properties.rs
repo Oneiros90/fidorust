@@ -39,6 +39,7 @@ pub enum PropFieldKind {
     String,
     Layer,
     PadStyle,
+    Choice { options: Vec<String> },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-system-mono-fonts"
+description = "Allow enumerating installed monospace fonts"
+commands.allow = ["system_mono_fonts"]

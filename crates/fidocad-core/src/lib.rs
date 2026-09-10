@@ -23,7 +23,7 @@ pub use layers::{LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
 pub use library::{ComponentDef, Library, LibraryKind, LibrarySet, LOCAL_STEM, PROJECT_STEM};
 pub use primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
-    Rect, Text, TextLayout, TextStyle,
+    Rect, Text, TextLayout, TextStyle, DEFAULT_FONT,
 };
 pub use properties::{PropFormField, PropPatch};
 

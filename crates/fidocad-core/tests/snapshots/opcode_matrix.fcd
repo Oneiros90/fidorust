@@ -23,4 +23,4 @@ PA 10 10 18 12 8 2 1
 MC 10 20 1 1 080
 TE 0 0 HELLO
 TY 0 0 5 3 0 0 0 * WORLD
-TY 0 0 5 3 90 3 1 * HI
+TY 0 0 5 3 90 3 1 Lucida++Console HI

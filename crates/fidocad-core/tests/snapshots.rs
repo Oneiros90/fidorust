@@ -5,7 +5,7 @@ use fidocad_core::properties::{apply_selection_props, selection_props_form, Prop
 use fidocad_core::serialize::{serialize_clipboard, serialize_document};
 use fidocad_core::{
     Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point,
-    Poly, Primitive, Rect, Text, Tool,
+    Poly, Primitive, Rect, Text, Tool, DEFAULT_FONT,
 };
 
 fn roundtrip(src: &str) -> String {
@@ -103,7 +103,7 @@ fn snapshot_selection_props_mixed() {
         angle: 0,
         style: 0,
         layer: LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: "AB".into(),
         simple: false,
     });
@@ -168,7 +168,7 @@ fn snapshot_primitive_json_shapes() {
             angle: 90,
             style: 3,
             layer: LayerId(1),
-            font: "Courier New".into(),
+            font: DEFAULT_FONT.into(),
             text: "Hi".into(),
             simple: false,
         }),
@@ -325,7 +325,7 @@ PA 10 10 18 12 8 2 1
 MC 10 20 1 1 080
 TE 0 0 HELLO
 TX 0 0 5 3 0 0 * WORLD
-TY 0 0 5 3 90 3 1 Courier++New HI
+TY 0 0 5 3 90 3 1 Lucida++Console HI
 ";
     common::assert_snapshot("opcode_matrix.fcd", &roundtrip(src));
 }

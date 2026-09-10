@@ -1,6 +1,6 @@
 use fidocad_core::parse::{builtin_libraries, parse_document};
 use fidocad_core::{
-    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Text, Tool,
+    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Text, Tool, DEFAULT_FONT,
 };
 use fidocad_gpu::{tessellate_editor, tessellate_primitives};
 
@@ -299,7 +299,7 @@ fn export_svg_keeps_beziers_and_text_native() {
         angle: 0,
         style: 0,
         layer: fidocad_core::LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
     }));
@@ -375,7 +375,7 @@ fn tessellate_text_uses_filled_glyphs() {
         angle: 0,
         style: 0,
         layer: fidocad_core::LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
     }));
@@ -391,6 +391,30 @@ fn tessellate_text_uses_filled_glyphs() {
 }
 
 #[test]
+fn tessellate_unknown_font_falls_back_to_courier_prime() {
+    let mut doc = parse_document("[FIDOCAD]\n").unwrap();
+    doc.primitives.push(fidocad_core::Primitive::Text(Text {
+        pos: fidocad_core::Point::new(0, 0),
+        sy: 10,
+        sx: 6,
+        angle: 0,
+        style: 0,
+        layer: fidocad_core::LayerId(0),
+        font: String::new(),
+        text: "Vcc".into(),
+        simple: false,
+    }));
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_doc(doc);
+    let scene = tessellate_editor(&ed);
+    assert!(
+        scene.fills.len() >= 27,
+        "empty font must still tessellate Courier Prime, got {}",
+        scene.fills.len()
+    );
+}
+
+#[test]
 fn editing_text_hides_glyphs() {
     let mut doc = parse_document("[FIDOCAD]\n").unwrap();
     doc.primitives.push(fidocad_core::Primitive::Text(Text {
@@ -400,7 +424,7 @@ fn editing_text_hides_glyphs() {
         angle: 0,
         style: 0,
         layer: fidocad_core::LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
     }));

@@ -10,6 +10,7 @@ import {
 } from '../lib/sessionStore';
 import { decodeProject } from '../lib/shareCodec';
 import { parsePropForm, type PropPatch } from '../lib/propForm';
+import { registerSystemMonospace } from '../lib/systemFonts';
 import { defaultStatus } from './engineTypes';
 import type { ComponentCursor } from './engineTypes';
 import type { LibGhost, Theme } from './types';
@@ -226,6 +227,8 @@ export class AppSession {
 		const { App } = await import('../wasm/fidocad_wasm.js');
 		await initWasm();
 		this.engine = new Engine(new App());
+		await registerSystemMonospace(this.engine.app);
+		this.engine.app.render();
 		const userLibs = loadUserLibraries();
 		this.engine.query((app) => {
 			app.set_locale(this.locale);

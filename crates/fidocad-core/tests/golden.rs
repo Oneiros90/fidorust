@@ -2,7 +2,7 @@ use fidocad_core::parse::{builtin_libraries, parse_document, parse_primitive_lin
 use fidocad_core::serialize::{serialize_document, serialize_primitive};
 use fidocad_core::{
     ComponentRef, Connection, DblClickAction, Document, Editor, LayerId, Line, PcbPad, PcbTrack,
-    Point, Poly, Primitive, PropPatch, Rect, Text, Tool,
+    Point, Poly, Primitive, PropPatch, Rect, Text, Tool, DEFAULT_FONT,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -178,6 +178,70 @@ fn axis_aligned_text_aabb_extends_right_of_origin() {
 }
 
 #[test]
+fn star_token_is_courier_prime_and_roundtrips() {
+    let p = parse_primitive_line("TY 0 0 4 3 0 0 0 * Hello").unwrap();
+    match &p {
+        Primitive::Text(t) => {
+            assert_eq!(t.font, DEFAULT_FONT);
+            assert_eq!(t.font, "Courier Prime");
+        }
+        other => panic!("expected text, got {other:?}"),
+    }
+    let out = serialize_primitive(&p);
+    assert!(
+        out.contains(" * Hello"),
+        "default font must serialize as *: {out}"
+    );
+}
+
+#[test]
+fn text_angle_90_aabb_goes_up() {
+    let p = parse_primitive_line("TY 301 203 4 2 90 1 0 * Azzurro").unwrap();
+    let bb = p.aabb();
+    assert!(
+        bb.max.y <= 203,
+        "90° CCW must not extend below origin, max.y={}",
+        bb.max.y
+    );
+    assert!(
+        bb.min.y < 203 - 10,
+        "baseline should go up, min.y={}",
+        bb.min.y
+    );
+    assert!(bb.max.x > 301);
+}
+
+#[test]
+fn text_angle_90_hit_is_above_origin() {
+    let p = parse_primitive_line("TY 301 203 4 2 90 1 0 * Azzurro").unwrap();
+    assert!(
+        p.body_hit(Point::new(301, 198), 0.0),
+        "point above origin should hit"
+    );
+    assert!(
+        !p.body_hit(Point::new(301, 208), 0.0),
+        "point below origin should miss"
+    );
+}
+
+#[test]
+fn rotate_selected_increments_text_angle() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(sample_text(Point::new(10, 20), "AB"));
+    ed.set_selected(vec![0]);
+    ed.rotate_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::Text(t) => assert_eq!(t.angle, 90),
+        _ => panic!("expected text"),
+    }
+    ed.rotate_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::Text(t) => assert_eq!(t.angle, 180),
+        _ => panic!("expected text"),
+    }
+}
+
+#[test]
 fn pcb_pad_and_track() {
     let p = parse_primitive_line("PA 100 100 18 18 8 0 1").unwrap();
     match p {
@@ -332,7 +396,7 @@ fn sample_text(pos: Point, text: &str) -> Primitive {
         angle: 0,
         style: 0,
         layer: LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: text.into(),
         simple: false,
     })

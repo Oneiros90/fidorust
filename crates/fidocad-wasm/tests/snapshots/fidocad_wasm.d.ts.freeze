@@ -25,6 +25,7 @@ export class App {
      * `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
      */
     delete_layer(n: number, mode: string, move_to: number): void;
+    duplicate_selection(): void;
     edit_selected_component(): boolean;
     enter_component_edit(stem: string, key: string): boolean;
     export_library_fcl(stem: string): string;
@@ -54,6 +55,8 @@ export class App {
     pointer_up(sx: number, sy: number): void;
     prepare_context_menu(sx: number, sy: number): void;
     redo(): void;
+    register_font(name: string, data: Uint8Array): boolean;
+    registered_fonts_json(): string;
     remove_user_library(stem: string): boolean;
     rename_component(stem: string, key: string, name: string): boolean;
     rename_library(stem: string, title: string): string;
@@ -75,6 +78,7 @@ export class App {
     set_layer_name(n: number, name: string): void;
     set_layer_show(n: number, show: boolean): void;
     set_locale(loc: string): void;
+    set_move_duplicate(on: boolean): void;
     set_pcb_mode(on: boolean): void;
     set_pending_component(name: string): void;
     set_pending_follow(on: boolean): void;
@@ -87,6 +91,7 @@ export class App {
     set_track_width(w: number): void;
     set_view(zoom: number, pan_x: number, pan_y: number): void;
     split_selected_components(): void;
+    stamp_drag_copy(): boolean;
     status_json(): string;
     undo(): void;
     unresolved_components_json(): string;
@@ -120,12 +125,13 @@ export interface InitOutput {
     readonly app_dblclick: (a: number, b: number, c: number) => [number, number];
     readonly app_delete_component: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_delete_layer: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly app_duplicate_selection: (a: number) => void;
     readonly app_edit_selected_component: (a: number) => number;
     readonly app_enter_component_edit: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_export_library_fcl: (a: number, b: number, c: number) => [number, number];
     readonly app_export_svg: (a: number, b: number, c: number) => [number, number];
     readonly app_fit: (a: number) => void;
-    readonly app_import_library: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly app_import_library: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly app_invert_selection: (a: number) => void;
     readonly app_key: (a: number, b: number, c: number, d: number) => number;
     readonly app_layer_object_count: (a: number, b: number) => number;
@@ -146,6 +152,8 @@ export interface InitOutput {
     readonly app_pointer_up: (a: number, b: number, c: number) => void;
     readonly app_prepare_context_menu: (a: number, b: number, c: number) => void;
     readonly app_redo: (a: number) => void;
+    readonly app_register_font: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly app_registered_fonts_json: (a: number) => [number, number];
     readonly app_remove_user_library: (a: number, b: number, c: number) => number;
     readonly app_rename_component: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly app_rename_library: (a: number, b: number, c: number, d: number, e: number) => [number, number];
@@ -167,6 +175,7 @@ export interface InitOutput {
     readonly app_set_layer_name: (a: number, b: number, c: number, d: number) => void;
     readonly app_set_layer_show: (a: number, b: number, c: number) => void;
     readonly app_set_locale: (a: number, b: number, c: number) => void;
+    readonly app_set_move_duplicate: (a: number, b: number) => void;
     readonly app_set_pcb_mode: (a: number, b: number) => void;
     readonly app_set_pending_component: (a: number, b: number, c: number) => void;
     readonly app_set_pending_follow: (a: number, b: number) => void;
@@ -179,8 +188,10 @@ export interface InitOutput {
     readonly app_set_track_width: (a: number, b: number) => void;
     readonly app_set_view: (a: number, b: number, c: number, d: number) => void;
     readonly app_split_selected_components: (a: number) => void;
+    readonly app_stamp_drag_copy: (a: number) => number;
     readonly app_status_json: (a: number) => [number, number];
     readonly app_undo: (a: number) => void;
+    readonly app_unresolved_components_json: (a: number) => [number, number];
     readonly app_user_libraries_blob: (a: number) => [number, number];
     readonly app_user_libraries_json: (a: number) => [number, number];
     readonly app_uses_user_library_components: (a: number) => number;

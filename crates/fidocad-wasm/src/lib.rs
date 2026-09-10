@@ -4,11 +4,14 @@ mod json;
 mod render_backend;
 
 use fidocad_core::parse::{builtin_libraries, parse_library};
+use fidocad_core::properties::{
+    PropField, PropFieldKind, PropFieldValue, PropFormField, PropPatch,
+};
 use fidocad_core::serialize::{
     serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_library,
     SaveLibraryPolicy,
 };
-use fidocad_core::{Editor, EditorError, LibraryKind, PropPatch, Tool};
+use fidocad_core::{Editor, EditorError, LibraryKind, Tool};
 use fidocad_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
@@ -325,8 +328,20 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn register_font(&mut self, name: &str, data: &[u8]) -> bool {
+        fidocad_gpu::font::register_font(name, data)
+    }
+
+    #[wasm_bindgen]
+    pub fn registered_fonts_json(&self) -> String {
+        to_json(&fidocad_gpu::font::registered_families(), "[]")
+    }
+
+    #[wasm_bindgen]
     pub fn selection_props_form_json(&self) -> String {
-        to_json(&self.editor.selection_props_form(), "[]")
+        let mut fields = self.editor.selection_props_form();
+        patch_font_face_choices(&mut fields);
+        to_json(&fields, "[]")
     }
 
     #[wasm_bindgen]
@@ -737,6 +752,23 @@ impl App {
             }
         }
         "null".into()
+    }
+}
+
+fn patch_font_face_choices(fields: &mut [PropFormField]) {
+    let mut options = fidocad_gpu::font::registered_families();
+    for f in fields.iter_mut() {
+        if f.id != PropField::FontFace {
+            continue;
+        }
+        if let PropFieldValue::String { value } = &f.value {
+            if !value.is_empty() && !options.iter().any(|o| o.eq_ignore_ascii_case(value)) {
+                options.push(value.clone());
+            }
+        }
+        f.kind = PropFieldKind::Choice {
+            options: options.clone(),
+        };
     }
 }
 

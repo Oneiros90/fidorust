@@ -1,7 +1,7 @@
 mod common;
 
 use fidocad_core::parse::builtin_libraries;
-use fidocad_core::{Editor, Point, Text};
+use fidocad_core::{Editor, Point, Text, DEFAULT_FONT};
 use fidocad_gpu::{
     export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, tessellate_primitives,
     tessellate_view, Scene,
@@ -80,7 +80,7 @@ fn snapshot_draft_and_text() {
         angle: 0,
         style: 0,
         layer: fidocad_core::LayerId(0),
-        font: "Courier New".into(),
+        font: DEFAULT_FONT.into(),
         text: "Vcc".into(),
         simple: false,
     }));
