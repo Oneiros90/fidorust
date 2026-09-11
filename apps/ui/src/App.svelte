@@ -8,12 +8,19 @@
 	import StatusBar from './chrome/StatusBar.svelte';
 	import ToolSidebar from './chrome/ToolSidebar.svelte';
 	import RightSidebar from './chrome/RightSidebar.svelte';
+	import { syncDesktopTitle } from './lib/desktopFiles';
 
 	const app = new AppSession();
 	setAppSession(app);
 
 	onMount(() => {
 		void app.init();
+	});
+
+	$effect(() => {
+		const title = app.windowTitle;
+		document.title = title;
+		void syncDesktopTitle(title);
 	});
 </script>
 

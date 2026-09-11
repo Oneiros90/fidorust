@@ -6,7 +6,7 @@
 	"build": {
 		"beforeDevCommand": "npm run dev:web",
 		"devUrl": "http://localhost:5173",
-		"beforeBuildCommand": "npm run build",
+		"beforeBuildCommand": "npm run wasm && npx vite build",
 		"frontendDist": "../dist"
 	},
 	"app": {
@@ -33,6 +33,22 @@
 			"icons/icon.png",
 			"icons/icon.icns",
 			"icons/icon.ico"
+		],
+		"fileAssociations": [
+			{
+				"ext": ["fcd"],
+				"name": "FidoCAD Drawing",
+				"description": "FidoCAD drawing",
+				"role": "Editor",
+				"mimeType": "application/x-fidocad"
+			},
+			{
+				"ext": ["fcl"],
+				"name": "FidoCAD Library",
+				"description": "FidoCAD library",
+				"role": "Editor",
+				"mimeType": "application/x-fidocad-library"
+			}
 		]
 	}
 }

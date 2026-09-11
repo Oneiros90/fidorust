@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-open-files"
+description = "Allow reading .fcd/.fcl files from OS open and drag-drop"
+commands.allow = ["take_pending_opens", "read_open_files"]

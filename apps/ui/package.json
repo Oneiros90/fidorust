@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev:web": "vite",
 		"dev:desktop": "tauri dev",
-		"build": "npm run wasm && vite build",
+		"build": "npx tauri build",
 		"wasm": "wasm-pack build ../../crates/fidorust-wasm --target web --out-dir ../../apps/ui/src/wasm --out-name fidorust_wasm",
 		"bump": "prettier --write . && node ../../tools/bump.mjs",
 		"check": "npm run wasm && svelte-check --tsconfig ./tsconfig.json",

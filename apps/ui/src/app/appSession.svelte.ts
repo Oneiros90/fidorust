@@ -27,6 +27,7 @@ import { PreviewCache } from '../lib/previewCache';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
 import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 import { componentFullName } from '../lib/libraryDrag';
+import { startDesktopFileBridge } from '../lib/desktopFiles';
 import { loadUserLibraries, persistUserLibrariesBlob } from '../lib/userLibraries';
 import type { SaveLibraryPolicy } from './fileOps';
 
@@ -72,9 +73,18 @@ export class AppSession {
 	cursorCache = new SvelteMap<string, ComponentCursor>();
 	previewCache = new PreviewCache();
 	recents = $state<RecentEntry[]>(loadRecents());
-	savedSnapshot = '';
+	savedSnapshot = $state('');
 	pendingDiscard: (() => void) | null = null;
 	#libraryDrag = new LibraryDragSession(this);
+	#titleSig = '';
+	#titleEpoch = $state(0);
+
+	windowTitle = $derived.by(() => {
+		void this.#titleEpoch;
+		void this.savedSnapshot;
+		const name = this.fileHandleName || 'untitled.fcd';
+		return files.isDirty(this) ? `*${name}` : name;
+	});
 
 	get locale() {
 		return this.settings.locale;
@@ -161,10 +171,21 @@ export class AppSession {
 
 	refresh = () => {
 		this.engine?.refresh();
+		this.syncTitleEpoch();
 	};
 
 	afterChange = () => {
 		this.engine?.mutate(() => {});
+	};
+
+	syncTitleEpoch = () => {
+		const s = this.engine?.status;
+		const sig = s
+			? `${s.can_undo}|${s.can_redo}|${s.n}|${Number(s.editing_component_dirty)}|${s.editing_component ?? ''}|${s.libs_rev}`
+			: '';
+		if (sig === this.#titleSig) return;
+		this.#titleSig = sig;
+		this.#titleEpoch += 1;
 	};
 
 	toggleMenu = (id: string) => this.ui.toggleMenu(id);
@@ -239,23 +260,27 @@ export class AppSession {
 			}
 		});
 		this.refresh();
-		const project = new URLSearchParams(window.location.search).get('project');
-		if (project) {
-			const url = new URL(window.location.href);
-			url.searchParams.delete('project');
-			const search = url.searchParams.toString();
-			history.replaceState(null, '', `${url.pathname}${search ? `?${search}` : ''}${url.hash}`);
-			try {
-				this.loadText(await decodeProject(project), 'shared.fcd');
-			} catch (err) {
-				this.error = String(err);
+		const fromLaunch = await startDesktopFileBridge(this);
+		if (!fromLaunch) {
+			const project = new URLSearchParams(window.location.search).get('project');
+			if (project) {
+				const url = new URL(window.location.href);
+				url.searchParams.delete('project');
+				const search = url.searchParams.toString();
+				history.replaceState(null, '', `${url.pathname}${search ? `?${search}` : ''}${url.hash}`);
+				try {
+					this.loadText(await decodeProject(project), 'shared.fcd');
+				} catch (err) {
+					this.error = String(err);
+					this.markClean();
+				}
+			} else if (this.#session) {
+				this.restoreSession(this.#session);
+			} else {
 				this.markClean();
 			}
-		} else if (this.#session) {
-			this.restoreSession(this.#session);
-		} else {
-			this.markClean();
 		}
+		this.syncTitleEpoch();
 		this.#persistEnabled = true;
 		if (this.engine) {
 			let libsRev = this.engine.libsRev;
@@ -265,6 +290,7 @@ export class AppSession {
 					this.cursorCache.clear();
 					this.previewCache.clear();
 				}
+				this.syncTitleEpoch();
 				this.schedulePersist();
 			};
 		}

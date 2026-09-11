@@ -14,6 +14,20 @@ import type { UnresolvedComponent } from './dialogs.svelte';
 
 export type SaveLibraryPolicy = 'keep' | 'fold' | 'explode';
 
+export type OpenedFileKind = 'fcd' | 'fcl';
+
+export type OpenedBytes = {
+	name: string;
+	kind: OpenedFileKind;
+	data: Uint8Array;
+};
+
+export function fileKindFromName(name: string): OpenedFileKind | null {
+	if (/\.fcd$/i.test(name)) return 'fcd';
+	if (/\.fcl$/i.test(name)) return 'fcl';
+	return null;
+}
+
 export function download(name: string, content: string | Blob, mime: string) {
 	const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
 	const a = document.createElement('a');
@@ -174,27 +188,75 @@ export function importLibrary(s: AppSession) {
 	s.libraryPicker?.click();
 }
 
+export function importLibraryText(s: AppSession, text: string, name: string): string {
+	if (!s.engine) return '';
+	try {
+		let stem = '';
+		s.engine.mutate((app) => {
+			stem = app.import_library(text, name);
+		});
+		return stem;
+	} catch (err) {
+		s.error = String(err);
+		return '';
+	}
+}
+
+export function importLibraryFiles(s: AppSession, items: { name: string; text: string }[]) {
+	const imported: string[] = [];
+	for (const item of items) {
+		const stem = importLibraryText(s, item.text, item.name);
+		if (stem) imported.push(stem);
+	}
+	for (const stem of imported) {
+		s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
+	}
+}
+
+export function applyOpenedFiles(
+	s: AppSession,
+	files: OpenedBytes[],
+	opts?: { replaceSession?: boolean }
+): boolean {
+	const fcds = files.filter((f) => f.kind === 'fcd');
+	const fcls = files.filter((f) => f.kind === 'fcl');
+	if (fcds.length === 0 && fcls.length === 0) return false;
+
+	const importFcls = () => {
+		importLibraryFiles(
+			s,
+			fcls.map((f) => ({ name: f.name, text: new TextDecoder().decode(f.data) }))
+		);
+	};
+
+	const openFcd = () => {
+		const first = fcds[0];
+		if (!first) return;
+		loadBytes(s, first.data, first.name);
+		importFcls();
+	};
+
+	if (fcds.length > 0) {
+		if (opts?.replaceSession) openFcd();
+		else confirmDiscard(s, openFcd);
+		return true;
+	}
+
+	if (opts?.replaceSession) newDoc(s);
+	importFcls();
+	return true;
+}
+
 export async function onPickedLibraries(s: AppSession, e: Event) {
 	const input = e.currentTarget as HTMLInputElement;
 	const files = Array.from(input.files ?? []);
 	input.value = '';
 	if (!s.engine || files.length === 0) return;
-	const imported: string[] = [];
+	const items: { name: string; text: string }[] = [];
 	for (const file of files) {
-		const text = await file.text();
-		try {
-			let stem = '';
-			s.engine.mutate((app) => {
-				stem = app.import_library(text, file.name);
-			});
-			if (stem) imported.push(stem);
-		} catch (err) {
-			s.error = String(err);
-		}
+		items.push({ name: file.name, text: await file.text() });
 	}
-	for (const stem of imported) {
-		s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
-	}
+	importLibraryFiles(s, items);
 }
 
 export function openExport(s: AppSession, format: ExportFormat) {
@@ -284,10 +346,15 @@ ${svgCss}
 
 export async function onDropFile(s: AppSession, e: DragEvent) {
 	e.preventDefault();
-	const file = e.dataTransfer?.files[0];
-	if (!file) return;
-	const bytes = new Uint8Array(await file.arrayBuffer());
-	confirmDiscard(s, () => loadBytes(s, bytes, file.name));
+	const list = Array.from(e.dataTransfer?.files ?? []);
+	if (list.length === 0) return;
+	const opened: OpenedBytes[] = [];
+	for (const file of list) {
+		const kind = fileKindFromName(file.name);
+		if (!kind) continue;
+		opened.push({ name: file.name, kind, data: new Uint8Array(await file.arrayBuffer()) });
+	}
+	applyOpenedFiles(s, opened);
 }
 
 export function onDragOver(e: DragEvent) {
