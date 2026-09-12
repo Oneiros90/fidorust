@@ -8,6 +8,7 @@ use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{set_pos, Geometry, HitTest};
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 
 pub const STYLE_BOLD: u32 = 1;
 pub const STYLE_ITALIC: u32 = 2;
@@ -155,6 +156,97 @@ impl HitTest for Text {
 
     fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
         self.glyph_ink_at(x, y)
+    }
+}
+
+impl PropSource for Text {
+    fn fields() -> &'static [PropField] {
+        &[
+            PropField::Text,
+            PropField::FontFace,
+            PropField::FontHeight,
+            PropField::FontWidth,
+            PropField::RotationAngle,
+            PropField::Bold,
+            PropField::Italic,
+            PropField::Mirrored,
+            PropField::Underlined,
+        ]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::Text => Some(PropFieldValue::String {
+                value: self.text.clone(),
+            }),
+            PropField::FontFace => Some(PropFieldValue::String {
+                value: self.font.clone(),
+            }),
+            PropField::FontHeight => Some(PropFieldValue::Int { value: self.sy }),
+            PropField::FontWidth => Some(PropFieldValue::Int { value: self.sx }),
+            PropField::RotationAngle => Some(PropFieldValue::Int { value: self.angle }),
+            PropField::Bold => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_BOLD != 0,
+            }),
+            PropField::Italic => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_ITALIC != 0,
+            }),
+            PropField::Mirrored => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_MIRRORED != 0,
+            }),
+            PropField::Underlined => Some(PropFieldValue::Bool {
+                value: self.style & STYLE_UNDERLINE != 0,
+            }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::Text, PropFieldValue::String { value: v }) => {
+                self.text = v.clone();
+                true
+            }
+            (PropField::FontFace, PropFieldValue::String { value: v }) => {
+                self.font = v.clone();
+                true
+            }
+            (PropField::FontHeight, PropFieldValue::Int { value: v }) => {
+                self.sy = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::FontWidth, PropFieldValue::Int { value: v }) => {
+                self.sx = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::RotationAngle, PropFieldValue::Int { value: v }) => {
+                self.angle = (*v).clamp(0, 359);
+                true
+            }
+            (PropField::Bold, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_BOLD, *v);
+                true
+            }
+            (PropField::Italic, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_ITALIC, *v);
+                true
+            }
+            (PropField::Mirrored, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_MIRRORED, *v);
+                true
+            }
+            (PropField::Underlined, PropFieldValue::Bool { value: v }) => {
+                set_style_bit(&mut self.style, STYLE_UNDERLINE, *v);
+                true
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
+    }
+}
+
+fn set_style_bit(style: &mut u32, mask: u32, on: bool) {
+    if on {
+        *style |= mask;
+    } else {
+        *style &= !mask;
     }
 }
 

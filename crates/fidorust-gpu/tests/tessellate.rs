@@ -1,10 +1,14 @@
+mod common;
+
 use fidorust_core::parse::{builtin_libraries, parse_document};
 use fidorust_core::{
     CanvasTheme, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Rect, Text,
     Tool, DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
-use fidorust_gpu::{tessellate_editor, tessellate_export, tessellate_primitives, Rgb};
+use fidorust_gpu::{tessellate_primitives, Rgb};
+
+use common::{tessellate_editor, tessellate_export};
 
 #[test]
 fn tessellate_alimentatore_has_strokes() {

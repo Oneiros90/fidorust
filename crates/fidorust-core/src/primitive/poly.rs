@@ -6,6 +6,7 @@ use crate::geom::{dist_point_xy_segment_sq, Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{Geometry, HitTest};
+use crate::properties::{apply_filled, read_filled, PropField, PropFieldValue, PropSource};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Poly {
@@ -60,6 +61,18 @@ impl HitTest for Poly {
         } else {
             1
         }
+    }
+}
+
+impl PropSource for Poly {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Filled]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_filled(self.filled, self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_filled(&mut self.filled, &mut self.layer, field, value)
     }
 }
 

@@ -1,29 +1,28 @@
 //! WASM façade: JSON glue around `fidorust-core::Editor` and the GPU backend.
 
+mod components;
+mod export;
 mod json;
+mod layers;
 mod render_backend;
+mod tessellate;
 
-use fidorust_core::parse::{builtin_libraries, parse_library};
+use fidorust_core::parse::builtin_libraries;
 use fidorust_core::properties::{
     PropField, PropFieldKind, PropFieldValue, PropFormField, PropPatch,
 };
 use fidorust_core::serialize::{
-    serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_library,
-    SaveLibraryPolicy,
+    serialize_clipboard, serialize_document, serialize_document_with_policy, SaveLibraryPolicy,
 };
-use fidorust_core::{Editor, EditorError, LibraryKind, Point, Tool};
-use fidorust_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
+use fidorust_core::{Editor, EditorError, Point, Tool};
 use render_backend::Backend;
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
-use json::{
-    dblclick_json, text_edit_json, to_json, ComponentCursorDto, CreatedComponentDto, ExportSvgOpts,
-    StatusDto, UnresolvedComponentDto, UserLibBlob,
-};
+use json::{dblclick_json, text_edit_json, to_json, StatusDto};
 
-fn to_js(err: impl std::fmt::Display) -> JsValue {
+pub(crate) fn to_js(err: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&err.to_string())
 }
 
@@ -32,29 +31,12 @@ fn screen_world(ed: &Editor, sx: f32, sy: f32) -> (f64, f64, Point) {
     (x, y, Point::new(x.round() as i32, y.round() as i32))
 }
 
-enum DeleteLayerMode {
-    Objects,
-    Move,
-}
-
-impl FromStr for DeleteLayerMode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "move" => Self::Move,
-            "objects" => Self::Objects,
-            _ => Self::Objects,
-        })
-    }
-}
-
 #[wasm_bindgen]
 pub struct App {
-    editor: Editor,
+    pub(crate) editor: Editor,
     backend: Backend,
-    width: f32,
-    height: f32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
     #[allow(dead_code)]
     locale: String,
     theme: String,
@@ -148,50 +130,6 @@ impl App {
         } else {
             serialize_clipboard(&prims)
         }
-    }
-
-    /// `opts_json` is `{ margin_lu, bw, layers: [{ show, color }] }`. Empty / invalid JSON uses document layers.
-    #[wasm_bindgen]
-    pub fn export_svg(&self, opts_json: &str) -> String {
-        let opts: ExportSvgOpts = serde_json::from_str(opts_json).unwrap_or_default();
-        let mut layers = self.editor.doc().layers.clone();
-        if opts.layers.is_empty() {
-            if opts.bw {
-                for i in 0..layers.len() {
-                    layers.update(i, |info| {
-                        if info.show {
-                            info.color = [0, 0, 0, info.color[3]];
-                        }
-                    });
-                }
-            }
-        } else {
-            for (i, overlay) in opts.layers.iter().enumerate() {
-                layers.update(i, |info| {
-                    info.show = overlay.show;
-                    if opts.bw {
-                        let a = overlay.color.map(|c| c[3]).unwrap_or(info.color[3]);
-                        info.color = [0, 0, 0, a];
-                    } else if let Some(c) = overlay.color {
-                        info.color = c;
-                    } else if overlay.invert {
-                        info.color = [
-                            255 - info.color[0],
-                            255 - info.color[1],
-                            255 - info.color[2],
-                            info.color[3],
-                        ];
-                    }
-                });
-            }
-        }
-        export_svg(
-            &self.editor.doc().primitives,
-            &layers,
-            self.editor.libs(),
-            opts.margin_lu.max(0.0),
-            self.editor.doc().stroke_width(),
-        )
     }
 
     #[wasm_bindgen]
@@ -388,28 +326,6 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_pending_component(&mut self, name: &str) {
-        self.editor.set_pending_component(Some(name.to_string()));
-        self.editor.adopt_component_tool();
-        self.editor.clear_hover();
-    }
-
-    #[wasm_bindgen]
-    pub fn set_pending_follow(&mut self, on: bool) {
-        self.editor.set_pending_follow(on);
-    }
-
-    #[wasm_bindgen]
-    pub fn place_component_at(&mut self, name: &str, sx: f32, sy: f32) {
-        if self.editor.pending_component() != Some(name) {
-            self.editor.set_pending_component(Some(name.to_string()));
-        }
-        self.editor.adopt_component_tool();
-        let w = self.editor.screen_to_world(sx, sy);
-        self.editor.place_dropped_component(w);
-    }
-
-    #[wasm_bindgen]
     pub fn pointer_right(&mut self, sx: f32, sy: f32) -> bool {
         let w = self.editor.screen_to_world(sx, sy);
         self.editor.right_click(w)
@@ -424,11 +340,6 @@ impl App {
     #[wasm_bindgen]
     pub fn invert_selection(&mut self) {
         self.editor.invert_selection();
-    }
-
-    #[wasm_bindgen]
-    pub fn split_selected_components(&mut self) {
-        self.editor.split_selected_components();
     }
 
     #[wasm_bindgen]
@@ -455,50 +366,6 @@ impl App {
     pub fn clear_hover(&mut self) {
         self.skip_draw = false;
         self.editor.clear_hover();
-    }
-
-    #[wasm_bindgen]
-    pub fn component_preview_svg(&self, name: &str) -> String {
-        let scene = self.component_scene(name);
-        scene_to_thumb_svg(&scene, 40.0)
-    }
-
-    #[wasm_bindgen]
-    pub fn component_cursor_json(&self, name: &str) -> String {
-        use fidorust_core::COMPONENT_ORIGIN;
-        use fidorust_gpu::scene_to_cursor_svg;
-        let scene = self.component_scene(name);
-        let cur = scene_to_cursor_svg(&scene, COMPONENT_ORIGIN);
-        to_json(
-            &ComponentCursorDto {
-                svg: cur.svg,
-                ox: cur.ox,
-                oy: cur.oy,
-                w: cur.w,
-                h: cur.h,
-            },
-            "{}",
-        )
-    }
-
-    fn component_scene(&self, name: &str) -> fidorust_gpu::Scene {
-        use fidorust_core::geom::Transform;
-        use fidorust_core::library::expand_component;
-        use fidorust_core::COMPONENT_ORIGIN;
-        let Some((_, def)) = self.editor.libs().lookup(name) else {
-            return fidorust_gpu::Scene::default();
-        };
-        let prims = expand_component(
-            def,
-            Transform {
-                origin: COMPONENT_ORIGIN,
-                rotations: 0,
-                mirrored: false,
-            },
-            self.editor.libs(),
-            0,
-        );
-        tessellate_primitives(&prims, &self.editor.doc().layers)
     }
 
     #[wasm_bindgen]
@@ -541,9 +408,9 @@ impl App {
 
     #[wasm_bindgen]
     pub fn new_doc(&mut self) {
-        let blob = self.user_libraries_blob();
+        let blob = crate::components::user_libraries_blob(self);
         self.editor = Editor::new(builtin_libraries());
-        self.load_user_libraries(&blob);
+        crate::components::load_user_libraries(self, &blob);
         self.backend.apply_theme(&mut self.editor, &self.theme);
     }
 
@@ -559,232 +426,8 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn set_layer_show(&mut self, n: u8, show: bool) {
-        let _ = self.editor.set_layer_show(n as usize, show);
-    }
-
-    #[wasm_bindgen]
-    pub fn set_layer_name(&mut self, n: u8, name: &str) {
-        self.editor.set_layer_name(n as usize, name.to_string());
-    }
-
-    #[wasm_bindgen]
-    pub fn set_layer_color(&mut self, n: u8, r: u8, g: u8, b: u8, a: u8) {
-        let _ = self.editor.set_layer_color(n as usize, [r, g, b, a]);
-    }
-
-    #[wasm_bindgen]
-    pub fn add_layer(&mut self) {
-        let _ = self.editor.add_layer();
-    }
-
-    /// `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
-    #[wasm_bindgen]
-    pub fn delete_layer(&mut self, n: u8, mode: &str, move_to: u8) {
-        let dest = match mode.parse().unwrap_or(DeleteLayerMode::Objects) {
-            DeleteLayerMode::Move => Some(move_to as usize),
-            DeleteLayerMode::Objects => None,
-        };
-        let _ = self.editor.delete_layer(n as usize, dest);
-    }
-
-    #[wasm_bindgen]
-    pub fn reorder_layer(&mut self, from: u8, to: u8) {
-        let _ = self.editor.reorder_layer(from as usize, to as usize);
-    }
-
-    #[wasm_bindgen]
-    pub fn layer_object_count(&self, n: u8) -> u32 {
-        self.editor.layer_object_count(n as usize) as u32
-    }
-
-    #[wasm_bindgen]
     pub fn status_json(&self) -> String {
         to_json(&StatusDto::from_editor(&self.editor), "{}")
-    }
-
-    #[wasm_bindgen]
-    pub fn unresolved_components_json(&self) -> String {
-        let items: Vec<UnresolvedComponentDto> = self
-            .editor
-            .unresolved_components()
-            .into_iter()
-            .map(|(name, count)| UnresolvedComponentDto { name, count })
-            .collect();
-        to_json(&items, "[]")
-    }
-
-    #[wasm_bindgen]
-    pub fn library_json(&self) -> String {
-        to_json(&self.editor.libs().tree(), "[]")
-    }
-
-    #[wasm_bindgen]
-    pub fn user_libraries_json(&self) -> String {
-        to_json(&self.editor.libs().user_library_list(), "[]")
-    }
-
-    #[wasm_bindgen]
-    pub fn create_component_from_selection(&mut self, target: &str, display_name: &str) -> String {
-        match self
-            .editor
-            .create_component_from_selection(target, display_name)
-        {
-            Some((stem, key)) => to_json(&CreatedComponentDto { stem, key }, "{}"),
-            None => String::new(),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn enter_component_edit(&mut self, stem: &str, key: &str) -> bool {
-        let ok = self.editor.enter_component_edit(stem, key);
-        if ok {
-            self.editor.fit_view(self.width, self.height);
-        }
-        ok
-    }
-
-    #[wasm_bindgen]
-    pub fn edit_selected_component(&mut self) -> bool {
-        let Some((stem, key)) = self.editor.selected_editable_component() else {
-            return false;
-        };
-        self.enter_component_edit(&stem, &key)
-    }
-
-    #[wasm_bindgen]
-    pub fn save_component_edit(&mut self) -> bool {
-        self.editor.save_component_edit()
-    }
-
-    #[wasm_bindgen]
-    pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {
-        self.editor.local_component_uses_nonzero_layers(stem, key)
-    }
-
-    #[wasm_bindgen]
-    pub fn editing_local_component_uses_nonzero_layers(&self) -> bool {
-        self.editor.editing_local_component_uses_nonzero_layers()
-    }
-
-    #[wasm_bindgen]
-    pub fn cancel_component_edit(&mut self) -> bool {
-        self.editor.cancel_component_edit()
-    }
-
-    #[wasm_bindgen]
-    pub fn rename_component(&mut self, stem: &str, key: &str, name: &str) -> bool {
-        self.editor.rename_component(stem, key, name)
-    }
-
-    #[wasm_bindgen]
-    pub fn rename_component_key(&mut self, stem: &str, key: &str, new_key: &str) -> bool {
-        self.editor.rename_component_key(stem, key, new_key)
-    }
-
-    #[wasm_bindgen]
-    pub fn delete_component(&mut self, stem: &str, key: &str) -> bool {
-        self.editor.delete_component(stem, key)
-    }
-
-    #[wasm_bindgen]
-    pub fn move_component(&mut self, stem: &str, key: &str, dest_stem: &str) -> String {
-        self.editor
-            .move_component(stem, key, dest_stem)
-            .unwrap_or_default()
-    }
-
-    #[wasm_bindgen]
-    pub fn load_user_libraries(&mut self, json: &str) {
-        let blobs: Vec<UserLibBlob> = serde_json::from_str(json).unwrap_or_default();
-        let mut libs = Vec::new();
-        for b in blobs {
-            if b.fcl.trim().is_empty() {
-                if !b.stem.is_empty() {
-                    let mut lib = fidorust_core::Library::empty_user(
-                        b.stem,
-                        if b.title.is_empty() {
-                            "Library".into()
-                        } else {
-                            b.title
-                        },
-                    );
-                    lib.aliases = b.aliases;
-                    libs.push(lib);
-                }
-                continue;
-            }
-            if let Ok(mut lib) = parse_library(&b.fcl) {
-                if !b.stem.is_empty() {
-                    lib.file_stem = b.stem;
-                }
-                if !b.title.is_empty() {
-                    lib.name = b.title;
-                }
-                lib.aliases = b.aliases;
-                lib.kind = LibraryKind::Local;
-                lib.standard = false;
-                libs.push(lib);
-            }
-        }
-        self.editor.load_user_libraries(libs);
-    }
-
-    #[wasm_bindgen]
-    pub fn user_libraries_blob(&self) -> String {
-        let blobs: Vec<UserLibBlob> = self
-            .editor
-            .libs()
-            .user_libraries()
-            .map(|lib| UserLibBlob {
-                stem: lib.file_stem.clone(),
-                title: lib.name.clone(),
-                fcl: serialize_library(lib),
-                aliases: lib.aliases.clone(),
-            })
-            .collect();
-        to_json(&blobs, "[]")
-    }
-
-    #[wasm_bindgen]
-    pub fn create_user_library(&mut self, title: &str) -> String {
-        self.editor.create_user_library(title)
-    }
-
-    #[wasm_bindgen]
-    pub fn import_library(&mut self, text: &str, filename: &str) -> Result<String, JsValue> {
-        let mut lib = parse_library(text).map_err(to_js)?;
-        lib.add_filename_alias(filename);
-        Ok(self.editor.import_library(lib))
-    }
-
-    #[wasm_bindgen]
-    pub fn rename_library(&mut self, stem: &str, title: &str) -> String {
-        self.editor.rename_library(stem, title).unwrap_or_default()
-    }
-
-    #[wasm_bindgen]
-    pub fn export_library_fcl(&self, stem: &str) -> String {
-        self.editor
-            .libs()
-            .library(stem)
-            .map(serialize_library)
-            .unwrap_or_default()
-    }
-
-    #[wasm_bindgen]
-    pub fn clear_project_library(&mut self) -> bool {
-        self.editor.clear_project_library()
-    }
-
-    #[wasm_bindgen]
-    pub fn remove_user_library(&mut self, stem: &str) -> bool {
-        self.editor.remove_user_library(stem)
-    }
-
-    #[wasm_bindgen]
-    pub fn layers_json(&self) -> String {
-        to_json(&self.editor.doc().layers, "{}")
     }
 
     #[wasm_bindgen]
@@ -795,6 +438,193 @@ impl App {
             }
         }
         "null".into()
+    }
+
+    /// `opts_json` is `{ margin_lu, bw, layers: [{ show, color }] }`. Empty / invalid JSON uses document layers.
+    #[wasm_bindgen]
+    pub fn export_svg(&self, opts_json: &str) -> String {
+        crate::export::export_svg(self, opts_json)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_layer_show(&mut self, n: u8, show: bool) {
+        crate::layers::set_layer_show(self, n, show);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_layer_name(&mut self, n: u8, name: &str) {
+        crate::layers::set_layer_name(self, n, name);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_layer_color(&mut self, n: u8, r: u8, g: u8, b: u8, a: u8) {
+        crate::layers::set_layer_color(self, n, r, g, b, a);
+    }
+
+    #[wasm_bindgen]
+    pub fn add_layer(&mut self) {
+        crate::layers::add_layer(self);
+    }
+
+    /// `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
+    #[wasm_bindgen]
+    pub fn delete_layer(&mut self, n: u8, mode: &str, move_to: u8) {
+        crate::layers::delete_layer(self, n, mode, move_to);
+    }
+
+    #[wasm_bindgen]
+    pub fn reorder_layer(&mut self, from: u8, to: u8) {
+        crate::layers::reorder_layer(self, from, to);
+    }
+
+    #[wasm_bindgen]
+    pub fn layer_object_count(&self, n: u8) -> u32 {
+        crate::layers::layer_object_count(self, n)
+    }
+
+    #[wasm_bindgen]
+    pub fn layers_json(&self) -> String {
+        crate::layers::layers_json(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_pending_component(&mut self, name: &str) {
+        crate::components::set_pending_component(self, name);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_pending_follow(&mut self, on: bool) {
+        crate::components::set_pending_follow(self, on);
+    }
+
+    #[wasm_bindgen]
+    pub fn place_component_at(&mut self, name: &str, sx: f32, sy: f32) {
+        crate::components::place_component_at(self, name, sx, sy);
+    }
+
+    #[wasm_bindgen]
+    pub fn split_selected_components(&mut self) {
+        crate::components::split_selected_components(self);
+    }
+
+    #[wasm_bindgen]
+    pub fn component_preview_svg(&self, name: &str) -> String {
+        crate::components::component_preview_svg(self, name)
+    }
+
+    #[wasm_bindgen]
+    pub fn component_cursor_json(&self, name: &str) -> String {
+        crate::components::component_cursor_json(self, name)
+    }
+
+    #[wasm_bindgen]
+    pub fn unresolved_components_json(&self) -> String {
+        crate::components::unresolved_components_json(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn library_json(&self) -> String {
+        crate::components::library_json(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn user_libraries_json(&self) -> String {
+        crate::components::user_libraries_json(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn create_component_from_selection(&mut self, target: &str, display_name: &str) -> String {
+        crate::components::create_component_from_selection(self, target, display_name)
+    }
+
+    #[wasm_bindgen]
+    pub fn enter_component_edit(&mut self, stem: &str, key: &str) -> bool {
+        crate::components::enter_component_edit(self, stem, key)
+    }
+
+    #[wasm_bindgen]
+    pub fn edit_selected_component(&mut self) -> bool {
+        crate::components::edit_selected_component(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn save_component_edit(&mut self) -> bool {
+        crate::components::save_component_edit(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {
+        crate::components::local_component_uses_nonzero_layers(self, stem, key)
+    }
+
+    #[wasm_bindgen]
+    pub fn editing_local_component_uses_nonzero_layers(&self) -> bool {
+        crate::components::editing_local_component_uses_nonzero_layers(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn cancel_component_edit(&mut self) -> bool {
+        crate::components::cancel_component_edit(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_component(&mut self, stem: &str, key: &str, name: &str) -> bool {
+        crate::components::rename_component(self, stem, key, name)
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_component_key(&mut self, stem: &str, key: &str, new_key: &str) -> bool {
+        crate::components::rename_component_key(self, stem, key, new_key)
+    }
+
+    #[wasm_bindgen]
+    pub fn delete_component(&mut self, stem: &str, key: &str) -> bool {
+        crate::components::delete_component(self, stem, key)
+    }
+
+    #[wasm_bindgen]
+    pub fn move_component(&mut self, stem: &str, key: &str, dest_stem: &str) -> String {
+        crate::components::move_component(self, stem, key, dest_stem)
+    }
+
+    #[wasm_bindgen]
+    pub fn load_user_libraries(&mut self, json: &str) {
+        crate::components::load_user_libraries(self, json);
+    }
+
+    #[wasm_bindgen]
+    pub fn user_libraries_blob(&self) -> String {
+        crate::components::user_libraries_blob(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn create_user_library(&mut self, title: &str) -> String {
+        crate::components::create_user_library(self, title)
+    }
+
+    #[wasm_bindgen]
+    pub fn import_library(&mut self, text: &str, filename: &str) -> Result<String, JsValue> {
+        crate::components::import_library(self, text, filename)
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_library(&mut self, stem: &str, title: &str) -> String {
+        crate::components::rename_library(self, stem, title)
+    }
+
+    #[wasm_bindgen]
+    pub fn export_library_fcl(&self, stem: &str) -> String {
+        crate::components::export_library_fcl(self, stem)
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_project_library(&mut self) -> bool {
+        crate::components::clear_project_library(self)
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_user_library(&mut self, stem: &str) -> bool {
+        crate::components::remove_user_library(self, stem)
     }
 }
 

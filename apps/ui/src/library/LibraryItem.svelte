@@ -5,6 +5,7 @@
 	import { parseSvgElement } from '../lib/attachSvg';
 	import { PREVIEW_ROOT_MARGIN, THUMB_SIZE } from '../lib/constants';
 	import { componentFullName } from '../lib/libraryDrag';
+	import { focusAndSelectDeferred } from '../lib/focus';
 
 	let {
 		engine,
@@ -68,13 +69,6 @@
 			return () => io.disconnect();
 		};
 	});
-
-	function focusAndSelect(node: HTMLInputElement) {
-		queueMicrotask(() => {
-			node.focus();
-			node.select();
-		});
-	}
 
 	function pick() {
 		onPick(stem, componentKey);
@@ -175,7 +169,7 @@
 			<input
 				class="key-input"
 				value={componentKey}
-				{@attach focusAndSelect}
+				{@attach focusAndSelectDeferred}
 				onpointerdown={(e) => e.stopPropagation()}
 				onclick={(e) => e.stopPropagation()}
 				onblur={(e) => commitKey(e.currentTarget.value)}
@@ -197,7 +191,7 @@
 			<input
 				class="name-input"
 				value={label}
-				{@attach focusAndSelect}
+				{@attach focusAndSelectDeferred}
 				onpointerdown={(e) => e.stopPropagation()}
 				onclick={(e) => e.stopPropagation()}
 				onblur={(e) => commitName(e.currentTarget.value)}

@@ -111,6 +111,13 @@ pub fn fidocad_fallback() -> Vec<LayerInfo> {
         .collect()
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ExportLayerOverlay {
+    pub show: bool,
+    pub invert: bool,
+    pub color: Option<[u8; 4]>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LayerSet {
     layers: Vec<LayerInfo>,
@@ -173,6 +180,41 @@ impl LayerSet {
             .get(id.index())
             .map(|l| l.color)
             .unwrap_or(rgb(0, 0, 0))
+    }
+
+    /// Overlay used by file export (`bw` / invert / per-layer color). Empty `overlays`
+    /// with `bw` blacks every visible layer; otherwise each overlay is applied in order.
+    pub fn apply_export_overlay(&mut self, bw: bool, overlays: &[ExportLayerOverlay]) {
+        if overlays.is_empty() {
+            if bw {
+                for i in 0..self.len() {
+                    self.update(i, |info| {
+                        if info.show {
+                            info.color = [0, 0, 0, info.color[3]];
+                        }
+                    });
+                }
+            }
+            return;
+        }
+        for (i, overlay) in overlays.iter().enumerate() {
+            self.update(i, |info| {
+                info.show = overlay.show;
+                if bw {
+                    let a = overlay.color.map(|c| c[3]).unwrap_or(info.color[3]);
+                    info.color = [0, 0, 0, a];
+                } else if let Some(c) = overlay.color {
+                    info.color = c;
+                } else if overlay.invert {
+                    info.color = [
+                        255 - info.color[0],
+                        255 - info.color[1],
+                        255 - info.color[2],
+                        info.color[3],
+                    ];
+                }
+            });
+        }
     }
 
     pub fn ensure_len(&mut self, n: usize) {

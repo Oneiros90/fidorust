@@ -1,5 +1,6 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
+use fidorust_core::consts::{AABB_CULL_EXPAND, VIEW_CULL_MARGIN};
 use fidorust_core::geom::{bezier_point, Point};
 use fidorust_core::layers::{LayerId, LayerSet};
 use fidorust_core::library::LibrarySet;
@@ -7,16 +8,17 @@ use fidorust_core::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
-use fidorust_core::{CanvasTheme, Editor, Tool};
+use fidorust_core::{CanvasTheme, Tool};
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::FillRule;
 
-use crate::draft::{add_draft, DraftParams};
+use crate::draft::add_draft;
 use crate::scene::DEFAULT_STROKE_W;
 use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
 use crate::theme::Rgb;
 
+pub use crate::draft::DraftParams;
 pub use crate::scene::{
     CircleInstance, FillVertexGpu, HandleInstance, LineInstance, PadHole, Scene,
 };
@@ -319,86 +321,51 @@ fn tessellate_primitives_with_stroke(
     scene
 }
 
-struct TessellateInput<'a> {
-    primitives: &'a [Primitive],
-    layers: &'a LayerSet,
-    libs: &'a LibrarySet,
-    selected: &'a [usize],
-    hover: Option<usize>,
-    editing_text: Option<usize>,
-    hide_component_origin: bool,
-    stroke_w: f32,
-    zoom: f32,
-    pan: (f32, f32),
-    layer: LayerId,
-    viewport: Option<(f32, f32)>,
-    theme: CanvasTheme,
-    pending: Vec<Primitive>,
-    marquee: Option<(f32, f32, f32, f32)>,
-    tool: Tool,
-    ruler_segments: &'a [(Point, Point)],
-}
-
-impl<'a> TessellateInput<'a> {
-    fn from_editor(ed: &'a Editor, viewport: Option<(f32, f32)>) -> Self {
-        Self {
-            primitives: &ed.doc().primitives,
-            layers: &ed.doc().layers,
-            libs: ed.libs(),
-            selected: ed.selected(),
-            hover: ed.hover_index(),
-            editing_text: ed.editing_text(),
-            hide_component_origin: ed.hide_component_origin(),
-            stroke_w: ed.doc().stroke_width(),
-            zoom: ed.zoom(),
-            pan: ed.pan(),
-            layer: ed.layer(),
-            viewport,
-            theme: ed.canvas_theme(),
-            pending: {
-                let mut pending = ed.pending_component_preview();
-                pending.extend(ed.duplicate_drag_preview());
-                pending
-            },
-            marquee: ed.marquee_screen_rect(),
-            tool: ed.tool(),
-            ruler_segments: ed.ruler_segments(),
-        }
-    }
-}
-
-pub fn tessellate_editor(ed: &Editor) -> Scene {
-    tessellate_impl(
-        TessellateInput::from_editor(ed, None),
-        &DraftParams::from_editor(ed),
-    )
+pub struct TessellateInput<'a> {
+    pub primitives: &'a [Primitive],
+    pub layers: &'a LayerSet,
+    pub libs: &'a LibrarySet,
+    pub selected: &'a [usize],
+    pub hover: Option<usize>,
+    pub editing_text: Option<usize>,
+    pub hide_component_origin: bool,
+    pub stroke_w: f32,
+    pub zoom: f32,
+    pub pan: (f32, f32),
+    pub layer: LayerId,
+    pub viewport: Option<(f32, f32)>,
+    pub theme: CanvasTheme,
+    pub pending: Vec<Primitive>,
+    pub marquee: Option<(f32, f32, f32, f32)>,
+    pub tool: Tool,
+    pub ruler_segments: &'a [(Point, Point)],
 }
 
 /// Flattened document geometry for file export: no draft, selection, handles, or pending components.
-pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
-    let expanded: Vec<Primitive> = ed
-        .doc()
-        .primitives
+pub fn tessellate_export(
+    prims: &[Primitive],
+    layers: &LayerSet,
+    libs: &LibrarySet,
+    stroke_w: f32,
+) -> Scene {
+    let expanded: Vec<Primitive> = prims
         .iter()
-        .flat_map(|p| fidorust_core::library::expand_primitive(p, ed.libs()))
+        .flat_map(|p| fidorust_core::library::expand_primitive(p, libs))
         .collect();
-    tessellate_primitives_with_stroke(&expanded, layers, ed.doc().stroke_width())
+    tessellate_primitives_with_stroke(&expanded, layers, stroke_w)
 }
 
-pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {
-    tessellate_impl(
-        TessellateInput::from_editor(ed, viewport),
-        &DraftParams::from_editor(ed),
-    )
+pub fn tessellate(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene {
+    tessellate_impl(input, draft)
 }
 
 fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene {
     let view = input.viewport.map(|(w, h)| {
         let z = input.zoom.max(0.01);
-        let x0 = ((0.0 - input.pan.0) / z).floor() as i32 - 50;
-        let y0 = ((0.0 - input.pan.1) / z).floor() as i32 - 50;
-        let x1 = ((w - input.pan.0) / z).ceil() as i32 + 50;
-        let y1 = ((h - input.pan.1) / z).ceil() as i32 + 50;
+        let x0 = ((0.0 - input.pan.0) / z).floor() as i32 - VIEW_CULL_MARGIN;
+        let y0 = ((0.0 - input.pan.1) / z).floor() as i32 - VIEW_CULL_MARGIN;
+        let x1 = ((w - input.pan.0) / z).ceil() as i32 + VIEW_CULL_MARGIN;
+        let y1 = ((h - input.pan.1) / z).ceil() as i32 + VIEW_CULL_MARGIN;
         fidorust_core::geom::Aabb {
             min: Point::new(x0, y0),
             max: Point::new(x1, y1),
@@ -419,7 +386,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 .into_iter()
                 .filter(|q| {
                     view.as_ref()
-                        .map(|v| q.aabb().expand(30).intersects(v))
+                        .map(|v| q.aabb().expand(AABB_CULL_EXPAND).intersects(v))
                         .unwrap_or(true)
                 })
                 .map(move |q| (sel, hov, q))

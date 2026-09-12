@@ -2,12 +2,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import type { Locale } from '../i18n';
 import type { Example } from '../lib/examples';
 import { loadRecents, type RecentEntry } from '../lib/recentFiles';
-import {
-	loadSession,
-	saveSession,
-	SESSION_DEBOUNCE_MS,
-	type SessionState
-} from '../lib/sessionStore';
+import { loadSession, type SessionState } from '../lib/sessionStore';
 import { decodeProject } from '../lib/shareCodec';
 import { parsePropForm, type PropPatch } from '../lib/propForm';
 import { registerSystemMonospace } from '../lib/systemFonts';
@@ -19,6 +14,9 @@ import { Dialogs } from './dialogs.svelte';
 import { Settings } from './settings.svelte';
 import { UiState } from './uiState.svelte';
 import * as files from './fileOps';
+import * as exportOps from './exportOps';
+import * as comps from './componentOps';
+import { restoreSession as restoreSessionState, SessionPersist } from './persistSession';
 import * as clip from './clipboardOps';
 import * as share from './shareOps';
 import * as edit from './editCommands';
@@ -26,9 +24,8 @@ import { LibraryDragSession, getCursor } from './libraryDrag.svelte';
 import { PreviewCache } from '../lib/previewCache';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
 import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
-import { componentFullName } from '../lib/libraryDrag';
 import { startDesktopFileBridge } from '../lib/desktopFiles';
-import { loadUserLibraries, persistUserLibrariesBlob } from '../lib/userLibraries';
+import { loadUserLibraries } from '../lib/userLibraries';
 import type { SaveLibraryPolicy } from './fileOps';
 
 export type { RecentEntry };
@@ -48,8 +45,7 @@ export type ProjectSettingsValues = {
 
 export class AppSession {
 	#session = loadSession();
-	#persistTimer: ReturnType<typeof setTimeout> | null = null;
-	#persistEnabled = false;
+	#persist = new SessionPersist(this);
 	engine = $state<Engine | null>(null);
 	settings = new Settings(
 		() => this.engine,
@@ -281,7 +277,7 @@ export class AppSession {
 			}
 		}
 		this.syncTitleEpoch();
-		this.#persistEnabled = true;
+		this.#persist.enabled = true;
 		if (this.engine) {
 			let libsRev = this.engine.libsRev;
 			this.engine.onRefresh = () => {
@@ -299,72 +295,15 @@ export class AppSession {
 		this.schedulePersist();
 	};
 
-	restoreSession = (session: SessionState) => {
-		if (!this.engine) return;
-		try {
-			this.engine.mutate((app) => {
-				app.load_fcd(session.fcd);
-				app.set_view(session.zoom, session.panX, session.panY);
-				app.set_tool(
-					session.tool === 'component' || session.tool === 'macro' ? 'select' : session.tool
-				);
-				app.set_layer(session.layer);
-				if (!fcdHasProjectSettings(session.fcd)) {
-					app.set_snap_enable(session.snapEnable);
-					app.set_show_grid(session.showGrid);
-					app.set_hide_component_origin(session.hideComponentOrigin);
-				}
-			});
-			this.fileHandleName = session.name;
-			this.savedSnapshot = session.savedFcd;
-		} catch (err) {
-			this.error = String(err);
-			this.markClean();
-		}
-	};
+	restoreSession = (session: SessionState) => restoreSessionState(this, session);
 
-	schedulePersist = () => {
-		if (!this.#persistEnabled) return;
-		if (this.#persistTimer) clearTimeout(this.#persistTimer);
-		this.#persistTimer = setTimeout(() => {
-			this.#persistTimer = null;
-			this.persistNow();
-		}, SESSION_DEBOUNCE_MS);
-	};
+	schedulePersist = () => this.#persist.schedule();
 
-	flushPersist = () => {
-		if (this.#persistTimer) {
-			clearTimeout(this.#persistTimer);
-			this.#persistTimer = null;
-		}
-		this.persistNow();
-	};
+	flushPersist = () => this.#persist.flush();
 
-	onVisibilityChange = () => {
-		if (document.visibilityState === 'hidden') this.flushPersist();
-	};
+	onVisibilityChange = () => this.#persist.onVisibilityChange();
 
-	persistNow = () => {
-		if (!this.#persistEnabled || !this.engine) return;
-		const status = this.status;
-		saveSession({
-			version: 1,
-			fcd: this.engine.query((app) => app.save_fcd()),
-			name: this.fileHandleName,
-			savedFcd: this.savedSnapshot,
-			zoom: status.zoom,
-			panX: status.pan_x,
-			panY: status.pan_y,
-			tool: status.tool,
-			layer: status.layer,
-			snapEnable: status.snap_enable,
-			showGrid: status.show_grid,
-			hideComponentOrigin: status.hide_component_origin,
-			theme: this.theme,
-			locale: this.locale
-		});
-		persistUserLibrariesBlob(this.engine.query((app) => app.user_libraries_blob()));
-	};
+	persistNow = () => this.#persist.persistNow();
 
 	onKey = (e: KeyboardEvent) => {
 		if (
@@ -460,7 +399,8 @@ export class AppSession {
 	importLibrary = () => files.importLibrary(this);
 	exportLibrary = (stem: string) => files.exportLibrary(this, stem);
 	openExport = (format: ExportFormat) => files.openExport(this, format);
-	confirmExport = (opts: ExportPreviewOpts, svg: string) => files.confirmExport(this, opts, svg);
+	confirmExport = (opts: ExportPreviewOpts, svg: string) =>
+		exportOps.confirmExport(this, opts, svg);
 	copyFcd = () => clip.copyFcd(this);
 	cutFcd = () => clip.cutFcd(this);
 	pasteFcd = () => clip.pasteFcd(this);
@@ -485,186 +425,54 @@ export class AppSession {
 		});
 	};
 
-	pickComponent = (stem: string, key: string) => {
-		const name = componentFullName(stem, key);
-		this.engine?.mutate((app) => {
-			app.set_pending_component(name);
-		});
-	};
+	pickComponent = (stem: string, key: string) => comps.pickComponent(this, stem, key);
 
-	revealLibraryItem = (stem: string, key: string) => {
-		this.rightCollapsed = false;
-		this.rightTab = 'library';
-		this.expandedUserLibs = { ...this.expandedUserLibs, [stem]: true };
-		this.libraryFocus = { stem, key };
-	};
+	revealLibraryItem = (stem: string, key: string) => comps.revealLibraryItem(this, stem, key);
 
-	createComponentFromSelection = (target: string) => {
-		if (!this.engine) return;
-		const created = { stem: '', key: '' };
-		this.engine.mutate((app) => {
-			const json = app.create_component_from_selection(target, this.t.newComponent);
-			if (!json) return;
-			try {
-				const parsed = JSON.parse(json) as { stem?: string; key?: string };
-				if (parsed.stem && parsed.key) {
-					created.stem = parsed.stem;
-					created.key = parsed.key;
-				}
-			} catch {
-				/* ignore */
-			}
-		});
-		if (created.stem && created.key) {
-			this.revealLibraryItem(created.stem, created.key);
-			const warn = this.engine.query((app) =>
-				app.local_component_uses_nonzero_layers(created.stem, created.key)
-			);
-			if (warn) this.dialogs.open({ kind: 'componentLayerWarning' });
-		}
-	};
+	createComponentFromSelection = (target: string) =>
+		comps.createComponentFromSelection(this, target);
 
-	enterComponentEdit = (stem: string, key: string) => {
-		this.ui.ctxMenu = null;
-		this.rightTab = 'library';
-		this.engine?.mutate((app) => {
-			app.enter_component_edit(stem, key);
-		});
-	};
+	enterComponentEdit = (stem: string, key: string) => comps.enterComponentEdit(this, stem, key);
 
-	editSelectedComponent = () => {
-		this.rightTab = 'library';
-		this.engine?.mutate((app) => {
-			app.edit_selected_component();
-		});
-	};
+	editSelectedComponent = () => comps.editSelectedComponent(this);
 
-	saveComponentEdit = () => {
-		if (!this.engine) return;
-		const warn = this.engine.query((app) => app.editing_local_component_uses_nonzero_layers());
-		this.engine.mutate((app) => {
-			app.save_component_edit();
-		});
-		if (warn) this.dialogs.open({ kind: 'componentLayerWarning' });
-	};
+	saveComponentEdit = () => comps.saveComponentEdit(this);
 
-	cancelComponentEdit = () => {
-		this.engine?.mutate((app) => {
-			app.cancel_component_edit();
-		});
-	};
+	cancelComponentEdit = () => comps.cancelComponentEdit(this);
 
-	beginRenameComponent = (stem: string, key: string) => {
-		this.ui.ctxMenu = null;
-		this.ui.editingLibraryField = { stem, key, field: 'name' };
-		this.ui.libraryFocus = { stem, key };
-	};
+	beginRenameComponent = (stem: string, key: string) => comps.beginRenameComponent(this, stem, key);
 
-	beginEditComponentKey = (stem: string, key: string) => {
-		this.ui.ctxMenu = null;
-		this.ui.editingLibraryField = { stem, key, field: 'key' };
-		this.ui.libraryFocus = { stem, key };
-	};
+	beginEditComponentKey = (stem: string, key: string) =>
+		comps.beginEditComponentKey(this, stem, key);
 
-	renameComponent = (stem: string, key: string, name: string) => {
-		this.engine?.mutate((app) => {
-			app.rename_component(stem, key, name);
-		});
-		this.editingLibraryField = null;
-	};
+	renameComponent = (stem: string, key: string, name: string) =>
+		comps.renameComponent(this, stem, key, name);
 
-	renameComponentKey = (stem: string, key: string, newKey: string) => {
-		let ok = false;
-		this.engine?.mutate((app) => {
-			ok = app.rename_component_key(stem, key, newKey);
-		});
-		this.editingLibraryField = null;
-		if (ok) this.libraryFocus = { stem, key: newKey.trim() };
-	};
+	renameComponentKey = (stem: string, key: string, newKey: string) =>
+		comps.renameComponentKey(this, stem, key, newKey);
 
-	moveComponent = (stem: string, key: string, destStem: string) => {
-		let destKey = key;
-		this.engine?.mutate((app) => {
-			const moved = app.move_component(stem, key, destStem);
-			if (moved) destKey = moved;
-		});
-		this.revealLibraryItem(destStem, destKey);
-	};
+	moveComponent = (stem: string, key: string, destStem: string) =>
+		comps.moveComponent(this, stem, key, destStem);
 
-	requestDeleteComponent = (stem: string, key: string) => {
-		this.ui.ctxMenu = null;
-		this.dialogs.open({ kind: 'deleteComponent', stem, key });
-	};
+	requestDeleteComponent = (stem: string, key: string) =>
+		comps.requestDeleteComponent(this, stem, key);
 
-	confirmDeleteComponent = (stem: string, key: string) => {
-		this.dialogs.close();
-		this.engine?.mutate((app) => {
-			app.delete_component(stem, key);
-		});
-		if (this.libraryFocus?.stem === stem && this.libraryFocus?.key === key) {
-			this.libraryFocus = null;
-		}
-	};
+	confirmDeleteComponent = (stem: string, key: string) =>
+		comps.confirmDeleteComponent(this, stem, key);
 
-	cancelDeleteComponent = () => {
-		if (this.dialogs.dialog?.kind === 'deleteComponent') this.dialogs.close();
-	};
+	cancelDeleteComponent = () => comps.cancelDeleteComponent(this);
 
-	createUserLibrary = () => {
-		this.ui.ctxMenu = null;
-		this.ui.closeMenu();
-		let stem = '';
-		this.engine?.mutate((app) => {
-			stem = app.create_user_library(this.t.newLibrary);
-		});
-		if (!stem) return;
-		this.rightTab = 'library';
-		this.expandedUserLibs = { ...this.expandedUserLibs, [stem]: true };
-		this.beginRenameLibrary(stem);
-	};
+	createUserLibrary = () => comps.createUserLibrary(this);
 
-	beginRenameLibrary = (stem: string) => {
-		if (stem === 'project') return;
-		this.ui.ctxMenu = null;
-		this.ui.editingLibraryTitle = stem;
-	};
+	beginRenameLibrary = (stem: string) => comps.beginRenameLibrary(this, stem);
 
-	renameLibrary = (stem: string, title: string) => {
-		let next = stem;
-		this.engine?.mutate((app) => {
-			const renamed = app.rename_library(stem, title);
-			if (renamed) next = renamed;
-		});
-		this.editingLibraryTitle = null;
-		if (next !== stem) {
-			const expanded = { ...this.expandedUserLibs };
-			expanded[next] = expanded[stem] ?? true;
-			delete expanded[stem];
-			this.expandedUserLibs = expanded;
-		}
-	};
+	renameLibrary = (stem: string, title: string) => comps.renameLibrary(this, stem, title);
 
-	requestDeleteLibrary = (stem: string) => {
-		this.ui.ctxMenu = null;
-		this.dialogs.open({ kind: 'deleteLibrary', stem });
-	};
+	requestDeleteLibrary = (stem: string) => comps.requestDeleteLibrary(this, stem);
 
-	confirmDeleteLibrary = (stem: string) => {
-		this.dialogs.close();
-		this.engine?.mutate((app) => {
-			if (stem === 'project') app.clear_project_library();
-			else app.remove_user_library(stem);
-		});
-		if (stem !== 'project') {
-			const expanded = { ...this.expandedUserLibs };
-			delete expanded[stem];
-			this.expandedUserLibs = expanded;
-		}
-	};
+	confirmDeleteLibrary = (stem: string) => comps.confirmDeleteLibrary(this, stem);
 
-	cancelDeleteLibrary = () => {
-		if (this.dialogs.dialog?.kind === 'deleteLibrary') this.dialogs.close();
-	};
+	cancelDeleteLibrary = () => comps.cancelDeleteLibrary(this);
 
 	confirmSaveLocalComponents = (policy: SaveLibraryPolicy) => {
 		const d = this.dialogs.dialog;
@@ -789,8 +597,4 @@ export class AppSession {
 			app.set_layer_show(i, show);
 		});
 	};
-}
-
-function fcdHasProjectSettings(text: string): boolean {
-	return /(^|[\r\n])[ \t]*PS(?:\s|$)/i.test(text);
 }

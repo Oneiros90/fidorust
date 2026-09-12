@@ -211,7 +211,6 @@ export const en = {
 	exportMargin: 'Margin (mm)',
 	exportBw: 'Black and white',
 	exportLayers: 'Layers',
-	exportVisible: 'Visible',
 	exportPpi: 'Resolution (PPI)',
 	exportAntiAlias: 'Anti-aliasing',
 	exportBackground: 'Background',

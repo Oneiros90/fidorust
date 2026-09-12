@@ -2,7 +2,6 @@
 	import { untrack } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import { canvasLocal, dpr } from '../lib/canvasCoords';
-	import { DRAG_THRESHOLD_PX } from '../lib/constants';
 	import {
 		dblClickOpensProperties,
 		parseEdit,
@@ -10,6 +9,16 @@
 		type TextEdit
 	} from '../lib/textEdit';
 	import TextEditor from './TextEditor.svelte';
+	import {
+		abortRightMarquee,
+		commitRightMarquee,
+		copyMod,
+		isPanInput,
+		makeStamp,
+		maybeBeginRightMarquee,
+		syncDuplicate,
+		type RightGesture
+	} from './canvasPointers';
 
 	const app = getAppSession();
 	let engine = $derived(app.engine);
@@ -19,17 +28,6 @@
 	let space = $state(false);
 	let panning = $state(false);
 	let textEdit = $state.raw<TextEdit | null>(null);
-
-	type RightGesture =
-		| {
-				kind: 'pending';
-				startX: number;
-				startY: number;
-				clientX: number;
-				clientY: number;
-				shift: boolean;
-		  }
-		| { kind: 'marquee'; x: number; y: number; clientX: number; clientY: number };
 
 	let rightGesture: RightGesture | null = null;
 	let skipNextContextMenu = false;
@@ -48,40 +46,11 @@
 						: 'crosshair'
 	);
 
-	function copyMod(e: { ctrlKey: boolean; metaKey: boolean }) {
-		return e.ctrlKey || e.metaKey;
-	}
-
-	function syncDuplicate(e: { ctrlKey: boolean; metaKey: boolean }) {
-		if (!engine) return;
-		engine.mutate(
-			(wasm) => {
-				wasm.set_move_duplicate(copyMod(e));
-			},
-			{ refreshFirst: true }
-		);
-	}
-
-	let lastStampMs = 0;
-
-	function tryStamp(): boolean {
-		if (!engine || textEdit) return false;
-		const now = performance.now();
-		if (now - lastStampMs < 40) return false;
-		let stamped = false;
-		engine.mutate(
-			(wasm) => {
-				stamped = wasm.stamp_drag_copy();
-			},
-			{ refreshFirst: true }
-		);
-		if (stamped) lastStampMs = now;
-		return stamped;
-	}
+	const tryStamp = makeStamp();
 
 	function onMiddleDown(e: MouseEvent) {
 		if (e.button !== 1) return;
-		if (tryStamp()) e.preventDefault();
+		if (tryStamp(engine, textEdit)) e.preventDefault();
 	}
 
 	function resizeCanvas() {
@@ -145,28 +114,14 @@
 		engine.mutate(() => {});
 	}
 
-	function commitRightMarquee(sx: number, sy: number, clientX: number, clientY: number) {
+	function finishRightMarquee(sx: number, sy: number, clientX: number, clientY: number) {
 		if (!engine) return;
 		rightGesture = null;
-		engine.mutate(
-			(wasm) => {
-				wasm.pointer_up(sx, sy);
-			},
-			{ refreshFirst: true }
-		);
-		app.openContextMenu(clientX, clientY);
+		commitRightMarquee(engine, sx, sy, clientX, clientY, app);
 	}
 
 	function abortRightGesture() {
-		if (rightGesture?.kind === 'marquee' && engine) {
-			const { x, y } = rightGesture;
-			engine.mutate(
-				(wasm) => {
-					wasm.pointer_up(x, y);
-				},
-				{ refreshFirst: true }
-			);
-		}
+		abortRightMarquee(engine, rightGesture);
 		rightGesture = null;
 	}
 
@@ -198,7 +153,7 @@
 		} catch {
 			/* no active pointer (synthetic events) or already captured */
 		}
-		if (space || e.button === 1 || app.status.tool === 'pan') panning = true;
+		if (isPanInput(space, e.button, app.status.tool)) panning = true;
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
@@ -216,32 +171,14 @@
 		if (!engine || textEdit) return;
 		if (e.button === 1 && (e.buttons & 4) !== 0) {
 			e.preventDefault();
-			tryStamp();
+			tryStamp(engine, textEdit);
 		}
 		const p = local(e);
-		if (rightGesture?.kind === 'pending' && (e.buttons & 2) !== 0) {
-			const dx = e.clientX - rightGesture.clientX;
-			const dy = e.clientY - rightGesture.clientY;
-			if (dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
-				if (app.status.tool === 'select') {
-					const g = rightGesture;
-					engine.mutate(
-						(wasm) => {
-							wasm.begin_marquee(g.startX, g.startY, g.shift);
-							wasm.set_move_duplicate(copyMod(e));
-							wasm.pointer_move(p.x, p.y);
-						},
-						{ refreshFirst: true }
-					);
-					rightGesture = {
-						kind: 'marquee',
-						x: p.x,
-						y: p.y,
-						clientX: e.clientX,
-						clientY: e.clientY
-					};
-					return;
-				}
+		if (rightGesture && engine) {
+			const next = maybeBeginRightMarquee(engine, rightGesture, e, p, app.status.tool);
+			if (next) {
+				rightGesture = next;
+				return;
 			}
 		}
 		if (rightGesture?.kind === 'marquee') {
@@ -277,7 +214,7 @@
 		if (e.button === 2) {
 			if (rightGesture?.kind === 'marquee') {
 				const p = local(e);
-				commitRightMarquee(p.x, p.y, e.clientX, e.clientY);
+				finishRightMarquee(p.x, p.y, e.clientX, e.clientY);
 				skipNextContextMenu = true;
 			}
 			return;
@@ -330,7 +267,7 @@
 		}
 		if (rightGesture?.kind === 'marquee') {
 			const p = local(e);
-			commitRightMarquee(p.x, p.y, e.clientX, e.clientY);
+			finishRightMarquee(p.x, p.y, e.clientX, e.clientY);
 			return;
 		}
 		rightGesture = null;
@@ -379,7 +316,7 @@
 	onkeydown={(e) => {
 		if (textEdit) return;
 		if (e.code === 'Space') space = true;
-		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(e);
+		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(engine, e);
 		if (e.altKey && e.key === 'Enter' && engine) {
 			e.preventDefault();
 			engine.mutate((wasm) => {
@@ -389,7 +326,7 @@
 	}}
 	onkeyup={(e) => {
 		if (e.code === 'Space') space = false;
-		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(e);
+		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(engine, e);
 	}}
 	onmousedowncapture={onMiddleDown}
 />

@@ -1,6 +1,5 @@
 //! FidoRust core: FidoCAD 0.96 document model, .fcd/.fcl I/O, libraries, hit-testing, undo.
 
-pub mod commands;
 pub mod consts;
 pub mod document;
 pub mod editor;
@@ -19,7 +18,7 @@ pub use fcd::{
     serialize_document_with_policy, ParseError, SaveLibraryPolicy,
 };
 pub use geom::{Aabb, Point, Transform};
-pub use layers::{LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
+pub use layers::{ExportLayerOverlay, LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
 pub use library::{ComponentDef, Library, LibraryKind, LibrarySet, LOCAL_STEM, PROJECT_STEM};
 pub use primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,

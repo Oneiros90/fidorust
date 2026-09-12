@@ -3,9 +3,10 @@ mod common;
 use fidorust_core::parse::builtin_libraries;
 use fidorust_core::{Editor, Point, Text, DEFAULT_FONT};
 use fidorust_gpu::{
-    export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, tessellate_primitives,
-    tessellate_view, Scene,
+    export_svg, scene_to_cursor_svg, scene_to_svg, scene_to_thumb_svg, tessellate_primitives, Scene,
 };
+
+use common::tessellate_view;
 
 fn scene_digest(scene: &Scene) -> String {
     format!(

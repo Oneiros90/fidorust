@@ -7,6 +7,7 @@ use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{set_pos, Geometry, HitTest};
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 
 /// Unexpanded component instance. Body is expanded at draw/hit time.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -50,5 +51,32 @@ impl Geometry for ComponentRef {
 impl HitTest for ComponentRef {
     fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
         self.pos.dist_sq_xy(x, y) <= COMPONENT_HIT_R2.max(tol2)
+    }
+}
+
+impl PropSource for ComponentRef {
+    fn fields() -> &'static [PropField] {
+        &[PropField::UseComponentLayers]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::UseComponentLayers => Some(PropFieldValue::Bool {
+                value: self.use_component_layers,
+            }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::UseComponentLayers, PropFieldValue::Bool { value: v }) => {
+                if self.use_component_layers == *v {
+                    return false;
+                }
+                self.use_component_layers = *v;
+                true
+            }
+            (PropField::Layer, _) if self.use_component_layers => false,
+            _ => apply_layer(&mut self.layer, field, value),
+        }
     }
 }

@@ -212,7 +212,6 @@ export const it: typeof en = {
 	exportMargin: 'Margine (mm)',
 	exportBw: 'Bianco e nero',
 	exportLayers: 'Layer',
-	exportVisible: 'Visibile',
 	exportPpi: 'Risoluzione (PPI)',
 	exportAntiAlias: 'Anti-aliasing',
 	exportBackground: 'Sfondo',

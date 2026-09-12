@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { focusAndSelect } from '../lib/focus';
 	import { untrack } from 'svelte';
 
 	let {
@@ -43,11 +44,6 @@
 	const letterSpacing = $derived(charWidth - fontSize * 0.6);
 	const width = $derived(Math.max(1, [...value].length + 1) * charWidth + 4);
 	const transform = $derived(`rotate(${angle}deg) scaleX(${mirrored ? -1 : 1})`);
-
-	function focusAndSelect(node: HTMLInputElement) {
-		node.focus();
-		node.select();
-	}
 </script>
 
 <input

@@ -6,6 +6,7 @@ use crate::geom::{dist_point_xy_segment_sq, Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{map_ab, set_ab, Geometry, HitTest};
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PcbTrack {
@@ -46,5 +47,26 @@ impl HitTest for PcbTrack {
 
     fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
         self.body_hit(x, y, 0.0)
+    }
+}
+
+impl PropSource for PcbTrack {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Thickness]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::Thickness => Some(PropFieldValue::Int { value: self.width }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::Thickness, PropFieldValue::Int { value: v }) => {
+                self.width = (*v).clamp(1, 100);
+                true
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
     }
 }

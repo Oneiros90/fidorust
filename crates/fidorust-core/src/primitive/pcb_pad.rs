@@ -7,6 +7,8 @@ use crate::layers::LayerId;
 
 use super::pad::PadStyle;
 use super::traits::{set_pos, Geometry, HitTest};
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
+use std::str::FromStr;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PcbPad {
@@ -80,5 +82,52 @@ impl PcbPad {
     fn in_hole(&self, x: f64, y: f64) -> bool {
         let hr = self.hole as f64 / 2.0;
         hr > 0.0 && self.pos.dist_sq_xy(x, y) <= hr * hr
+    }
+}
+
+impl PropSource for PcbPad {
+    fn fields() -> &'static [PropField] {
+        &[
+            PropField::SizeX,
+            PropField::SizeY,
+            PropField::IntDiam,
+            PropField::PadStyle,
+        ]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        match field {
+            PropField::SizeX => Some(PropFieldValue::Int { value: self.dx }),
+            PropField::SizeY => Some(PropFieldValue::Int { value: self.dy }),
+            PropField::IntDiam => Some(PropFieldValue::Int { value: self.hole }),
+            PropField::PadStyle => Some(PropFieldValue::PadStyle {
+                value: self.style.to_string(),
+            }),
+            _ => read_layer(self.layer, field),
+        }
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        match (field, value) {
+            (PropField::SizeX, PropFieldValue::Int { value: v }) => {
+                self.dx = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::SizeY, PropFieldValue::Int { value: v }) => {
+                self.dy = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::IntDiam, PropFieldValue::Int { value: v }) => {
+                self.hole = (*v).clamp(2, 100);
+                true
+            }
+            (PropField::PadStyle, PropFieldValue::PadStyle { value: v }) => {
+                if let Ok(s) = PadStyle::from_str(v) {
+                    self.style = s;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => apply_layer(&mut self.layer, field, value),
+        }
     }
 }

@@ -20,6 +20,9 @@
 	--z-modal: 10;
 	--z-context: 20;
 	--z-ghost: 40;
+	--export-checker-base: #d8d2cb;
+	--export-checker-tile: #eeeae4;
+	--export-checker-paper: #e8e4de;
 }
 
 :root[data-theme='white'] {

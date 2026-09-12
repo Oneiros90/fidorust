@@ -7,6 +7,7 @@ use crate::layers::LayerId;
 
 use super::traits::{Geometry, HitTest};
 use super::BEZIER_SEGMENTS_HIT;
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Bezier {
@@ -71,5 +72,17 @@ impl HitTest for Bezier {
 
     fn paint_order(&self) -> u8 {
         1
+    }
+}
+
+impl PropSource for Bezier {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_layer(self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
     }
 }

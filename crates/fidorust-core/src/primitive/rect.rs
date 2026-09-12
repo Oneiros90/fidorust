@@ -6,6 +6,7 @@ use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{map_ab, set_ab, Geometry, HitTest};
+use crate::properties::{apply_filled, read_filled, PropField, PropFieldValue, PropSource};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Rect {
@@ -59,5 +60,17 @@ impl HitTest for Rect {
         } else {
             1
         }
+    }
+}
+
+impl PropSource for Rect {
+    fn fields() -> &'static [PropField] {
+        &[PropField::Filled]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_filled(self.filled, self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_filled(&mut self.filled, &mut self.layer, field, value)
     }
 }

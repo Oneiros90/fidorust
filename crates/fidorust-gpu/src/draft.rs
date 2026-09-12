@@ -1,27 +1,16 @@
 //! Live draft / rubber-band preview.
 
 use fidorust_core::geom::Point;
-use fidorust_core::{Editor, Tool};
+use fidorust_core::Tool;
 
 use crate::scene::Scene;
 use crate::shapes::rect_corners;
 
-pub(crate) struct DraftParams<'a> {
+pub struct DraftParams<'a> {
     pub points: &'a [Point],
     pub tool: Option<Tool>,
     pub filled: bool,
     pub hover: Option<Point>,
-}
-
-impl<'a> DraftParams<'a> {
-    pub(crate) fn from_editor(ed: &'a Editor) -> Self {
-        Self {
-            points: ed.draft_points(),
-            tool: ed.draft_tool(),
-            filled: ed.filled(),
-            hover: ed.hover(),
-        }
-    }
 }
 
 pub(crate) fn add_draft(

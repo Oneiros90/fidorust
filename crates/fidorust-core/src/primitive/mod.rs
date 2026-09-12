@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 pub const MAX_POLY_VERTICES: usize = 10;
 pub const BEZIER_SEGMENTS_HIT: u32 = 16;
 pub const BEZIER_SEGMENTS_DRAW: u32 = 48;
-/// FidoCad `*` token and FidoRust canvas default (bundled Courier Prime).
+/// FidoCAD `*` token and FidoRust canvas default (bundled Courier Prime).
 pub const DEFAULT_FONT: &str = "Courier Prime";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

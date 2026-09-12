@@ -6,6 +6,7 @@ use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{set_pos, Geometry, HitTest};
+use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Connection {
@@ -49,5 +50,17 @@ impl HitTest for Connection {
 
     fn paint_order(&self) -> u8 {
         2
+    }
+}
+
+impl PropSource for Connection {
+    fn fields() -> &'static [PropField] {
+        &[]
+    }
+    fn read(&self, field: PropField) -> Option<PropFieldValue> {
+        read_layer(self.layer, field)
+    }
+    fn apply(&mut self, field: PropField, value: &PropFieldValue) -> bool {
+        apply_layer(&mut self.layer, field, value)
     }
 }

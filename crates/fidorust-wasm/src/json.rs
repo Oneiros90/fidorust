@@ -168,6 +168,19 @@ pub struct ExportSvgOpts {
     pub layers: Vec<ExportLayerOpt>,
 }
 
+impl ExportSvgOpts {
+    pub fn overlays(&self) -> Vec<fidorust_core::ExportLayerOverlay> {
+        self.layers
+            .iter()
+            .map(|o| fidorust_core::ExportLayerOverlay {
+                show: o.show,
+                invert: o.invert,
+                color: o.color,
+            })
+            .collect()
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ExportLayerOpt {
     pub show: bool,

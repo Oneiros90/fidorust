@@ -1,7 +1,6 @@
 //! Render backend: WebGL on wasm32, no-op elsewhere.
 
 use fidorust_core::{CanvasTheme, Editor};
-use fidorust_gpu::tessellate::tessellate_view;
 use fidorust_gpu::{Scene, Theme};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
@@ -49,7 +48,7 @@ impl Backend {
     }
 
     pub fn draw(&mut self, editor: &Editor, size: (f32, f32), show_grid: bool) {
-        let scene = tessellate_view(editor, Some(size));
+        let scene = crate::tessellate::tessellate_view(editor, Some(size));
         self.draw_scene(editor, &scene, size, show_grid);
     }
 
