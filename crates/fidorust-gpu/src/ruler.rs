@@ -8,6 +8,7 @@ use fidorust_core::Tool;
 use crate::draft::DraftParams;
 use crate::scene::{FillVertexGpu, Scene};
 use crate::theme::Rgb;
+use fidorust_core::CanvasTheme;
 
 const TICK_PX: f32 = 8.0;
 const STROKE_PX: f32 = 1.5;
@@ -21,9 +22,9 @@ pub(crate) fn add_overlay(
     draft: &DraftParams<'_>,
     zoom: f32,
     stroke_w: f32,
-    dark: bool,
+    theme: CanvasTheme,
 ) {
-    let rgb = Rgb::accent(dark).rgba(1.0);
+    let rgb = Rgb::accent(theme).rgba(1.0);
     let z = zoom.max(0.01);
     let tick = TICK_PX / z;
     let w = stroke_w.max(STROKE_PX / z);

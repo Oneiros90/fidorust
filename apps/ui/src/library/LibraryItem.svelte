@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Engine } from '../app/engine.svelte';
 	import { getAppSession } from '../app/appContext';
+	import type { Theme } from '../app/types';
 	import { parseSvgElement } from '../lib/attachSvg';
 	import { PREVIEW_ROOT_MARGIN, THUMB_SIZE } from '../lib/constants';
 	import { componentFullName } from '../lib/libraryDrag';
@@ -24,7 +25,7 @@
 		origin?: string;
 		writable: boolean;
 		selected: boolean;
-		theme: 'light' | 'dark';
+		theme: Theme;
 		onPick: (stem: string, key: string) => void;
 		onArmDrag: (name: string, e: PointerEvent) => void;
 	} = $props();

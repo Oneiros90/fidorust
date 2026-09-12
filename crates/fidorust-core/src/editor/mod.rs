@@ -30,6 +30,25 @@ use components::ComponentEditSession;
 use history::HistorySnapshot;
 use tools::{Draft, Drag};
 
+/// Screen chrome only: overlay colours. Not saved with the document.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CanvasTheme {
+    #[default]
+    Light,
+    Dark,
+    White,
+}
+
+impl CanvasTheme {
+    pub fn parse(id: &str) -> Self {
+        match id {
+            "dark" => Self::Dark,
+            "white" => Self::White,
+            _ => Self::Light,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Editor {
     doc: Document,
@@ -64,8 +83,8 @@ pub struct Editor {
     hover_hit: bool,
     /// Top-level primitive under the cursor (select tool); drives hover tint.
     hover_index: Option<usize>,
-    /// Screen theme only: preview stroke colour. Not saved.
-    canvas_dark: bool,
+    /// Screen theme only: preview / selection overlay colours. Not saved.
+    canvas_theme: CanvasTheme,
     libs_rev: u32,
     component_edit: Option<ComponentEditSession>,
     /// Ephemeral measure overlay; never serialized.
@@ -102,7 +121,7 @@ impl Editor {
             hover: None,
             hover_hit: false,
             hover_index: None,
-            canvas_dark: false,
+            canvas_theme: CanvasTheme::Light,
             libs_rev: 0,
             component_edit: None,
             ruler_segments: Vec::new(),
@@ -235,12 +254,12 @@ impl Editor {
         };
     }
 
-    pub fn canvas_dark(&self) -> bool {
-        self.canvas_dark
+    pub fn canvas_theme(&self) -> CanvasTheme {
+        self.canvas_theme
     }
 
-    pub fn set_canvas_dark(&mut self, on: bool) {
-        self.canvas_dark = on;
+    pub fn set_canvas_theme(&mut self, theme: CanvasTheme) {
+        self.canvas_theme = theme;
     }
 
     pub fn snap_enable(&self) -> bool {

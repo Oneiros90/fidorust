@@ -1,6 +1,6 @@
 import type { ComponentCursor } from './engineTypes';
 
-export type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'white' | 'dark';
 
 export type LibGhost = ComponentCursor & { x: number; y: number; scale: number; rot: number };
 

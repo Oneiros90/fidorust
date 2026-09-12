@@ -7,7 +7,7 @@ use fidorust_core::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
-use fidorust_core::{Editor, Tool};
+use fidorust_core::{CanvasTheme, Editor, Tool};
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::FillRule;
@@ -241,9 +241,15 @@ fn add_pcb_pad(
     }
 }
 
-fn color(layers: &LayerSet, p: &Primitive, selected: bool, hovered: bool) -> [f32; 4] {
+fn color(
+    layers: &LayerSet,
+    p: &Primitive,
+    selected: bool,
+    hovered: bool,
+    theme: CanvasTheme,
+) -> [f32; 4] {
     if selected {
-        return Rgb::SELECTION.rgba(1.0);
+        return Rgb::selection(theme).rgba(1.0);
     }
     let base = Rgb::from_rgba_u8(layers.color(p.layer()));
     if hovered {
@@ -260,11 +266,12 @@ fn add_prim(
     selected: bool,
     hovered: bool,
     stroke_w: f32,
+    theme: CanvasTheme,
 ) {
     if !layers.visible(p.layer()) {
         return;
     }
-    let rgb = color(layers, p, selected, hovered);
+    let rgb = color(layers, p, selected, hovered, theme);
     fidorust_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
@@ -297,7 +304,15 @@ fn tessellate_primitives_with_stroke(
     let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
     for bucket in by_layer {
         for p in bucket {
-            add_prim(&mut scene, p, layers, false, false, stroke_w);
+            add_prim(
+                &mut scene,
+                p,
+                layers,
+                false,
+                false,
+                stroke_w,
+                CanvasTheme::Light,
+            );
         }
         scene.mark_layer_end();
     }
@@ -317,7 +332,7 @@ struct TessellateInput<'a> {
     pan: (f32, f32),
     layer: LayerId,
     viewport: Option<(f32, f32)>,
-    dark: bool,
+    theme: CanvasTheme,
     pending: Vec<Primitive>,
     marquee: Option<(f32, f32, f32, f32)>,
     tool: Tool,
@@ -325,7 +340,7 @@ struct TessellateInput<'a> {
 }
 
 impl<'a> TessellateInput<'a> {
-    fn from_editor(ed: &'a Editor, viewport: Option<(f32, f32)>, dark: bool) -> Self {
+    fn from_editor(ed: &'a Editor, viewport: Option<(f32, f32)>) -> Self {
         Self {
             primitives: &ed.doc().primitives,
             layers: &ed.doc().layers,
@@ -339,7 +354,7 @@ impl<'a> TessellateInput<'a> {
             pan: ed.pan(),
             layer: ed.layer(),
             viewport,
-            dark,
+            theme: ed.canvas_theme(),
             pending: {
                 let mut pending = ed.pending_component_preview();
                 pending.extend(ed.duplicate_drag_preview());
@@ -354,7 +369,7 @@ impl<'a> TessellateInput<'a> {
 
 pub fn tessellate_editor(ed: &Editor) -> Scene {
     tessellate_impl(
-        TessellateInput::from_editor(ed, None, false),
+        TessellateInput::from_editor(ed, None),
         &DraftParams::from_editor(ed),
     )
 }
@@ -372,7 +387,7 @@ pub fn tessellate_export(ed: &Editor, layers: &LayerSet) -> Scene {
 
 pub fn tessellate_view(ed: &Editor, viewport: Option<(f32, f32)>) -> Scene {
     tessellate_impl(
-        TessellateInput::from_editor(ed, viewport, ed.canvas_dark()),
+        TessellateInput::from_editor(ed, viewport),
         &DraftParams::from_editor(ed),
     )
 }
@@ -391,7 +406,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     });
     let mut scene = Scene::default();
     let layers = input.layers;
-    let preview = Rgb::preview(input.dark).rgba(1.0);
+    let preview = Rgb::preview(input.theme).rgba(1.0);
     let expanded: Vec<(bool, bool, Primitive)> = input
         .primitives
         .iter()
@@ -420,7 +435,15 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
         for (sel, hov, q) in &bucket {
-            add_prim(&mut scene, q, layers, *sel, *hov, input.stroke_w);
+            add_prim(
+                &mut scene,
+                q,
+                layers,
+                *sel,
+                *hov,
+                input.stroke_w,
+                input.theme,
+            );
         }
         if input.layer.index() == li {
             add_draft(&mut scene, draft, preview, input.stroke_w);
@@ -434,7 +457,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
             draft,
             input.zoom,
             input.stroke_w,
-            input.dark,
+            input.theme,
         );
         scene.mark_layer_end();
     }

@@ -62,7 +62,7 @@ function isSessionState(v: unknown): v is SessionState {
 		typeof s.layer !== 'number' ||
 		typeof s.snapEnable !== 'boolean' ||
 		typeof s.showGrid !== 'boolean' ||
-		(s.theme !== 'light' && s.theme !== 'dark') ||
+		(s.theme !== 'light' && s.theme !== 'white' && s.theme !== 'dark') ||
 		(s.locale !== 'it' && s.locale !== 'en')
 	) {
 		return false;

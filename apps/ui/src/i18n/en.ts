@@ -58,6 +58,7 @@ export const en = {
 	localeEnglish: 'English',
 	theme: 'Theme',
 	light: 'Light',
+	white: 'White',
 	dark: 'Dark',
 	help: 'Help',
 	about: 'About',

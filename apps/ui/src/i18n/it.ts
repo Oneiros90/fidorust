@@ -60,6 +60,7 @@ export const it: typeof en = {
 	localeEnglish: 'English',
 	theme: 'Tema',
 	light: 'Chiaro',
+	white: 'Bianco',
 	dark: 'Scuro',
 	help: 'Aiuto',
 	about: 'Informazioni',

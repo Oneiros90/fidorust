@@ -12,9 +12,10 @@
 		{ id: 'en', labelKey: 'localeEnglish' }
 	];
 
-	const themes: { id: Theme; labelKey: 'light' | 'dark' }[] = [
+	const themes: { id: Theme; labelKey: 'light' | 'dark' | 'white' }[] = [
 		{ id: 'light', labelKey: 'light' },
-		{ id: 'dark', labelKey: 'dark' }
+		{ id: 'dark', labelKey: 'dark' },
+		{ id: 'white', labelKey: 'white' }
 	];
 </script>
 

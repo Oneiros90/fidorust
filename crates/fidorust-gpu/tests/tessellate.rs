@@ -1,7 +1,7 @@
 use fidorust_core::parse::{builtin_libraries, parse_document};
 use fidorust_core::{
-    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Rect, Text, Tool,
-    DEFAULT_FONT,
+    CanvasTheme, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Rect, Text,
+    Tool, DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
 use fidorust_gpu::{tessellate_editor, tessellate_export, tessellate_primitives, Rgb};
@@ -654,6 +654,13 @@ fn hover_lightens_layer_color() {
     let sel = tessellate_editor(&ed);
     let orange = Rgb::SELECTION.rgba(1.0);
     assert!((sel.fills[0].r - orange[0]).abs() < 1e-5);
+
+    ed.set_canvas_theme(CanvasTheme::White);
+    let white = tessellate_editor(&ed);
+    let blue = Rgb::SELECTION_WHITE.rgba(1.0);
+    assert!((white.fills[0].r - blue[0]).abs() < 1e-5);
+    assert!((white.fills[0].g - blue[1]).abs() < 1e-5);
+    assert!((white.fills[0].b - blue[2]).abs() < 1e-5);
 }
 
 #[test]

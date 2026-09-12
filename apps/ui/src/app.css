@@ -22,6 +22,20 @@
 	--z-ghost: 40;
 }
 
+:root[data-theme='white'] {
+	--bg: #ececec;
+	--bg-panel: #e2e2e2;
+	--bg-menu: #f5f5f5;
+	--fg: #1a1a1a;
+	--fg-muted: #6a6a6a;
+	--border: #c4c4c4;
+	--accent: #3b8eea;
+	--accent-fg: #ffffff;
+	--danger: #c53030;
+	--canvas-bg: #ffffff;
+	--shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
 :root[data-theme='dark'] {
 	--bg: #1a1714;
 	--bg-panel: #141210;

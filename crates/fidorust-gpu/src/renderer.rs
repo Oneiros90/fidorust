@@ -3,7 +3,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use crate::scene::{CircleInstance, FillVertexGpu, HandleInstance, LineInstance, PadHole, Scene};
-use crate::theme::{Rgb, Theme};
+use crate::theme::Theme;
 use fidorust_core::consts::HANDLE_RADIUS_PX;
 use glow::{Context, HasContext};
 use wasm_bindgen::JsCast;
@@ -87,6 +87,7 @@ pub struct Renderer {
     vao_handle: glow::VertexArray,
     bg: [f32; 3],
     grid: [f32; 3],
+    selection: [f32; 3],
 }
 
 impl Renderer {
@@ -203,17 +204,19 @@ impl Renderer {
                 vao_handle,
                 bg: Theme::LIGHT.bg,
                 grid: Theme::LIGHT.grid,
+                selection: Theme::LIGHT.selection,
             })
         }
     }
 
-    pub fn set_theme(&mut self, bg: [f32; 3], grid: [f32; 3]) {
+    pub fn set_theme(&mut self, bg: [f32; 3], grid: [f32; 3], selection: [f32; 3]) {
         self.bg = bg;
         self.grid = grid;
+        self.selection = selection;
     }
 
     pub fn set_theme_enum(&mut self, theme: &Theme) {
-        self.set_theme(theme.bg, theme.grid);
+        self.set_theme(theme.bg, theme.grid, theme.selection);
     }
 
     pub fn draw(
@@ -397,7 +400,7 @@ impl Renderer {
             set1(gl, self.handle_prog, "u_zoom", zoom);
             set2(gl, self.handle_prog, "u_res", res);
             set1(gl, self.handle_prog, "u_radius", HANDLE_RADIUS_PX);
-            set3(gl, self.handle_prog, "u_color", Rgb::SELECTION.0);
+            set3(gl, self.handle_prog, "u_color", self.selection);
             gl.bind_vertex_array(Some(self.vao_handle));
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.handle_inst));
             gl.buffer_data_u8_slice(

@@ -1,6 +1,6 @@
 //! Render backend: WebGL on wasm32, no-op elsewhere.
 
-use fidorust_core::Editor;
+use fidorust_core::{CanvasTheme, Editor};
 use fidorust_gpu::tessellate::tessellate_view;
 use fidorust_gpu::{Scene, Theme};
 use wasm_bindgen::JsValue;
@@ -35,12 +35,9 @@ impl Backend {
     }
 
     pub fn apply_theme(&mut self, editor: &mut Editor, theme: &str) {
-        let palette = if theme == "dark" {
-            Theme::DARK
-        } else {
-            Theme::LIGHT
-        };
-        editor.set_canvas_dark(theme == "dark");
+        let canvas = CanvasTheme::parse(theme);
+        let palette = Theme::from_canvas(canvas);
+        editor.set_canvas_theme(canvas);
         #[cfg(target_arch = "wasm32")]
         if let Some(r) = self.renderer.as_mut() {
             r.set_theme_enum(&palette);
