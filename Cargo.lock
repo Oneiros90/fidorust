@@ -1014,7 +1014,7 @@ dependencies = [
 
 [[package]]
 name = "fidorust-core"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "encoding_rs",
  "serde",
@@ -1024,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "fidorust-gpu"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "bytemuck",
  "fidorust-core",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "fidorust-tauri"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "base64 0.22.1",
  "fidorust-gpu",
@@ -1053,7 +1053,7 @@ dependencies = [
 
 [[package]]
 name = "fidorust-wasm"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "fidorust-core",
  "fidorust-gpu",
