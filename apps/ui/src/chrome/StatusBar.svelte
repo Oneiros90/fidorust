@@ -85,6 +85,7 @@
 <style>
 	.status {
 		display: flex;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 16px;
 		padding: 4px 12px;
@@ -93,14 +94,30 @@
 		background: var(--bg-menu);
 		border-top: 1px solid var(--border);
 		color: var(--fg-muted);
+		white-space: nowrap;
 		overflow: visible;
 		position: relative;
 		z-index: var(--z-menubar);
 	}
+	.status > * {
+		flex-shrink: 0;
+	}
 	.pills {
 		display: inline-flex;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 6px;
+	}
+	@media (hover: none), (max-width: 720px) {
+		.status {
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+			overscroll-behavior-x: contain;
+		}
+		.status::-webkit-scrollbar {
+			display: none;
+		}
 	}
 	.version {
 		margin-left: auto;
