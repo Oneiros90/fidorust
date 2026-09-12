@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geom::{dist_point_segment_sq, Aabb, Point};
+use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{map_ab, set_ab, Geometry, HitTest};
@@ -36,7 +36,11 @@ impl Geometry for Line {
 }
 
 impl HitTest for Line {
-    fn body_hit(&self, pt: Point, tol2: f64) -> bool {
-        dist_point_segment_sq(pt, self.a, self.b) <= tol2
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        crate::geom::dist_point_xy_segment_sq(x, y, self.a, self.b) <= tol2
+    }
+
+    fn paint_order(&self) -> u8 {
+        1
     }
 }

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geom::{dist_point_segment_sq, Aabb, Point};
+use crate::geom::{dist_point_xy_segment_sq, Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{Geometry, HitTest};
@@ -40,31 +40,38 @@ impl Geometry for Poly {
 }
 
 impl HitTest for Poly {
-    fn body_hit(&self, pt: Point, tol2: f64) -> bool {
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
         if self.pts.len() < 2 {
             return false;
         }
         if self.filled {
-            point_in_poly(pt, &self.pts)
+            point_in_poly(x, y, &self.pts)
         } else {
             self.pts
                 .windows(2)
-                .any(|w| dist_point_segment_sq(pt, w[0], w[1]) <= tol2)
-                || dist_point_segment_sq(pt, *self.pts.last().unwrap(), self.pts[0]) <= tol2
+                .any(|w| dist_point_xy_segment_sq(x, y, w[0], w[1]) <= tol2)
+                || dist_point_xy_segment_sq(x, y, *self.pts.last().unwrap(), self.pts[0]) <= tol2
+        }
+    }
+
+    fn paint_order(&self) -> u8 {
+        if self.filled {
+            0
+        } else {
+            1
         }
     }
 }
 
-fn point_in_poly(pt: Point, pts: &[Point]) -> bool {
+fn point_in_poly(x: f64, y: f64, pts: &[Point]) -> bool {
     let mut inside = false;
     let mut j = pts.len() - 1;
     for i in 0..pts.len() {
         let pi = pts[i];
         let pj = pts[j];
-        if ((pi.y > pt.y) != (pj.y > pt.y))
-            && (pt.x as f64)
-                < (pj.x - pi.x) as f64 * (pt.y - pi.y) as f64 / (pj.y - pi.y) as f64 + pi.x as f64
-        {
+        let (pix, piy) = (pi.x as f64, pi.y as f64);
+        let (pjx, pjy) = (pj.x as f64, pj.y as f64);
+        if ((piy > y) != (pjy > y)) && (x < (pjx - pix) * (y - piy) / (pjy - piy) + pix) {
             inside = !inside;
         }
         j = i;

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::geom::{dist_point_segment_sq, Aabb, Point};
+use crate::geom::{dist_point_xy_segment_sq, Aabb, Point};
 use crate::layers::LayerId;
 
 use super::traits::{map_ab, set_ab, Geometry, HitTest};
@@ -38,7 +38,13 @@ impl Geometry for PcbTrack {
 }
 
 impl HitTest for PcbTrack {
-    fn body_hit(&self, pt: Point, tol2: f64) -> bool {
-        dist_point_segment_sq(pt, self.a, self.b) <= tol2
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        let half = (self.width as f64 / 2.0).max(0.0);
+        let r = half + tol2.sqrt();
+        dist_point_xy_segment_sq(x, y, self.a, self.b) <= r * r
+    }
+
+    fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
+        self.body_hit(x, y, 0.0)
     }
 }

@@ -1,8 +1,10 @@
 use fidorust_core::parse::{builtin_libraries, parse_document};
 use fidorust_core::{
-    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Text, Tool, DEFAULT_FONT,
+    Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Rect, Text, Tool,
+    DEFAULT_FONT,
 };
-use fidorust_gpu::{tessellate_editor, tessellate_primitives};
+use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
+use fidorust_gpu::{tessellate_editor, tessellate_primitives, Rgb};
 
 #[test]
 fn tessellate_alimentatore_has_strokes() {
@@ -494,6 +496,109 @@ fn duplicate_drag_ghost_adds_preview_geometry() {
         before.lines.len(),
         during.lines.len()
     );
+}
+
+fn sample_o(layer: LayerId) -> Primitive {
+    Primitive::Text(Text {
+        pos: Point::new(0, 0),
+        sy: 20,
+        sx: 20,
+        angle: 0,
+        style: 0,
+        layer,
+        font: DEFAULT_FONT.into(),
+        text: "O".into(),
+        simple: false,
+    })
+}
+
+fn uv_to_world(u: f32, v: f32) -> (f64, f64) {
+    (u as f64 * 20.0, v as f64 * 20.0)
+}
+
+#[test]
+fn text_glyph_hole_clicks_through_to_fill() {
+    install_hit_hooks();
+    let mut hole = None;
+    let mut ink = None;
+    for i in 0..21 {
+        for j in 0..21 {
+            let u = i as f32 / 20.0;
+            let v = j as f32 / 20.0;
+            if glyph_covers(DEFAULT_FONT, 'O', u, v) {
+                ink = Some((u, v));
+            } else if (0.25..0.75).contains(&u) && (0.25..0.75).contains(&v) {
+                hole = Some((u, v));
+            }
+        }
+    }
+    let hole = hole.expect("O should have a counter");
+    let ink = ink.expect("O should have ink");
+
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Rect(Rect {
+        a: Point::new(0, 0),
+        b: Point::new(20, 20),
+        filled: true,
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().insert(sample_o(LayerId(1)));
+
+    let (hx, hy) = uv_to_world(hole.0, hole.1);
+    ed.pointer_down_at(
+        hx,
+        hy,
+        Point::new(hx as i32, hy as i32),
+        (0.0, 0.0),
+        false,
+        false,
+    );
+    assert_eq!(
+        ed.selected(),
+        &[0],
+        "hole of O should pick the fill underneath"
+    );
+
+    ed.set_selected(Vec::new());
+    let (ix, iy) = uv_to_world(ink.0, ink.1);
+    ed.pointer_down_at(
+        ix,
+        iy,
+        Point::new(ix as i32, iy as i32),
+        (0.0, 0.0),
+        false,
+        false,
+    );
+    assert_eq!(ed.selected(), &[1], "ink of O should pick the text");
+}
+
+#[test]
+fn hover_lightens_layer_color() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::Rect(Rect {
+        a: Point::new(0, 0),
+        b: Point::new(20, 20),
+        filled: true,
+        layer: LayerId(0),
+    }));
+    let base = tessellate_editor(&ed);
+    assert!(!base.fills.is_empty());
+    let expected = Rgb::mix_white(
+        Rgb::from_rgba_u8(ed.doc().layers.color(LayerId(0))),
+        Rgb::HOVER_LIGHTEN,
+    );
+    ed.pointer_move(Point::new(10, 10), (40.0, 40.0));
+    let hovered = tessellate_editor(&ed);
+    let h = &hovered.fills[0];
+    assert!((h.r - expected[0]).abs() < 1e-5);
+    assert!((h.g - expected[1]).abs() < 1e-5);
+    assert!((h.b - expected[2]).abs() < 1e-5);
+
+    ed.set_selected(vec![0]);
+    let sel = tessellate_editor(&ed);
+    let orange = Rgb::SELECTION.rgba(1.0);
+    assert!((sel.fills[0].r - orange[0]).abs() < 1e-5);
 }
 
 #[test]

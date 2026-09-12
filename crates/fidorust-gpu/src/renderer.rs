@@ -306,6 +306,8 @@ impl Renderer {
         }
     }
 
+    /// Fills, then strokes, then circle instances (oval pads, ellipses, junctions).
+    /// Hit-testing uses the same order via [`fidorust_core::primitive::HitTest::paint_order`].
     fn draw_layer(
         &self,
         i: usize,

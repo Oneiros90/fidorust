@@ -1,7 +1,6 @@
 //! In-place text editing and canvas double-click dispatch.
 
 use super::{DblClickAction, Editor, TextEditSession, Tool};
-use crate::hit::hit_test;
 use crate::primitive::{Primitive, Text};
 
 impl Editor {
@@ -40,6 +39,10 @@ impl Editor {
 
     /// Double-click: finish a polygon draft, edit text in place, or open properties.
     pub fn handle_dblclick(&mut self, world: crate::geom::Point) -> DblClickAction {
+        self.handle_dblclick_at(world.x as f64, world.y as f64)
+    }
+
+    pub fn handle_dblclick_at(&mut self, x: f64, y: f64) -> DblClickAction {
         if self.draft.as_ref().is_some_and(|d| d.tool == Tool::Poly) {
             self.finish_poly();
             return DblClickAction::None;
@@ -49,13 +52,7 @@ impl Editor {
         }
         self.commit_drag_checkpoint();
         self.drag = None;
-        let Some(hit) = hit_test(
-            &self.doc.primitives,
-            &self.libs,
-            &self.doc.layers,
-            world,
-            self.zoom,
-        ) else {
+        let Some(hit) = self.pick_at(x, y) else {
             return DblClickAction::None;
         };
         if let Some(session) = self.begin_text_edit_index(hit.index) {

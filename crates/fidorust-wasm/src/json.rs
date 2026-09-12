@@ -35,6 +35,8 @@ pub struct StatusDto {
     pub default_filled: bool,
     pub pending_component: Option<String>,
     pub duplicate_drag: bool,
+    pub hover_hit: bool,
+    pub hover_op: Option<&'static str>,
     pub can_create_component: bool,
     pub can_split_component: bool,
     pub can_edit_component: bool,
@@ -81,6 +83,10 @@ impl StatusDto {
                 None
             },
             duplicate_drag: ed.duplicate_drag(),
+            hover_hit: ed.tool() == Tool::Select && ed.hover_hit(),
+            hover_op: ed
+                .hover_index()
+                .and_then(|i| ed.doc().primitives.get(i).map(|p| p.opcode())),
             can_create_component: ed.can_create_component(),
             can_split_component: ed.can_split_component(),
             can_edit_component: ed.can_edit_component(),

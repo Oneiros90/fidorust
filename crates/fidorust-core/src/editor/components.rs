@@ -2,7 +2,6 @@
 
 use super::{history::HistorySnapshot, Drag, Editor, Tool};
 use crate::geom::{Point, Transform};
-use crate::hit::hit_test;
 use crate::library::{
     component_full_name, drawing_uses_user_library_components, explode_library_instances,
     explode_named_everywhere, primitives_use_nonzero_layers, rewrite_component_names,
@@ -141,13 +140,11 @@ impl Editor {
     }
 
     pub fn prepare_context_menu(&mut self, world: Point) {
-        if let Some(hit) = hit_test(
-            &self.doc.primitives,
-            &self.libs,
-            &self.doc.layers,
-            world,
-            self.zoom,
-        ) {
+        self.prepare_context_menu_at(world.x as f64, world.y as f64);
+    }
+
+    pub fn prepare_context_menu_at(&mut self, x: f64, y: f64) {
+        if let Some(hit) = self.pick_at(x, y) {
             if !self.selected.contains(&hit.index) {
                 self.selected.clear();
                 self.selected.push(hit.index);
@@ -184,6 +181,8 @@ impl Editor {
 
     pub fn clear_hover(&mut self) {
         self.hover = None;
+        self.hover_hit = false;
+        self.hover_index = None;
     }
 
     pub fn insert_pending_component_at(&mut self, world: Point) -> Option<usize> {

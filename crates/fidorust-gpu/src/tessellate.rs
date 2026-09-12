@@ -241,18 +241,30 @@ fn add_pcb_pad(
     }
 }
 
-fn color(layers: &LayerSet, p: &Primitive, selected: bool) -> [f32; 4] {
+fn color(layers: &LayerSet, p: &Primitive, selected: bool, hovered: bool) -> [f32; 4] {
     if selected {
         return Rgb::SELECTION.rgba(1.0);
     }
-    Rgb::from_rgba_u8(layers.color(p.layer()))
+    let base = Rgb::from_rgba_u8(layers.color(p.layer()));
+    if hovered {
+        Rgb::mix_white(base, Rgb::HOVER_LIGHTEN)
+    } else {
+        base
+    }
 }
 
-fn add_prim(scene: &mut Scene, p: &Primitive, layers: &LayerSet, selected: bool, stroke_w: f32) {
+fn add_prim(
+    scene: &mut Scene,
+    p: &Primitive,
+    layers: &LayerSet,
+    selected: bool,
+    hovered: bool,
+    stroke_w: f32,
+) {
     if !layers.visible(p.layer()) {
         return;
     }
-    let rgb = color(layers, p, selected);
+    let rgb = color(layers, p, selected, hovered);
     fidorust_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
@@ -285,7 +297,7 @@ fn tessellate_primitives_with_stroke(
     let by_layer = group_by_layer(n, prims.iter(), |p| p.layer().index());
     for bucket in by_layer {
         for p in bucket {
-            add_prim(&mut scene, p, layers, false, stroke_w);
+            add_prim(&mut scene, p, layers, false, false, stroke_w);
         }
         scene.mark_layer_end();
     }
@@ -297,6 +309,7 @@ struct TessellateInput<'a> {
     layers: &'a LayerSet,
     libs: &'a LibrarySet,
     selected: &'a [usize],
+    hover: Option<usize>,
     editing_text: Option<usize>,
     hide_component_origin: bool,
     stroke_w: f32,
@@ -316,6 +329,7 @@ impl<'a> TessellateInput<'a> {
             layers: &ed.doc().layers,
             libs: ed.libs(),
             selected: ed.selected(),
+            hover: ed.hover_index(),
             editing_text: ed.editing_text(),
             hide_component_origin: ed.hide_component_origin(),
             stroke_w: ed.doc().stroke_width(),
@@ -374,13 +388,14 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     let mut scene = Scene::default();
     let layers = input.layers;
     let preview = Rgb::preview(input.dark).rgba(1.0);
-    let expanded: Vec<(bool, Primitive)> = input
+    let expanded: Vec<(bool, bool, Primitive)> = input
         .primitives
         .iter()
         .enumerate()
         .filter(|(i, _)| input.editing_text != Some(*i))
         .flat_map(|(i, p)| {
             let sel = input.selected.contains(&i);
+            let hov = !sel && input.hover == Some(i);
             fidorust_core::library::expand_primitive(p, input.libs)
                 .into_iter()
                 .filter(|q| {
@@ -388,20 +403,20 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                         .map(|v| q.aabb().expand(30).intersects(v))
                         .unwrap_or(true)
                 })
-                .map(move |q| (sel, q))
+                .map(move |q| (sel, hov, q))
         })
         .collect();
     let n = layers.len();
-    let mut by_layer = group_by_layer(n, expanded, |(_, q)| q.layer().index());
+    let mut by_layer = group_by_layer(n, expanded, |(_, _, q)| q.layer().index());
     for q in input.pending {
         let i = q.layer().index();
         if i < n {
-            by_layer[i].push((false, q));
+            by_layer[i].push((false, false, q));
         }
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
-        for (sel, q) in &bucket {
-            add_prim(&mut scene, q, layers, *sel, input.stroke_w);
+        for (sel, hov, q) in &bucket {
+            add_prim(&mut scene, q, layers, *sel, *hov, input.stroke_w);
         }
         if input.layer.index() == li {
             add_draft(&mut scene, draft, preview, input.stroke_w);

@@ -27,9 +27,15 @@ impl Editor {
     }
 
     pub fn screen_to_world(&self, sx: f32, sy: f32) -> Point {
-        Point::new(
-            ((sx - self.pan.0) / self.zoom).round() as i32,
-            ((sy - self.pan.1) / self.zoom).round() as i32,
+        let (x, y) = self.screen_to_world_xy(sx, sy);
+        Point::new(x.round() as i32, y.round() as i32)
+    }
+
+    /// Unrounded world LU for hit-testing (preserves sub-LU cursor position).
+    pub fn screen_to_world_xy(&self, sx: f32, sy: f32) -> (f64, f64) {
+        (
+            ((sx - self.pan.0) / self.zoom) as f64,
+            ((sy - self.pan.1) / self.zoom) as f64,
         )
     }
 

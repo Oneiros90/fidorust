@@ -1,5 +1,7 @@
 //! Text primitive and style flags.
 
+use std::sync::OnceLock;
+
 use serde::{Deserialize, Serialize};
 
 use crate::geom::{Aabb, Point};
@@ -143,19 +145,69 @@ impl Geometry for Text {
 }
 
 impl HitTest for Text {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        let Some((lx, ly, w, h)) = self.local_hit(x, y) else {
+            return false;
+        };
+        let pad = crate::consts::TEXT_HIT_PAD.max(tol2.sqrt());
+        lx >= -pad && lx <= w + pad && ly >= -pad && ly <= h + pad
+    }
+
+    fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
+        self.glyph_ink_at(x, y)
+    }
+}
+
+impl Text {
+    fn local_hit(&self, x: f64, y: f64) -> Option<(f64, f64, f64, f64)> {
         let n = self.text.chars().count().max(1) as f64;
         let w = self.sx.max(1) as f64 * n;
         let h = self.sy.max(1) as f64;
-        let dx = (pt.x - self.pos.x) as f64;
-        let dy = (pt.y - self.pos.y) as f64;
+        let dx = x - self.pos.x as f64;
+        let dy = y - self.pos.y as f64;
         let rad = (self.angle as f64).to_radians();
         let (sin, cos) = (rad.sin(), rad.cos());
         let (mut lx, ly) = TextLayout::unmap_offset(dx, dy, sin, cos);
         if self.style & STYLE_MIRRORED != 0 {
             lx = -lx;
         }
-        const PAD: f64 = 2.0;
-        lx >= -PAD && lx <= w + PAD && ly >= -PAD && ly <= h + PAD
+        Some((lx, ly, w, h))
     }
+
+    /// True when `(x, y)` lands on tessellated glyph ink (not the empty cell).
+    fn glyph_ink_at(&self, x: f64, y: f64) -> bool {
+        let Some((mut lx, ly, _, h)) = self.local_hit(x, y) else {
+            return false;
+        };
+        let wch = self.sx.max(1) as f64;
+        let h = h.max(1e-9);
+        if self.style & STYLE_ITALIC != 0 {
+            lx -= (1.0 - ly / h) * wch * ITALIC_SHEAR as f64;
+        }
+        if lx < 0.0 {
+            return false;
+        }
+        let i = (lx / wch).floor();
+        if i < 0.0 {
+            return false;
+        }
+        let i = i as usize;
+        let Some(ch) = self.text.chars().nth(i) else {
+            return false;
+        };
+        let u = (lx / wch - i as f64) as f32;
+        let v = (ly / h) as f32;
+        glyph_ink(&self.font, ch, u, v)
+    }
+}
+
+static GLYPH_INK: OnceLock<fn(&str, char, f32, f32) -> bool> = OnceLock::new();
+
+/// GPU installs real Courier-Prime coverage; without it, glyph cells are hollow.
+pub fn set_glyph_ink(hit: fn(&str, char, f32, f32) -> bool) {
+    let _ = GLYPH_INK.set(hit);
+}
+
+fn glyph_ink(font: &str, ch: char, u: f32, v: f32) -> bool {
+    GLYPH_INK.get().is_some_and(|f| f(font, ch, u, v))
 }

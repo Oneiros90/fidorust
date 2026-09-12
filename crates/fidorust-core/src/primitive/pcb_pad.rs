@@ -43,9 +43,42 @@ impl Geometry for PcbPad {
 }
 
 impl HitTest for PcbPad {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
-        let hx = self.dx / 2;
-        let hy = self.dy / 2;
-        (pt.x - self.pos.x).abs() <= hx && (pt.y - self.pos.y).abs() <= hy
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        self.in_copper(x, y, tol2.sqrt())
+    }
+
+    fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
+        self.in_copper(x, y, 0.0) && !self.in_hole(x, y)
+    }
+
+    fn paint_order(&self) -> u8 {
+        match self.style {
+            PadStyle::Oval => 2,
+            PadStyle::Rectangular | PadStyle::RoundedRect => 0,
+        }
+    }
+}
+
+impl PcbPad {
+    fn in_copper(&self, x: f64, y: f64, tol: f64) -> bool {
+        let dx = x - self.pos.x as f64;
+        let dy = y - self.pos.y as f64;
+        let hx = self.dx as f64 / 2.0 + tol;
+        let hy = self.dy as f64 / 2.0 + tol;
+        match self.style {
+            PadStyle::Oval => {
+                let rx = hx.max(0.5);
+                let ry = hy.max(0.5);
+                let nx = dx / rx;
+                let ny = dy / ry;
+                nx * nx + ny * ny <= 1.0
+            }
+            PadStyle::Rectangular | PadStyle::RoundedRect => dx.abs() <= hx && dy.abs() <= hy,
+        }
+    }
+
+    fn in_hole(&self, x: f64, y: f64) -> bool {
+        let hr = self.hole as f64 / 2.0;
+        hr > 0.0 && self.pos.dist_sq_xy(x, y) <= hr * hr
     }
 }

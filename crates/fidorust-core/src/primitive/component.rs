@@ -48,7 +48,7 @@ impl Geometry for ComponentRef {
 }
 
 impl HitTest for ComponentRef {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
-        self.pos.dist_sq(pt) as f64 <= COMPONENT_HIT_R2
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        self.pos.dist_sq_xy(x, y) <= COMPONENT_HIT_R2.max(tol2)
     }
 }

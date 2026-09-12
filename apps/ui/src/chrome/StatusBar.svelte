@@ -39,7 +39,11 @@
 	{/if}
 	<span>{Math.round(app.status.zoom * 100)}%</span>
 	<span>{app.status.n} obj</span>
-	{#if app.status.selected}<span>sel {app.status.selected}</span>{/if}
+	{#if app.status.selected}
+		<span>sel {app.status.selected}</span>
+	{:else if app.status.hover_op}
+		<span>{app.status.hover_op}</span>
+	{/if}
 	{#if app.status.pending_component}<span>{app.t.component}: {app.status.pending_component}</span
 		>{/if}
 	<span class="pills">

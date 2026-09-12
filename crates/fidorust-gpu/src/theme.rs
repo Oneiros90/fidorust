@@ -7,12 +7,26 @@ impl Rgb {
     pub const SELECTION: Self = Self([0.85, 0.42, 0.22]);
     pub const PREVIEW_LIGHT: Self = Self([0.72, 0.42, 0.22]);
     pub const PREVIEW_DARK: Self = Self([0.85, 0.55, 0.32]);
+    /// How much white to mix into a hovered primitive's layer colour (`0` = none, `1` = white).
+    pub const HOVER_LIGHTEN: f32 = 0.15;
+
     pub fn from_rgba_u8(c: [u8; 4]) -> [f32; 4] {
         [
             c[0] as f32 / 255.0,
             c[1] as f32 / 255.0,
             c[2] as f32 / 255.0,
             c[3] as f32 / 255.0,
+        ]
+    }
+
+    /// Mix `amount` of white into RGB (alpha unchanged).
+    pub fn mix_white(rgba: [f32; 4], amount: f32) -> [f32; 4] {
+        let t = amount.clamp(0.0, 1.0);
+        [
+            rgba[0] + (1.0 - rgba[0]) * t,
+            rgba[1] + (1.0 - rgba[1]) * t,
+            rgba[2] + (1.0 - rgba[2]) * t,
+            rgba[3],
         ]
     }
 

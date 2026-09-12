@@ -40,15 +40,11 @@ pub const DEFAULT_PAD_DY: i32 = 18;
 pub const DEFAULT_PAD_HOLE: i32 = 8;
 /// Selection-handle radius in canvas pixels (screen-space, independent of zoom).
 pub const HANDLE_RADIUS_PX: f32 = 6.0;
-/// Connection body hit radius².
-pub const CONNECTION_HIT_R2: f64 = 16.0;
+/// Click/hover slop around drawn geometry, in canvas pixels.
+pub const HIT_TOLERANCE_PX: f64 = 6.0;
+/// Drawn connection-dot radius in LU (matches tessellation).
+pub const CONNECTION_RADIUS: f64 = 1.3;
 /// Unexpanded-component origin hit radius² (fallback when children miss).
 pub const COMPONENT_HIT_R2: f64 = 64.0;
-/// Rect stroke hit half-width in LU.
-pub const RECT_EDGE_TOL: i32 = 3;
-/// Filled-ellipse inside threshold.
-pub const ELLIPSE_FILL_TOL: f64 = 1.05;
-/// Stroked-ellipse ring threshold.
-pub const ELLIPSE_STROKE_TOL: f64 = 0.15;
 /// Text-hit padding in local glyph space.
 pub const TEXT_HIT_PAD: f64 = 2.0;

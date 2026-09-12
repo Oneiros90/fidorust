@@ -12,6 +12,8 @@
   "grid": 5,
   "grid_y": 5,
   "hide_component_origin": true,
+  "hover_hit": false,
+  "hover_op": null,
   "layer": 0,
   "libs_rev": 0,
   "n": 0,

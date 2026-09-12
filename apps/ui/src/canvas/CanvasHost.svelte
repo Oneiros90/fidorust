@@ -27,7 +27,9 @@
 				: app.status.duplicate_drag
 					? 'copy'
 					: app.status.tool === 'select'
-						? 'default'
+						? app.status.hover_hit
+							? 'pointer'
+							: 'default'
 						: 'crosshair'
 	);
 
@@ -165,6 +167,16 @@
 		);
 	}
 
+	function leave(e: PointerEvent) {
+		if (!engine || textEdit || panning || e.buttons !== 0) return;
+		engine.mutate(
+			(wasm) => {
+				wasm.clear_hover();
+			},
+			{ refreshFirst: true }
+		);
+	}
+
 	function up(e: PointerEvent) {
 		if (e.button === 2 || !engine || textEdit) return;
 		if (e.button === 1) {
@@ -274,6 +286,7 @@
 		onpointerdown={down}
 		onpointermove={move}
 		onpointerup={up}
+		onpointerleave={leave}
 		onpointercancel={() => (panning = false)}
 		onmousedown={onMiddleDown}
 		onauxclick={(e) => {

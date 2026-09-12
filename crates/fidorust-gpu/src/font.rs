@@ -204,6 +204,40 @@ pub fn glyph_triangles(font: &str, ch: char) -> Vec<[f32; 2]> {
     })
 }
 
+fn point_in_tri(px: f32, py: f32, a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool {
+    let v0x = c[0] - a[0];
+    let v0y = c[1] - a[1];
+    let v1x = b[0] - a[0];
+    let v1y = b[1] - a[1];
+    let v2x = px - a[0];
+    let v2y = py - a[1];
+    let dot00 = v0x * v0x + v0y * v0y;
+    let dot01 = v0x * v1x + v0y * v1y;
+    let dot02 = v0x * v2x + v0y * v2y;
+    let dot11 = v1x * v1x + v1y * v1y;
+    let dot12 = v1x * v2x + v1y * v2y;
+    let denom = dot00 * dot11 - dot01 * dot01;
+    if denom.abs() < 1e-20 {
+        return false;
+    }
+    let inv = 1.0 / denom;
+    let u = (dot11 * dot02 - dot01 * dot12) * inv;
+    let v = (dot00 * dot12 - dot01 * dot02) * inv;
+    u >= 0.0 && v >= 0.0 && u + v <= 1.0
+}
+
+/// Unit-cell coverage matching [`glyph_triangles`] (`u` along advance, `v` down the em box).
+pub fn glyph_covers(font: &str, ch: char, u: f32, v: f32) -> bool {
+    glyph_triangles(font, ch)
+        .chunks_exact(3)
+        .any(|t| point_in_tri(u, v, t[0], t[1], t[2]))
+}
+
+/// Wire glyph coverage into core hit-testing (safe to call more than once).
+pub fn install_hit_hooks() {
+    fidorust_core::primitive::set_glyph_ink(glyph_covers);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 struct FoundFont {
     family: String,
@@ -458,6 +492,25 @@ mod tests {
             tris.len()
         );
         assert_eq!(tris.len() % 3, 0);
+    }
+
+    #[test]
+    fn letter_o_has_ink_and_a_hole() {
+        let mut ink = false;
+        let mut hole = false;
+        for i in 0..21 {
+            for j in 0..21 {
+                let u = i as f32 / 20.0;
+                let v = j as f32 / 20.0;
+                if glyph_covers(DEFAULT_FONT, 'O', u, v) {
+                    ink = true;
+                } else if (0.3..0.7).contains(&u) && (0.3..0.7).contains(&v) {
+                    hole = true;
+                }
+            }
+        }
+        assert!(ink, "expected tessellated ink for O");
+        assert!(hole, "expected the counter of O to be empty");
     }
 
     #[test]

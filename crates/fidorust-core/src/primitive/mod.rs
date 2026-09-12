@@ -24,8 +24,8 @@ pub use pcb_track::PcbTrack;
 pub use poly::Poly;
 pub use rect::Rect;
 pub use text::{
-    Text, TextLayout, TextStyle, ITALIC_SHEAR, STYLE_BOLD, STYLE_ITALIC, STYLE_MIRRORED,
-    STYLE_UNDERLINE,
+    set_glyph_ink, Text, TextLayout, TextStyle, ITALIC_SHEAR, STYLE_BOLD, STYLE_ITALIC,
+    STYLE_MIRRORED, STYLE_UNDERLINE,
 };
 pub use traits::{Geometry, HitTest};
 
@@ -187,6 +187,58 @@ impl Primitive {
     }
 
     pub fn body_hit(&self, pt: Point, tol2: f64) -> bool {
-        dispatch_primitive!(self, |p| p.body_hit(pt, tol2))
+        self.body_hit_xy(pt.x as f64, pt.y as f64, tol2)
+    }
+
+    pub fn body_hit_xy(&self, x: f64, y: f64, tol2: f64) -> bool {
+        dispatch_primitive!(self, |p| p.body_hit(x, y, tol2))
+    }
+
+    pub fn opaque_at_xy(&self, x: f64, y: f64, stroke_w: f64) -> bool {
+        dispatch_primitive!(self, |p| p.opaque_at(x, y, stroke_w))
+    }
+
+    pub fn paint_order(&self) -> u8 {
+        dispatch_primitive!(self, |p| p.paint_order())
+    }
+
+    /// FidoCAD opcode (`PA`, `PL`, `LI`, …) shown in the status bar.
+    pub fn opcode(&self) -> &'static str {
+        match self {
+            Primitive::Line(_) => "LI",
+            Primitive::Rect(r) => {
+                if r.filled {
+                    "RP"
+                } else {
+                    "RV"
+                }
+            }
+            Primitive::Poly(p) => {
+                if p.filled {
+                    "PP"
+                } else {
+                    "PV"
+                }
+            }
+            Primitive::Ellipse(e) => {
+                if e.filled {
+                    "EP"
+                } else {
+                    "EV"
+                }
+            }
+            Primitive::Bezier(_) => "BE",
+            Primitive::Text(t) => {
+                if t.simple {
+                    "TE"
+                } else {
+                    "TY"
+                }
+            }
+            Primitive::Connection(_) => "SA",
+            Primitive::PcbTrack(_) => "PL",
+            Primitive::PcbPad(_) => "PA",
+            Primitive::Component(_) => "MC",
+        }
     }
 }

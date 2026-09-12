@@ -11,7 +11,7 @@ use fidorust_core::serialize::{
     serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_library,
     SaveLibraryPolicy,
 };
-use fidorust_core::{Editor, EditorError, LibraryKind, Tool};
+use fidorust_core::{Editor, EditorError, LibraryKind, Point, Tool};
 use fidorust_gpu::tessellate::{export_svg, scene_to_thumb_svg, tessellate_primitives};
 use render_backend::Backend;
 use std::str::FromStr;
@@ -25,6 +25,11 @@ use json::{
 
 fn to_js(err: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&err.to_string())
+}
+
+fn screen_world(ed: &Editor, sx: f32, sy: f32) -> (f64, f64, Point) {
+    let (x, y) = ed.screen_to_world_xy(sx, sy);
+    (x, y, Point::new(x.round() as i32, y.round() as i32))
 }
 
 enum DeleteLayerMode {
@@ -53,12 +58,14 @@ pub struct App {
     #[allow(dead_code)]
     locale: String,
     theme: String,
+    skip_draw: bool,
 }
 
 #[wasm_bindgen]
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> App {
+        fidorust_gpu::font::install_hit_hooks();
         App {
             editor: Editor::new(builtin_libraries()),
             backend: Backend::new(),
@@ -66,6 +73,7 @@ impl App {
             height: 600.0,
             locale: "it".into(),
             theme: "light".into(),
+            skip_draw: false,
         }
     }
 
@@ -84,6 +92,10 @@ impl App {
 
     #[wasm_bindgen]
     pub fn render(&mut self) {
+        if self.skip_draw {
+            self.skip_draw = false;
+            return;
+        }
         self.backend.draw(
             &self.editor,
             (self.width, self.height),
@@ -181,26 +193,31 @@ impl App {
 
     #[wasm_bindgen]
     pub fn pointer_down(&mut self, sx: f32, sy: f32, shift: bool, pan: bool) {
-        let w = self.editor.screen_to_world(sx, sy);
-        self.editor.pointer_down(w, (sx, sy), shift, pan);
+        self.skip_draw = false;
+        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        self.editor.pointer_down_at(x, y, w, (sx, sy), shift, pan);
     }
 
     #[wasm_bindgen]
     pub fn pointer_move(&mut self, sx: f32, sy: f32) {
-        let w = self.editor.screen_to_world(sx, sy);
-        self.editor.pointer_move(w, (sx, sy));
+        let hover0 = self.editor.hover_index();
+        let live = self.editor.scene_follows_pointer();
+        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        self.editor.pointer_move_at(x, y, w, (sx, sy));
+        self.skip_draw = !live && hover0 == self.editor.hover_index();
     }
 
     #[wasm_bindgen]
     pub fn pointer_up(&mut self, sx: f32, sy: f32) {
-        let w = self.editor.screen_to_world(sx, sy);
-        self.editor.pointer_up(w);
+        self.skip_draw = false;
+        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        self.editor.pointer_up_at(x, y, w);
     }
 
     #[wasm_bindgen]
     pub fn dblclick(&mut self, sx: f32, sy: f32) -> String {
-        let w = self.editor.screen_to_world(sx, sy);
-        let action = self.editor.handle_dblclick(w);
+        let (x, y, _) = screen_world(&self.editor, sx, sy);
+        let action = self.editor.handle_dblclick_at(x, y);
         dblclick_json(&self.editor, action)
     }
 
@@ -231,6 +248,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn wheel(&mut self, sx: f32, sy: f32, delta: f32) {
+        self.skip_draw = false;
         self.editor.wheel_zoom((sx, sy), delta);
     }
 
@@ -390,8 +408,8 @@ impl App {
 
     #[wasm_bindgen]
     pub fn prepare_context_menu(&mut self, sx: f32, sy: f32) {
-        let w = self.editor.screen_to_world(sx, sy);
-        self.editor.prepare_context_menu(w);
+        let (x, y, _) = screen_world(&self.editor, sx, sy);
+        self.editor.prepare_context_menu_at(x, y);
     }
 
     #[wasm_bindgen]
@@ -426,6 +444,7 @@ impl App {
 
     #[wasm_bindgen]
     pub fn clear_hover(&mut self) {
+        self.skip_draw = false;
         self.editor.clear_hover();
     }
 

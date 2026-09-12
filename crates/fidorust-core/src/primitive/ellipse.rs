@@ -37,18 +37,24 @@ impl Geometry for Ellipse {
 }
 
 impl HitTest for Ellipse {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
         let cx = (self.a.x + self.b.x) as f64 / 2.0;
         let cy = (self.a.y + self.b.y) as f64 / 2.0;
         let rx = ((self.a.x - self.b.x).abs() as f64 / 2.0).max(1.0);
         let ry = ((self.a.y - self.b.y).abs() as f64 / 2.0).max(1.0);
-        let nx = (pt.x as f64 - cx) / rx;
-        let ny = (pt.y as f64 - cy) / ry;
+        let nx = (x - cx) / rx;
+        let ny = (y - cy) / ry;
         let d = nx * nx + ny * ny;
+        let tn = (tol2.sqrt() / rx.min(ry)).max(0.0);
         if self.filled {
-            d <= 1.05
+            d <= (1.0 + tn) * (1.0 + tn)
         } else {
-            (d - 1.0).abs() < 0.15
+            let inner = (1.0 - tn).max(0.0);
+            d >= inner * inner && d <= (1.0 + tn) * (1.0 + tn)
         }
+    }
+
+    fn paint_order(&self) -> u8 {
+        2
     }
 }

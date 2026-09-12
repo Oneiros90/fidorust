@@ -35,6 +35,12 @@ impl Point {
         dx * dx + dy * dy
     }
 
+    pub fn dist_sq_xy(self, x: f64, y: f64) -> f64 {
+        let dx = self.x as f64 - x;
+        let dy = self.y as f64 - y;
+        dx * dx + dy * dy
+    }
+
     pub fn as_f32(self) -> (f32, f32) {
         (self.x as f32, self.y as f32)
     }
@@ -176,7 +182,10 @@ pub fn snap(value: i32, grid: i32) -> i32 {
 }
 
 pub fn dist_point_segment_sq(p: Point, a: Point, b: Point) -> f64 {
-    let (px, py) = (p.x as f64, p.y as f64);
+    dist_point_xy_segment_sq(p.x as f64, p.y as f64, a, b)
+}
+
+pub fn dist_point_xy_segment_sq(px: f64, py: f64, a: Point, b: Point) -> f64 {
     let (ax, ay) = (a.x as f64, a.y as f64);
     let (bx, by) = (b.x as f64, b.y as f64);
     let dx = bx - ax;

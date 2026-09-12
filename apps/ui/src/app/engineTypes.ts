@@ -27,6 +27,8 @@ export type Status = {
 	default_filled: boolean;
 	pending_component: string | null;
 	duplicate_drag: boolean;
+	hover_hit: boolean;
+	hover_op: string | null;
 	can_create_component: boolean;
 	can_split_component: boolean;
 	can_edit_component: boolean;
@@ -113,6 +115,8 @@ export const defaultStatus = (): Status => ({
 	default_filled: false,
 	pending_component: null,
 	duplicate_drag: false,
+	hover_hit: false,
+	hover_op: null,
 	can_create_component: false,
 	can_split_component: false,
 	can_edit_component: false,

@@ -38,7 +38,16 @@ impl Geometry for Connection {
 }
 
 impl HitTest for Connection {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
-        self.pos.dist_sq(pt) as f64 <= 16.0
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        let r = crate::consts::CONNECTION_RADIUS + tol2.sqrt();
+        self.pos.dist_sq_xy(x, y) <= r * r
+    }
+
+    fn opaque_at(&self, x: f64, y: f64, _stroke_w: f64) -> bool {
+        self.body_hit(x, y, 0.0)
+    }
+
+    fn paint_order(&self) -> u8 {
+        2
     }
 }

@@ -37,17 +37,27 @@ impl Geometry for Rect {
 }
 
 impl HitTest for Rect {
-    fn body_hit(&self, pt: Point, _tol2: f64) -> bool {
-        let minx = self.a.x.min(self.b.x);
-        let maxx = self.a.x.max(self.b.x);
-        let miny = self.a.y.min(self.b.y);
-        let maxy = self.a.y.max(self.b.y);
+    fn body_hit(&self, x: f64, y: f64, tol2: f64) -> bool {
+        let minx = self.a.x.min(self.b.x) as f64;
+        let maxx = self.a.x.max(self.b.x) as f64;
+        let miny = self.a.y.min(self.b.y) as f64;
+        let maxy = self.a.y.max(self.b.y) as f64;
+        let tol = tol2.sqrt();
         if self.filled {
-            pt.x >= minx && pt.x <= maxx && pt.y >= miny && pt.y <= maxy
+            x >= minx - tol && x <= maxx + tol && y >= miny - tol && y <= maxy + tol
         } else {
-            let on_h = (pt.y - miny).abs() <= 3 || (pt.y - maxy).abs() <= 3;
-            let on_v = (pt.x - minx).abs() <= 3 || (pt.x - maxx).abs() <= 3;
-            (on_h && pt.x >= minx && pt.x <= maxx) || (on_v && pt.y >= miny && pt.y <= maxy)
+            let on_h = (y - miny).abs() <= tol || (y - maxy).abs() <= tol;
+            let on_v = (x - minx).abs() <= tol || (x - maxx).abs() <= tol;
+            (on_h && x >= minx - tol && x <= maxx + tol)
+                || (on_v && y >= miny - tol && y <= maxy + tol)
+        }
+    }
+
+    fn paint_order(&self) -> u8 {
+        if self.filled {
+            0
+        } else {
+            1
         }
     }
 }

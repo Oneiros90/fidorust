@@ -60,6 +60,10 @@ pub struct Editor {
     draft: Option<Draft>,
     drag: Option<Drag>,
     hover: Option<Point>,
+    /// True when the last pointer position is over selectable geometry.
+    hover_hit: bool,
+    /// Top-level primitive under the cursor (select tool); drives hover tint.
+    hover_index: Option<usize>,
     /// Screen theme only: preview stroke colour. Not saved.
     canvas_dark: bool,
     libs_rev: u32,
@@ -94,6 +98,8 @@ impl Editor {
             draft: None,
             drag: None,
             hover: None,
+            hover_hit: false,
+            hover_index: None,
             canvas_dark: false,
             libs_rev: 0,
             component_edit: None,
@@ -187,8 +193,43 @@ impl Editor {
         self.hover
     }
 
+    pub fn hover_hit(&self) -> bool {
+        self.hover_hit
+    }
+
+    pub fn hover_index(&self) -> Option<usize> {
+        self.hover_index
+    }
+
     pub fn set_hover(&mut self, hover: Option<Point>) {
         self.hover = hover;
+        if hover.is_none() {
+            self.hover_hit = false;
+            self.hover_index = None;
+        }
+    }
+
+    fn pick_at(&self, x: f64, y: f64) -> Option<crate::hit::Hit> {
+        hit_test(
+            &self.doc.primitives,
+            &self.libs,
+            &self.doc.layers,
+            &self.selected,
+            x,
+            y,
+            self.zoom,
+            self.doc.stroke_width() as f64,
+        )
+    }
+
+    fn refresh_hover_hit(&mut self, x: f64, y: f64) {
+        let hit = self.pick_at(x, y);
+        self.hover_hit = hit.is_some();
+        self.hover_index = if self.tool == Tool::Select {
+            hit.map(|h| h.index)
+        } else {
+            None
+        };
     }
 
     pub fn canvas_dark(&self) -> bool {
@@ -311,8 +352,33 @@ impl Editor {
         self.draft.as_ref().map(|d| d.tool)
     }
 
+    /// True while the scene must follow the pointer (drag, draft, or pending component).
+    pub fn scene_follows_pointer(&self) -> bool {
+        self.drag.is_some() || self.draft.is_some() || self.pending_follow
+    }
+
     pub fn pointer_down(&mut self, world: Point, screen: (f32, f32), shift: bool, pan_mod: bool) {
+        self.pointer_down_at(
+            world.x as f64,
+            world.y as f64,
+            world,
+            screen,
+            shift,
+            pan_mod,
+        );
+    }
+
+    pub fn pointer_down_at(
+        &mut self,
+        hx: f64,
+        hy: f64,
+        world: Point,
+        screen: (f32, f32),
+        shift: bool,
+        pan_mod: bool,
+    ) {
         let pt = self.snap_pt(world);
+        self.refresh_hover_hit(hx, hy);
         if pan_mod || self.tool == Tool::Pan {
             self.drag = Some(Drag::Pan {
                 start_screen: screen,
@@ -322,13 +388,7 @@ impl Editor {
         }
         match self.tool {
             Tool::Select => {
-                if let Some(hit) = hit_test(
-                    &self.doc.primitives,
-                    &self.libs,
-                    &self.doc.layers,
-                    world,
-                    self.zoom,
-                ) {
+                if let Some(hit) = self.pick_at(hx, hy) {
                     if !shift && !self.selected.contains(&hit.index) {
                         self.selected.clear();
                     }
@@ -418,8 +478,15 @@ impl Editor {
     }
 
     pub fn pointer_move(&mut self, world: Point, screen: (f32, f32)) {
+        self.pointer_move_at(world.x as f64, world.y as f64, world, screen);
+    }
+
+    pub fn pointer_move_at(&mut self, hx: f64, hy: f64, world: Point, screen: (f32, f32)) {
         let pt = self.snap_pt(world);
         self.hover = Some(pt);
+        if self.drag.is_none() {
+            self.refresh_hover_hit(hx, hy);
+        }
         if let Some(d) = &mut self.draft {
             if matches!(
                 d.tool,
@@ -474,6 +541,10 @@ impl Editor {
     }
 
     pub fn pointer_up(&mut self, world: Point) {
+        self.pointer_up_at(world.x as f64, world.y as f64, world);
+    }
+
+    pub fn pointer_up_at(&mut self, hx: f64, hy: f64, world: Point) {
         let pt = self.snap_pt(world);
         match self.drag.take() {
             Some(Drag::Marquee { start, current }) => {
@@ -486,6 +557,7 @@ impl Editor {
                         self.selected.push(i);
                     }
                 }
+                self.refresh_hover_hit(hx, hy);
                 return;
             }
             Some(Drag::Move {
@@ -572,6 +644,7 @@ impl Editor {
                 _ => {}
             }
         }
+        self.refresh_hover_hit(hx, hy);
     }
 
     pub fn finish_poly(&mut self) {
