@@ -44,6 +44,14 @@ impl Tool {
             Self::Ruler => "ruler",
         }
     }
+
+    /// Line, rect, ellipse, and PCB track: drag or click-click to place two points.
+    pub fn is_two_point_draw(self) -> bool {
+        matches!(
+            self,
+            Self::Line | Self::Rect | Self::Ellipse | Self::PcbTrack
+        )
+    }
 }
 
 impl std::str::FromStr for Tool {
@@ -100,6 +108,8 @@ pub(super) enum Drag {
     Marquee {
         start: (f32, f32),
         current: (f32, f32),
+        /// Selection at marquee start (empty unless Shift). Recomputed hits union this.
+        kept: Vec<usize>,
     },
     Handle {
         index: usize,

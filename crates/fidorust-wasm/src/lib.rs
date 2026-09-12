@@ -199,6 +199,12 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn begin_marquee(&mut self, sx: f32, sy: f32, shift: bool) {
+        self.skip_draw = false;
+        self.editor.begin_marquee((sx, sy), shift);
+    }
+
+    #[wasm_bindgen]
     pub fn pointer_move(&mut self, sx: f32, sy: f32) {
         let hover0 = self.editor.hover_index();
         let live = self.editor.scene_follows_pointer();

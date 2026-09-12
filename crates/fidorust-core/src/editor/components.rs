@@ -120,8 +120,10 @@ impl Editor {
                 self.rotate_at(pt);
                 return true;
             }
-            Some(Drag::Marquee { .. }) => {
+            Some(Drag::Marquee { kept, .. }) => {
+                let kept = kept.clone();
                 self.drag = None;
+                self.selected = kept;
                 return true;
             }
             Some(Drag::Handle { .. } | Drag::Pan { .. }) => return true,

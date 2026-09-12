@@ -2,8 +2,9 @@ use fidorust_core::parse::{builtin_libraries, parse_document, parse_primitive_li
 use fidorust_core::primitive::STYLE_MIRRORED;
 use fidorust_core::serialize::{serialize_document, serialize_primitive};
 use fidorust_core::{
-    ComponentRef, Connection, DblClickAction, Document, Editor, LayerId, Line, PcbPad, PcbTrack,
-    Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform, COMPONENT_ORIGIN, DEFAULT_FONT,
+    ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PcbPad,
+    PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform, COMPONENT_ORIGIN,
+    DEFAULT_FONT,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -400,6 +401,115 @@ fn accept_nonzero_line() {
     assert_eq!(ed.doc_mut().primitives.len(), 1);
 }
 
+fn click_click(ed: &mut Editor, a: Point, b: Point) {
+    ed.pointer_down(a, (a.x as f32, a.y as f32), false, false);
+    ed.pointer_up(a);
+    ed.pointer_move(b, (b.x as f32, b.y as f32));
+    ed.pointer_down(b, (b.x as f32, b.y as f32), false, false);
+    ed.pointer_up(b);
+}
+
+#[test]
+fn click_click_keeps_draft_after_first_click() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Line);
+    ed.doc_mut().snap = 1;
+    let p = Point::new(10, 10);
+    ed.pointer_down(p, (0.0, 0.0), false, false);
+    ed.pointer_up(p);
+    assert!(ed.doc().primitives.is_empty());
+    assert_eq!(ed.draft_tool(), Some(Tool::Line));
+}
+
+#[test]
+fn click_click_escape_cancels_draft() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Rect);
+    ed.doc_mut().snap = 1;
+    let p = Point::new(4, 4);
+    ed.pointer_down(p, (4.0, 4.0), false, false);
+    ed.pointer_up(p);
+    assert_eq!(ed.draft_tool(), Some(Tool::Rect));
+    ed.cancel_draft();
+    assert!(ed.draft_tool().is_none());
+    assert!(ed.doc().primitives.is_empty());
+}
+
+#[test]
+fn click_click_places_line() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Line);
+    ed.doc_mut().snap = 1;
+    let a = Point::new(10, 10);
+    let b = Point::new(30, 10);
+    click_click(&mut ed, a, b);
+    assert!(ed.draft_tool().is_none());
+    match &ed.doc().primitives[..] {
+        [Primitive::Line(Line { a: pa, b: pb, .. })] => assert_eq!((*pa, *pb), (a, b)),
+        other => panic!("expected one line, got {other:?}"),
+    }
+}
+
+#[test]
+fn click_click_places_rect() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Rect);
+    ed.doc_mut().snap = 1;
+    ed.set_filled(true);
+    let a = Point::new(0, 10);
+    let b = Point::new(10, 20);
+    click_click(&mut ed, a, b);
+    match &ed.doc().primitives[..] {
+        [Primitive::Rect(Rect {
+            a: pa,
+            b: pb,
+            filled,
+            ..
+        })] => {
+            assert_eq!((*pa, *pb), (a, b));
+            assert!(filled);
+        }
+        other => panic!("expected one rect, got {other:?}"),
+    }
+}
+
+#[test]
+fn click_click_places_ellipse() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ellipse);
+    ed.doc_mut().snap = 1;
+    let a = Point::new(20, 0);
+    let b = Point::new(30, 10);
+    click_click(&mut ed, a, b);
+    match &ed.doc().primitives[..] {
+        [Primitive::Ellipse(Ellipse { a: pa, b: pb, .. })] => assert_eq!((*pa, *pb), (a, b)),
+        other => panic!("expected one ellipse, got {other:?}"),
+    }
+}
+
+#[test]
+fn click_click_places_pcb_track() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::PcbTrack);
+    ed.doc_mut().snap = 1;
+    ed.set_track_width(6);
+    let a = Point::new(0, 30);
+    let b = Point::new(20, 30);
+    click_click(&mut ed, a, b);
+    match &ed.doc().primitives[..] {
+        [Primitive::PcbTrack(PcbTrack {
+            a: pa,
+            b: pb,
+            width,
+            ..
+        })] => {
+            assert_eq!((*pa, *pb), (a, b));
+            assert_eq!(*width, 6);
+        }
+        other => panic!("expected one pcb track, got {other:?}"),
+    }
+}
+
 #[test]
 fn marquee_rect_while_dragging() {
     let mut ed = Editor::new(builtin_libraries());
@@ -409,6 +519,81 @@ fn marquee_rect_while_dragging() {
     assert_eq!(ed.marquee_screen_rect(), Some((0.0, 0.0, 40.0, 25.0)));
     ed.pointer_up(Point::new(40, 25));
     assert!(ed.marquee_screen_rect().is_none());
+}
+
+fn marquee_editor() -> Editor {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Select);
+    ed.set_view(1.0, (0.0, 0.0));
+    ed.set_snap_enable(false);
+    ed.doc_mut().insert(Primitive::Connection(Connection {
+        pos: Point::new(20, 20),
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().insert(Primitive::Connection(Connection {
+        pos: Point::new(80, 20),
+        layer: LayerId(0),
+    }));
+    ed
+}
+
+#[test]
+fn marquee_selects_live_during_drag() {
+    let mut ed = marquee_editor();
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    assert!(ed.selected().is_empty());
+    ed.pointer_move(Point::new(30, 30), (30.0, 30.0));
+    assert_eq!(ed.selected(), [0].as_slice());
+    assert!(ed.marquee_screen_rect().is_some());
+    ed.pointer_up(Point::new(30, 30));
+    assert_eq!(ed.selected(), [0].as_slice());
+    assert!(ed.marquee_screen_rect().is_none());
+}
+
+#[test]
+fn marquee_shrink_deselects() {
+    let mut ed = marquee_editor();
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_move(Point::new(100, 40), (100.0, 40.0));
+    assert_eq!(ed.selected(), [0, 1].as_slice());
+    ed.pointer_move(Point::new(30, 30), (30.0, 30.0));
+    assert_eq!(ed.selected(), [0].as_slice());
+}
+
+#[test]
+fn marquee_shift_keeps_prior_selection() {
+    let mut ed = marquee_editor();
+    ed.set_selected(vec![0]);
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), true, false);
+    ed.pointer_move(Point::new(100, 40), (100.0, 40.0));
+    assert_eq!(ed.selected(), [0, 1].as_slice());
+    ed.pointer_move(Point::new(0, 0), (0.0, 0.0));
+    assert_eq!(ed.selected(), [0].as_slice());
+}
+
+#[test]
+fn right_click_cancels_marquee_and_restores_kept() {
+    let mut ed = marquee_editor();
+    ed.set_selected(vec![0]);
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), true, false);
+    ed.pointer_move(Point::new(100, 40), (100.0, 40.0));
+    assert_eq!(ed.selected(), [0, 1].as_slice());
+    assert!(ed.right_click(Point::new(50, 20)));
+    assert_eq!(ed.selected(), [0].as_slice());
+    assert!(ed.marquee_screen_rect().is_none());
+}
+
+#[test]
+fn begin_marquee_starts_on_occupied_point() {
+    let mut ed = marquee_editor();
+    ed.pointer_down(Point::new(20, 20), (20.0, 20.0), false, false);
+    assert!(ed.marquee_screen_rect().is_none());
+    assert_eq!(ed.selected(), [0].as_slice());
+    ed.pointer_up(Point::new(20, 20));
+
+    ed.set_selected(Vec::new());
+    ed.begin_marquee((20.0, 20.0), false);
+    assert_eq!(ed.marquee_screen_rect(), Some((20.0, 20.0, 20.0, 20.0)));
 }
 
 #[test]

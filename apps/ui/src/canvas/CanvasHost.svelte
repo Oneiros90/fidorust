@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import { canvasLocal, dpr } from '../lib/canvasCoords';
+	import { DRAG_THRESHOLD_PX } from '../lib/constants';
 	import {
 		dblClickOpensProperties,
 		parseEdit,
@@ -18,6 +19,20 @@
 	let space = $state(false);
 	let panning = $state(false);
 	let textEdit = $state.raw<TextEdit | null>(null);
+
+	type RightGesture =
+		| {
+				kind: 'pending';
+				startX: number;
+				startY: number;
+				clientX: number;
+				clientY: number;
+				shift: boolean;
+		  }
+		| { kind: 'marquee'; x: number; y: number; clientX: number; clientY: number };
+
+	let rightGesture: RightGesture | null = null;
+	let skipNextContextMenu = false;
 
 	const canvasCursor = $derived(
 		panning
@@ -130,13 +145,59 @@
 		engine.mutate(() => {});
 	}
 
+	function commitRightMarquee(sx: number, sy: number, clientX: number, clientY: number) {
+		if (!engine) return;
+		rightGesture = null;
+		engine.mutate(
+			(wasm) => {
+				wasm.pointer_up(sx, sy);
+			},
+			{ refreshFirst: true }
+		);
+		app.openContextMenu(clientX, clientY);
+	}
+
+	function abortRightGesture() {
+		if (rightGesture?.kind === 'marquee' && engine) {
+			const { x, y } = rightGesture;
+			engine.mutate(
+				(wasm) => {
+					wasm.pointer_up(x, y);
+				},
+				{ refreshFirst: true }
+			);
+		}
+		rightGesture = null;
+	}
+
 	function down(e: PointerEvent) {
 		if (e.button === 2) {
 			e.preventDefault();
+			if (!engine || !canvas || textEdit) return;
+			if ((e.buttons & 1) !== 0) return;
+			const p = local(e);
+			rightGesture = {
+				kind: 'pending',
+				startX: p.x,
+				startY: p.y,
+				clientX: e.clientX,
+				clientY: e.clientY,
+				shift: e.shiftKey
+			};
+			skipNextContextMenu = false;
+			try {
+				canvas.setPointerCapture(e.pointerId);
+			} catch {
+				/* no active pointer (synthetic events) or already captured */
+			}
 			return;
 		}
 		if (!engine || !canvas || textEdit) return;
-		canvas.setPointerCapture(e.pointerId);
+		try {
+			canvas.setPointerCapture(e.pointerId);
+		} catch {
+			/* no active pointer (synthetic events) or already captured */
+		}
 		if (space || e.button === 1 || app.status.tool === 'pan') panning = true;
 		const p = local(e);
 		engine.mutate(
@@ -158,6 +219,40 @@
 			tryStamp();
 		}
 		const p = local(e);
+		if (rightGesture?.kind === 'pending' && (e.buttons & 2) !== 0) {
+			const dx = e.clientX - rightGesture.clientX;
+			const dy = e.clientY - rightGesture.clientY;
+			if (dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+				if (app.status.tool === 'select') {
+					const g = rightGesture;
+					engine.mutate(
+						(wasm) => {
+							wasm.begin_marquee(g.startX, g.startY, g.shift);
+							wasm.set_move_duplicate(copyMod(e));
+							wasm.pointer_move(p.x, p.y);
+						},
+						{ refreshFirst: true }
+					);
+					rightGesture = {
+						kind: 'marquee',
+						x: p.x,
+						y: p.y,
+						clientX: e.clientX,
+						clientY: e.clientY
+					};
+					return;
+				}
+			}
+		}
+		if (rightGesture?.kind === 'marquee') {
+			rightGesture = {
+				kind: 'marquee',
+				x: p.x,
+				y: p.y,
+				clientX: e.clientX,
+				clientY: e.clientY
+			};
+		}
 		engine.mutate(
 			(wasm) => {
 				wasm.set_move_duplicate(copyMod(e));
@@ -178,7 +273,15 @@
 	}
 
 	function up(e: PointerEvent) {
-		if (e.button === 2 || !engine || textEdit) return;
+		if (e.button === 2) {
+			if (rightGesture?.kind === 'marquee') {
+				const p = local(e);
+				commitRightMarquee(p.x, p.y, e.clientX, e.clientY);
+				skipNextContextMenu = true;
+			}
+			return;
+		}
+		if (!engine || textEdit) return;
 		if (e.button === 1) {
 			e.preventDefault();
 			if (!panning) return;
@@ -220,6 +323,16 @@
 	function onCtx(e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
+		if (skipNextContextMenu) {
+			skipNextContextMenu = false;
+			return;
+		}
+		if (rightGesture?.kind === 'marquee') {
+			const p = local(e);
+			commitRightMarquee(p.x, p.y, e.clientX, e.clientY);
+			return;
+		}
+		rightGesture = null;
 		if (!engine || textEdit) return;
 		const p = local(e);
 		if (engine.query((wasm) => wasm.pointer_right(p.x, p.y))) {
@@ -287,7 +400,10 @@
 		onpointermove={move}
 		onpointerup={up}
 		onpointerleave={leave}
-		onpointercancel={() => (panning = false)}
+		onpointercancel={() => {
+			panning = false;
+			abortRightGesture();
+		}}
 		onmousedown={onMiddleDown}
 		onauxclick={(e) => {
 			if (e.button === 1) e.preventDefault();

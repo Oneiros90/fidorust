@@ -344,10 +344,50 @@ impl Editor {
 
     pub fn marquee_screen_rect(&self) -> Option<(f32, f32, f32, f32)> {
         match &self.drag {
-            Some(Drag::Marquee { start, current }) => {
+            Some(Drag::Marquee { start, current, .. }) => {
                 Some((start.0, start.1, current.0, current.1))
             }
             _ => None,
+        }
+    }
+
+    /// Start a selection marquee at `screen`, even if a primitive is under the cursor.
+    /// Used by right-drag; left-click empty space shares the same path.
+    pub fn begin_marquee(&mut self, screen: (f32, f32), shift: bool) {
+        if self.tool != Tool::Select {
+            return;
+        }
+        if !shift {
+            self.selected.clear();
+        }
+        let kept = self.selected.clone();
+        self.drag = Some(Drag::Marquee {
+            start: screen,
+            current: screen,
+            kept,
+        });
+        self.apply_marquee_hits();
+    }
+
+    fn apply_marquee_hits(&mut self) {
+        let Some(Drag::Marquee {
+            start,
+            current,
+            kept,
+        }) = &self.drag
+        else {
+            return;
+        };
+        let (start, current, kept) = (*start, *current, kept.clone());
+        let a = self.screen_to_world(start.0, start.1);
+        let b = self.screen_to_world(current.0, current.1);
+        let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
+        self.selected.clear();
+        self.selected.extend(kept);
+        for i in extra {
+            if !self.selected.contains(&i) {
+                self.selected.push(i);
+            }
         }
     }
 
@@ -417,13 +457,7 @@ impl Editor {
                         });
                     }
                 } else {
-                    if !shift {
-                        self.selected.clear();
-                    }
-                    self.drag = Some(Drag::Marquee {
-                        start: screen,
-                        current: screen,
-                    });
+                    self.begin_marquee(screen, shift);
                 }
             }
             Tool::Connection => {
@@ -464,22 +498,12 @@ impl Editor {
             Tool::Zoom => {
                 self.zoom = (self.zoom * ZOOM_TOOL_FACTOR).min(ZOOM_MAX_WHEEL);
             }
-            Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack => {
-                self.draft = Some(Draft {
-                    tool: self.tool,
-                    points: vec![pt],
-                });
-            }
-            Tool::Ruler => {
+            Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack | Tool::Ruler => {
                 if let Some(d) = self.draft.as_mut() {
-                    if d.points.len() < 2 {
-                        d.points.push(pt);
-                    } else {
-                        d.points[1] = pt;
-                    }
+                    Self::set_draft_endpoint(d, pt);
                 } else {
                     self.draft = Some(Draft {
-                        tool: Tool::Ruler,
+                        tool: self.tool,
                         points: vec![pt],
                     });
                 }
@@ -509,15 +533,8 @@ impl Editor {
             self.refresh_hover_hit(hx, hy);
         }
         if let Some(d) = &mut self.draft {
-            if matches!(
-                d.tool,
-                Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack | Tool::Ruler
-            ) {
-                if d.points.len() < 2 {
-                    d.points.push(pt);
-                } else {
-                    d.points[1] = pt;
-                }
+            if d.tool.is_two_point_draw() || d.tool == Tool::Ruler {
+                Self::set_draft_endpoint(d, pt);
             } else if matches!(d.tool, Tool::Poly | Tool::Bezier) {
                 match d.points.len() {
                     0 | 1 => d.points.push(pt),
@@ -556,6 +573,7 @@ impl Editor {
                 if let Some(Drag::Marquee { current, .. }) = &mut self.drag {
                     *current = screen;
                 }
+                self.apply_marquee_hits();
             }
             None => {}
         }
@@ -567,17 +585,12 @@ impl Editor {
 
     pub fn pointer_up_at(&mut self, hx: f64, hy: f64, world: Point) {
         let pt = self.snap_pt(world);
+        if matches!(&self.drag, Some(Drag::Marquee { .. })) {
+            self.apply_marquee_hits();
+        }
         match self.drag.take() {
-            Some(Drag::Marquee { start, current }) => {
+            Some(Drag::Marquee { .. }) => {
                 self.drag_checkpoint = None;
-                let a = self.screen_to_world(start.0, start.1);
-                let b = self.screen_to_world(current.0, current.1);
-                let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
-                for i in extra {
-                    if !self.selected.contains(&i) {
-                        self.selected.push(i);
-                    }
-                }
                 self.refresh_hover_hit(hx, hy);
                 return;
             }
@@ -596,83 +609,104 @@ impl Editor {
         }
         self.commit_drag_checkpoint();
         if let Some(d) = self.draft.take() {
-            match d.tool {
-                Tool::Line if d.points.len() >= 2 && d.points[0] != d.points[1] => {
-                    self.push_undo();
-                    self.doc.insert(Primitive::Line(Line {
-                        a: d.points[0],
-                        b: d.points[1],
-                        layer: self.layer,
-                    }));
-                }
-                Tool::Rect if d.points.len() >= 2 && d.points[0] != d.points[1] => {
-                    self.push_undo();
-                    self.doc.insert(Primitive::Rect(Rect {
-                        a: d.points[0],
-                        b: d.points[1],
-                        filled: self.doc.default_filled,
-                        layer: self.layer,
-                    }));
-                }
-                Tool::Ellipse if d.points.len() >= 2 && d.points[0] != d.points[1] => {
-                    self.push_undo();
-                    self.doc.insert(Primitive::Ellipse(Ellipse {
-                        a: d.points[0],
-                        b: d.points[1],
-                        filled: self.doc.default_filled,
-                        layer: self.layer,
-                    }));
-                }
-                Tool::PcbTrack if d.points.len() >= 2 && d.points[0] != d.points[1] => {
-                    self.push_undo();
-                    self.doc.insert(Primitive::PcbTrack(PcbTrack {
-                        a: d.points[0],
-                        b: d.points[1],
-                        width: self.track_width,
-                        layer: self.layer,
-                    }));
-                }
-                Tool::Ruler => {
-                    if d.points.len() >= 2 && d.points[0] != d.points[1] {
-                        self.ruler_segments.push((d.points[0], d.points[1]));
-                    } else {
-                        self.draft = Some(d);
-                    }
-                }
-                Tool::Poly => {
-                    let mut pts = d.points;
-                    pts.push(pt);
-                    if pts.len() >= 2 {
+            if d.tool.is_two_point_draw() {
+                if !self.commit_two_point_draft(&d) {
+                    if let Some(&start) = d.points.first() {
                         self.draft = Some(Draft {
-                            tool: Tool::Poly,
-                            points: pts,
+                            tool: d.tool,
+                            points: vec![start],
                         });
                     }
                 }
-                Tool::Bezier => {
-                    let mut pts = d.points;
-                    pts.push(pt);
-                    let ready = pts.len() >= 4;
-                    self.draft = Some(Draft {
-                        tool: Tool::Bezier,
-                        points: pts.clone(),
-                    });
-                    if ready {
-                        self.push_undo();
-                        self.doc.insert(Primitive::Bezier(Bezier {
-                            p0: pts[0],
-                            p1: pts[1],
-                            p2: pts[2],
-                            p3: pts[3],
-                            layer: self.layer,
-                        }));
-                        self.draft = None;
+            } else {
+                match d.tool {
+                    Tool::Ruler => {
+                        if d.points.len() >= 2 && d.points[0] != d.points[1] {
+                            self.ruler_segments.push((d.points[0], d.points[1]));
+                        } else {
+                            self.draft = Some(d);
+                        }
                     }
+                    Tool::Poly => {
+                        let mut pts = d.points;
+                        pts.push(pt);
+                        if pts.len() >= 2 {
+                            self.draft = Some(Draft {
+                                tool: Tool::Poly,
+                                points: pts,
+                            });
+                        }
+                    }
+                    Tool::Bezier => {
+                        let mut pts = d.points;
+                        pts.push(pt);
+                        let ready = pts.len() >= 4;
+                        self.draft = Some(Draft {
+                            tool: Tool::Bezier,
+                            points: pts.clone(),
+                        });
+                        if ready {
+                            self.push_undo();
+                            self.doc.insert(Primitive::Bezier(Bezier {
+                                p0: pts[0],
+                                p1: pts[1],
+                                p2: pts[2],
+                                p3: pts[3],
+                                layer: self.layer,
+                            }));
+                            self.draft = None;
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
         self.refresh_hover_hit(hx, hy);
+    }
+
+    fn set_draft_endpoint(d: &mut Draft, pt: Point) {
+        if d.points.len() < 2 {
+            d.points.push(pt);
+        } else {
+            d.points[1] = pt;
+        }
+    }
+
+    fn commit_two_point_draft(&mut self, d: &Draft) -> bool {
+        if d.points.len() < 2 || d.points[0] == d.points[1] {
+            return false;
+        }
+        let a = d.points[0];
+        let b = d.points[1];
+        let prim = match d.tool {
+            Tool::Line => Primitive::Line(Line {
+                a,
+                b,
+                layer: self.layer,
+            }),
+            Tool::Rect => Primitive::Rect(Rect {
+                a,
+                b,
+                filled: self.doc.default_filled,
+                layer: self.layer,
+            }),
+            Tool::Ellipse => Primitive::Ellipse(Ellipse {
+                a,
+                b,
+                filled: self.doc.default_filled,
+                layer: self.layer,
+            }),
+            Tool::PcbTrack => Primitive::PcbTrack(PcbTrack {
+                a,
+                b,
+                width: self.track_width,
+                layer: self.layer,
+            }),
+            _ => return false,
+        };
+        self.push_undo();
+        self.doc.insert(prim);
+        true
     }
 
     pub fn finish_poly(&mut self) {
