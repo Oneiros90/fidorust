@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { getAppSession } from '../app/appContext';
+	import { attachAnchoredMenu } from './clampMenu';
 	import { setCloseMenu } from './menuContext';
 
 	let {
@@ -16,14 +17,16 @@
 	const app = getAppSession();
 	const open = $derived(app.menu === id);
 	setCloseMenu(() => app.closeMenu());
+
+	const clampDropdown = attachAnchoredMenu(() => 'below');
 </script>
 
 <div class="menu">
-	<button type="button" class="menu-btn" onclick={() => app.toggleMenu(id)} aria-expanded={open}
-		>{label}</button
-	>
+	<button type="button" class="menu-btn" onclick={() => app.toggleMenu(id)} aria-expanded={open}>
+		{label}
+	</button>
 	{#if open}
-		<div class="dropdown">{@render children()}</div>
+		<div class="dropdown" {@attach clampDropdown}>{@render children()}</div>
 	{/if}
 </div>
 
@@ -37,10 +40,11 @@
 		padding: 6px 10px;
 	}
 	.dropdown {
-		position: absolute;
-		top: 100%;
+		visibility: hidden;
+		position: fixed;
 		left: 0;
-		min-width: 260px;
+		top: 0;
+		min-width: min(260px, calc(100vw - 16px));
 		background: var(--bg-menu);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
@@ -49,6 +53,6 @@
 		display: flex;
 		flex-direction: column;
 		z-index: var(--z-dropdown);
-		overflow: visible;
+		overscroll-behavior: contain;
 	}
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { attachAnchoredMenu, type MenuAnchorSide } from './clampMenu';
 
 	let {
 		label,
@@ -8,10 +9,12 @@
 		children
 	}: {
 		label: string;
-		side?: 'left' | 'right';
+		side?: Exclude<MenuAnchorSide, 'below'>;
 		disabled?: boolean;
 		children: Snippet;
 	} = $props();
+
+	const clampFlyout = attachAnchoredMenu(() => side);
 </script>
 
 <div class={['sub', { disabled }]}>
@@ -19,7 +22,7 @@
 		{label}<span class="acc">›</span>
 	</button>
 	{#if !disabled}
-		<div class={['flyout', { left: side === 'left' }]}>{@render children()}</div>
+		<div class="flyout" {@attach clampFlyout}>{@render children()}</div>
 	{/if}
 </div>
 
@@ -56,10 +59,11 @@
 	}
 	.flyout {
 		display: none;
-		position: absolute;
-		left: 100%;
+		visibility: hidden;
+		position: fixed;
+		left: 0;
 		top: 0;
-		min-width: 220px;
+		min-width: min(220px, calc(100vw - 16px));
 		background: var(--bg-menu);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
@@ -67,21 +71,20 @@
 		padding: 6px;
 		flex-direction: column;
 		z-index: var(--z-flyout);
+		overscroll-behavior: contain;
 	}
-	.flyout::before {
+	.flyout::before,
+	.flyout::after {
 		content: '';
 		position: absolute;
-		left: -8px;
 		top: 0;
 		bottom: 0;
 		width: 8px;
 	}
-	.flyout.left {
-		left: auto;
-		right: 100%;
+	.flyout::before {
+		left: -8px;
 	}
-	.flyout.left::before {
-		left: auto;
+	.flyout::after {
 		right: -8px;
 	}
 	.sub:hover > .flyout,

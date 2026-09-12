@@ -2,7 +2,9 @@
 	import type { Snippet } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import Scrim from '../chrome/Scrim.svelte';
+	import { clampMenuOrigin } from './clampMenu';
 	import { setCloseMenu } from './menuContext';
+	import { innerHeight, innerWidth } from 'svelte/reactivity/window';
 
 	let {
 		x,
@@ -21,16 +23,10 @@
 	let width = $state(0);
 	let height = $state(0);
 
-	const pad = 8;
-	let left = $derived.by(() => {
-		const maxW = window.innerWidth - pad * 2;
-		const w = Math.min(width, maxW);
-		return Math.min(Math.max(pad, x), window.innerWidth - w - pad);
-	});
-	let top = $derived.by(() => {
-		const maxH = window.innerHeight - pad * 2;
-		const h = Math.min(height, maxH);
-		return Math.min(Math.max(pad, y), window.innerHeight - h - pad);
+	let box = $derived.by(() => {
+		void innerWidth.current;
+		void innerHeight.current;
+		return clampMenuOrigin(x, y, width, height);
 	});
 </script>
 
@@ -39,8 +35,10 @@
 	class="ctx"
 	bind:offsetWidth={width}
 	bind:offsetHeight={height}
-	style:left="{left}px"
-	style:top="{top}px"
+	style:left="{box.left}px"
+	style:top="{box.top}px"
+	style:max-width="{box.maxW}px"
+	style:max-height="{box.maxH}px"
 	role="menu"
 >
 	{@render children()}
@@ -50,13 +48,14 @@
 	.ctx {
 		position: fixed;
 		z-index: calc(var(--z-context) + 1);
-		min-width: 260px;
 		background: var(--bg-menu);
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		box-shadow: var(--shadow);
+		min-width: min(260px, calc(100vw - 16px));
 		padding: 6px;
 		display: flex;
 		flex-direction: column;
+		overflow: visible;
 	}
 </style>
