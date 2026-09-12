@@ -28,6 +28,7 @@ export type PdfExportOpts = {
 	page?: PdfPage;
 	landscape?: boolean;
 	scale?: number;
+	background?: Rgba | null;
 };
 
 export type PdfLayout = {
@@ -253,22 +254,27 @@ function emitPdfText(
 	parts.push('ET');
 }
 
-function svgToContentStream(svg: string, layout: PdfLayout): { content: string; alphas: number[] } {
+function svgToContentStream(
+	svg: string,
+	layout: PdfLayout,
+	background: Rgba | null | undefined
+): { content: string; alphas: number[] } {
 	const box = parseSvgViewBox(svg);
 	const { pageW, pageH, scale, ox, oy } = layout;
 	const px = (x: number) => ox + (x - box.x) * scale;
 	const py = (y: number) => pageH - (oy + (y - box.y) * scale);
 	const prims = parseSvgPrims(svg);
-	const parts: string[] = [
-		'1 1 1 rg',
-		`0 0 ${n(pageW)} ${n(pageH)} re`,
-		'f',
-		'1 J',
-		'1 j',
-		gs(255)
-	];
+	const parts: string[] = [];
+	if (background && background[3] > 0) {
+		parts.push(gs(background[3]));
+		parts.push(`${rgb(background[0], background[1], background[2])} rg`);
+		parts.push(`0 0 ${n(pageW)} ${n(pageH)} re`);
+		parts.push('f');
+	}
+	parts.push('1 J', '1 j', gs(255));
 	for (const prim of prims) emitPrim(prim, parts, px, py, scale);
 	const alphas = new Set<number>([255]);
+	if (background) alphas.add(background[3]);
 	for (const prim of prims) alphas.add(primAlpha(prim));
 	return { content: parts.join('\n') + '\n', alphas: [...alphas] };
 }
@@ -316,7 +322,7 @@ function wrapPdf(pageW: number, pageH: number, content: Uint8Array, alphas: numb
 
 export function svgToPdfBlob(svg: string, opts: PdfExportOpts = {}): Blob {
 	const layout = pdfLayout(svg, opts);
-	const { content, alphas } = svgToContentStream(svg, layout);
+	const { content, alphas } = svgToContentStream(svg, layout, opts.background ?? null);
 	const bytes = new TextEncoder().encode(content);
 	const pdf = wrapPdf(layout.pageW, layout.pageH, bytes, alphas);
 	const copy = new Uint8Array(pdf.byteLength);

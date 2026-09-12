@@ -4,13 +4,15 @@
 	import LayerColorInput from './LayerColorInput.svelte';
 
 	let {
-		index,
+		index = 0,
 		color,
-		label
+		label,
+		onChange
 	}: {
-		index: number;
+		index?: number;
 		color: number[];
 		label: string;
+		onChange?: (color: [number, number, number, number]) => void;
 	} = $props();
 
 	const app = getAppSession();
@@ -30,7 +32,7 @@
 
 	function setOpen(open: boolean) {
 		isOpen = open;
-		if (open) app.setLayer(index);
+		if (open && !onChange) app.setLayer(index);
 	}
 
 	$effect.pre(() => {
@@ -61,7 +63,8 @@
 		) {
 			return;
 		}
-		app.setLayerColor(index, r, g, b, a);
+		if (onChange) onChange([r, g, b, a]);
+		else app.setLayerColor(index, r, g, b, a);
 	}
 
 	let texts = $derived({
@@ -104,12 +107,12 @@
 	.picker {
 		flex-shrink: 0;
 		display: flex;
-		--input-size: 22px;
+		--input-size: var(--cp-input-size, 22px);
 		--picker-width: 228px;
 		--picker-height: 128px;
 		--slider-width: 12px;
 		--picker-indicator-size: 10px;
-		--picker-z-index: var(--z-flyout);
+		--picker-z-index: var(--cp-z, var(--z-flyout));
 		--focus-color: var(--accent);
 		--cp-bg-color: var(--bg-menu);
 		--cp-border-color: var(--border);
@@ -153,6 +156,7 @@
 		--picker-height: 128px;
 		--text-input-margin: 6px 8px 8px;
 		overflow: hidden;
+		z-index: var(--picker-z-index);
 	}
 	.picker :global(.h),
 	.picker :global(.a) {

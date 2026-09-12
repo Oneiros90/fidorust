@@ -1,4 +1,5 @@
 import { MM_PER_LU, PNG_PPI_PRESETS } from './constants';
+import { copyRgba } from './color';
 import type { Layer } from '../app/engineTypes';
 
 export function luToCm(lu: number): number {
@@ -15,11 +16,12 @@ export function formatCm(wCm: number, hCm: number): string {
 
 export type ExportFormat = 'svg' | 'png' | 'pdf' | 'emf' | 'print';
 
-export type ExportLayerOpt = { show: boolean; invert: boolean };
+export type ExportLayerOpt = { show: boolean; color: [number, number, number, number] };
 
 export type PdfPage = 'drawing' | 'a4' | 'letter';
 export type PrintPage = 'drawing' | 'a4' | 'letter';
 export type PrintScale = 'fit' | '1:1';
+export type ExportRotate = 0 | 90 | 180 | 270;
 
 export type ExportPreviewOpts = {
 	format: ExportFormat;
@@ -28,7 +30,11 @@ export type ExportPreviewOpts = {
 	layers: ExportLayerOpt[];
 	ppi: number;
 	antiAlias: boolean;
-	whiteBg: boolean;
+	bgEnabled: boolean;
+	bgColor: [number, number, number, number];
+	flipH: boolean;
+	flipV: boolean;
+	rotate: ExportRotate;
 	scale: number;
 	pdfPage: PdfPage;
 	pdfLandscape: boolean;
@@ -44,10 +50,14 @@ export function defaultExportOpts(format: ExportFormat, layers: Layer[]): Export
 		format,
 		marginMm: 2,
 		bw: false,
-		layers: layers.map((l) => ({ show: l.show, invert: false })),
-		ppi: 300,
+		layers: layers.map((l) => ({ show: l.show, color: copyRgba(l.color) })),
+		ppi: 1200,
 		antiAlias: true,
-		whiteBg: format === 'png' || format === 'pdf' || format === 'print',
+		bgEnabled: format === 'png' || format === 'pdf' || format === 'print',
+		bgColor: [255, 255, 255, 255],
+		flipH: false,
+		flipV: false,
+		rotate: 0,
 		scale: 1,
 		pdfPage: 'drawing',
 		pdfLandscape: false,
@@ -63,8 +73,12 @@ export function wasmExportJson(opts: ExportPreviewOpts): string {
 	return JSON.stringify({
 		margin_lu: opts.marginMm / MM_PER_LU,
 		bw: opts.bw,
-		layers: opts.layers
+		layers: opts.layers.map((l) => ({ show: l.show, color: copyRgba(l.color) }))
 	});
+}
+
+export function exportBackground(opts: ExportPreviewOpts): [number, number, number, number] | null {
+	return opts.bgEnabled ? copyRgba(opts.bgColor) : null;
 }
 
 export const ppiChoices = PNG_PPI_PRESETS;

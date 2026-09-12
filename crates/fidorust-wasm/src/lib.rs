@@ -150,7 +150,7 @@ impl App {
         }
     }
 
-    /// `opts_json` is `{ margin_lu, bw, layers: [{ show, invert }] }`. Empty / invalid JSON uses document layers.
+    /// `opts_json` is `{ margin_lu, bw, layers: [{ show, color }] }`. Empty / invalid JSON uses document layers.
     #[wasm_bindgen]
     pub fn export_svg(&self, opts_json: &str) -> String {
         let opts: ExportSvgOpts = serde_json::from_str(opts_json).unwrap_or_default();
@@ -170,7 +170,10 @@ impl App {
                 layers.update(i, |info| {
                     info.show = overlay.show;
                     if opts.bw {
-                        info.color = [0, 0, 0, info.color[3]];
+                        let a = overlay.color.map(|c| c[3]).unwrap_or(info.color[3]);
+                        info.color = [0, 0, 0, a];
+                    } else if let Some(c) = overlay.color {
+                        info.color = c;
                     } else if overlay.invert {
                         info.color = [
                             255 - info.color[0],

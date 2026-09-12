@@ -2,6 +2,35 @@ export type SvgBox = { x: number; y: number; w: number; h: number };
 
 export type Rgba = [number, number, number, number];
 
+export type SvgMatrix = [number, number, number, number, number, number];
+
+export function identitySvgMatrix(): SvgMatrix {
+	return [1, 0, 0, 1, 0, 0];
+}
+
+export function mulSvgMatrix(a: SvgMatrix, b: SvgMatrix): SvgMatrix {
+	return [
+		a[0] * b[0] + a[2] * b[1],
+		a[1] * b[0] + a[3] * b[1],
+		a[0] * b[2] + a[2] * b[3],
+		a[1] * b[2] + a[3] * b[3],
+		a[0] * b[4] + a[2] * b[5] + a[4],
+		a[1] * b[4] + a[3] * b[5] + a[5]
+	];
+}
+
+export function applySvgMatrix(m: SvgMatrix, x: number, y: number): [number, number] {
+	return [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+}
+
+export function parseExportMatrix(svg: string): SvgMatrix | null {
+	const found = svg.match(/<g data-export-xform="1" transform="matrix\(([^)]+)\)">/);
+	if (!found) return null;
+	const n = found[1].split(/[\s,]+/).map(Number);
+	if (n.length !== 6 || n.some((v) => !Number.isFinite(v))) return null;
+	return n as SvgMatrix;
+}
+
 export type SvgPrim =
 	| {
 			kind: 'polygon';
@@ -204,6 +233,7 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			continue;
 		}
 		if (name === 'rect') {
+			if (/\bclass="export-bg"/.test(tag)) continue;
 			const x = Number(attr(tag, 'x'));
 			const y = Number(attr(tag, 'y'));
 			const w = Number(attr(tag, 'width'));
@@ -310,7 +340,89 @@ export function parseSvgPrims(svg: string): SvgPrim[] {
 			textLength: Number.isFinite(textLength) ? textLength : 0
 		});
 	}
-	return out;
+	const xform = parseExportMatrix(svg);
+	return xform ? out.map((prim) => transformPrim(prim, xform)) : out;
+}
+
+function applyLin(m: SvgMatrix, x: number, y: number): [number, number] {
+	return [m[0] * x + m[2] * y, m[1] * x + m[3] * y];
+}
+
+function transformPrim(prim: SvgPrim, m: SvgMatrix): SvgPrim {
+	const pt = (x: number, y: number) => applySvgMatrix(m, x, y);
+	if (prim.kind === 'polygon') {
+		return { ...prim, pts: prim.pts.map(([x, y]) => pt(x, y)) };
+	}
+	if (prim.kind === 'line') {
+		const [x1, y1] = pt(prim.x1, prim.y1);
+		const [x2, y2] = pt(prim.x2, prim.y2);
+		return { ...prim, x1, y1, x2, y2 };
+	}
+	if (prim.kind === 'bezier') {
+		const [x0, y0] = pt(prim.x0, prim.y0);
+		const [x1, y1] = pt(prim.x1, prim.y1);
+		const [x2, y2] = pt(prim.x2, prim.y2);
+		const [x3, y3] = pt(prim.x3, prim.y3);
+		return { ...prim, x0, y0, x1, y1, x2, y2, x3, y3 };
+	}
+	if (prim.kind === 'ellipse') {
+		const [cx, cy] = pt(prim.cx, prim.cy);
+		const [hx0, hy0] = applyLin(m, prim.rx, 0);
+		const [hx1, hy1] = applyLin(m, 0, prim.ry);
+		return {
+			...prim,
+			cx,
+			cy,
+			rx: Math.hypot(hx0, hx1),
+			ry: Math.hypot(hy0, hy1)
+		};
+	}
+	if (prim.kind === 'rect') {
+		const corners = [
+			pt(prim.x, prim.y),
+			pt(prim.x + prim.w, prim.y),
+			pt(prim.x + prim.w, prim.y + prim.h),
+			pt(prim.x, prim.y + prim.h)
+		];
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const [x, y] of corners) {
+			minX = Math.min(minX, x);
+			minY = Math.min(minY, y);
+			maxX = Math.max(maxX, x);
+			maxY = Math.max(maxY, y);
+		}
+		const [hx0, hy0] = applyLin(m, prim.rx, 0);
+		const [hx1, hy1] = applyLin(m, 0, prim.ry);
+		return {
+			...prim,
+			x: minX,
+			y: minY,
+			w: maxX - minX,
+			h: maxY - minY,
+			rx: Math.hypot(hx0, hx1),
+			ry: Math.hypot(hy0, hy1)
+		};
+	}
+	if (prim.kind === 'hole') {
+		const [cx, cy] = pt(prim.cx, prim.cy);
+		const [hx0, hy0] = applyLin(m, prim.r, 0);
+		const [hx1, hy1] = applyLin(m, 0, prim.r);
+		return { ...prim, cx, cy, r: Math.max(Math.hypot(hx0, hx1), Math.hypot(hy0, hy1)) };
+	}
+	const [x, y] = pt(prim.x, prim.y);
+	const rad = (prim.angle * Math.PI) / 180;
+	const [dx, dy] = applyLin(m, Math.cos(rad), Math.sin(rad));
+	const det = m[0] * m[3] - m[1] * m[2];
+	return {
+		...prim,
+		x,
+		y,
+		angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+		mirrored: det < 0 ? !prim.mirrored : prim.mirrored
+	};
 }
 
 function pushEllipse(out: SvgPrim[], tag: string) {

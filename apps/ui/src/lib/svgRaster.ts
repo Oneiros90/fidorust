@@ -3,7 +3,6 @@ import { parseSvgViewBox, withSvgPixelSize } from './svgGeom';
 
 export type RasterOpts = {
 	ppi: number;
-	whiteBg: boolean;
 	antiAlias: boolean;
 };
 
@@ -45,10 +44,6 @@ export function rasterizeSvg(svg: string, opts: RasterOpts): Promise<HTMLCanvasE
 			}
 			ctx.imageSmoothingEnabled = opts.antiAlias;
 			if (opts.antiAlias) ctx.imageSmoothingQuality = 'high';
-			if (opts.whiteBg) {
-				ctx.fillStyle = '#ffffff';
-				ctx.fillRect(0, 0, w, h);
-			}
 			ctx.drawImage(img, 0, 0, w, h);
 			resolve(canvas);
 		};

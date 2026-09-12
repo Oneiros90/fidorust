@@ -173,4 +173,6 @@ pub struct ExportLayerOpt {
     pub show: bool,
     #[serde(default)]
     pub invert: bool,
+    #[serde(default)]
+    pub color: Option<[u8; 4]>,
 }

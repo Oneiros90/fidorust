@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
 	import { queryExportSvg } from '../app/fileOps';
-	import { rgbaCss } from '../lib/color';
+	import { copyRgba } from '../lib/color';
 	import { parseSvgElement } from '../lib/attachSvg';
 	import {
 		defaultExportOpts,
+		exportBackground,
 		formatCm,
 		luToCm,
 		ppiChoices,
@@ -12,11 +13,19 @@
 		type ExportFormat,
 		type ExportPreviewOpts
 	} from '../lib/exportOptions';
+	import {
+		currentFlipH,
+		currentFlipV,
+		rotateExport90,
+		toggleExportFlipH,
+		toggleExportFlipV
+	} from '../lib/exportLayout';
 	import { pngPixelSize, rasterizeSvg } from '../lib/svgRaster';
 	import { pdfLayout, svgToPdfBlob } from '../lib/svgPdf';
 	import { A4_PT, LETTER_PT, PNG_PPI_MAX, PNG_PPI_MIN } from '../lib/constants';
 	import { parseSvgViewBox } from '../lib/svgGeom';
 	import { displayLayerName } from '../app/layerOps';
+	import LayerColorPicker from '../layers/LayerColorPicker.svelte';
 	import Modal from './Modal.svelte';
 	import { untrack } from 'svelte';
 
@@ -44,9 +53,20 @@
 	const svg = $derived.by(() => {
 		void opts.marginMm;
 		void opts.bw;
+		void opts.flipH;
+		void opts.flipV;
+		void opts.rotate;
+		void opts.bgEnabled;
+		void opts.bgColor[0];
+		void opts.bgColor[1];
+		void opts.bgColor[2];
+		void opts.bgColor[3];
 		for (const layer of opts.layers) {
 			void layer.show;
-			void layer.invert;
+			void layer.color[0];
+			void layer.color[1];
+			void layer.color[2];
+			void layer.color[3];
 		}
 		return queryExportSvg(app, opts);
 	});
@@ -107,7 +127,6 @@
 		let cancelled = false;
 		void rasterizeSvg(current, {
 			ppi: opts.ppi,
-			whiteBg: opts.whiteBg,
 			antiAlias: opts.antiAlias
 		})
 			.then((canvas) => {
@@ -126,7 +145,8 @@
 			? svgToPdfBlob(svg, {
 					page: opts.pdfPage,
 					landscape: opts.pdfLandscape,
-					scale: opts.pdfScale
+					scale: opts.pdfScale,
+					background: exportBackground(opts)
 				})
 			: null
 	);
@@ -167,6 +187,7 @@
 				el.removeAttribute('height');
 				el.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 				node.replaceChildren(el);
+				queueMicrotask(() => syncPreviewView());
 			}
 		};
 	}
@@ -197,7 +218,7 @@
 		fittedFormat = opts.format;
 	}
 
-	/** Keep pan/zoom across option changes; refit only on first show or format switch. */
+	/** Keep pan/zoom across option changes; refit on first show, format switch, or aspect change. */
 	function syncPreviewView() {
 		const s = measureArt();
 		if (!s) return;
@@ -206,6 +227,12 @@
 			return;
 		}
 		if (s.w === artW && s.h === artH) return;
+		const oldAspect = artW / Math.max(artH, 1);
+		const newAspect = s.w / Math.max(s.h, 1);
+		if (oldAspect > 1 !== newAspect > 1) {
+			fitToView();
+			return;
+		}
 		zoom = Math.min(32, Math.max(0.05, zoom * (artW / s.w)));
 		artW = s.w;
 		artH = s.h;
@@ -246,23 +273,9 @@
 		dragging = false;
 	}
 
-	function layerSwatch(i: number): string {
-		const src = app.layers.layers[i]?.color ?? [0, 0, 0, 255];
-		let r = src[0] ?? 0;
-		let g = src[1] ?? 0;
-		let b = src[2] ?? 0;
-		const a = src[3] ?? 255;
-		if (opts.layers[i]?.invert && !opts.bw) {
-			r = 255 - r;
-			g = 255 - g;
-			b = 255 - b;
-		}
-		if (opts.bw) {
-			r = 0;
-			g = 0;
-			b = 0;
-		}
-		return rgbaCss([r, g, b, a]);
+	function setLayerColor(i: number, color: [number, number, number, number]) {
+		const layer = opts.layers[i];
+		if (layer) layer.color = copyRgba(color);
 	}
 
 	function confirm() {
@@ -270,14 +283,38 @@
 	}
 </script>
 
+{#snippet visEye(show: boolean)}
+	{#if show}
+		<svg viewBox="0 0 24 24" aria-hidden="true">
+			<path
+				d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			/>
+			<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+		</svg>
+	{:else}
+		<svg viewBox="0 0 24 24" aria-hidden="true">
+			<path
+				d="M3 3l18 18M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2M9.9 5.1A11 11 0 0 1 12 5c6 0 10 7 10 7a18 18 0 0 1-3.2 3.8M6.1 6.1C3.7 8 2 12 2 12s4 7 10 7a10 10 0 0 0 4-.8"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+			/>
+		</svg>
+	{/if}
+{/snippet}
+
 <Modal
 	{title}
 	titleId="export-dlg-title"
 	closable
 	closeLabel={app.t.close}
 	maxWidth="1120px"
-	maxHeight="90vh"
-	overflow="hidden"
+	maxHeight="none"
+	overflow="visible"
 	onClose={() => app.dialogs.close()}
 >
 	<div class="export-dlg">
@@ -287,10 +324,7 @@
 					class={[
 						'viewer',
 						{
-							paper:
-								opts.format === 'pdf' ||
-								opts.format === 'print' ||
-								(opts.format === 'png' && opts.whiteBg)
+							paper: opts.format === 'pdf' || opts.format === 'print'
 						}
 					]}
 					{@attach bindViewer}
@@ -360,6 +394,70 @@
 					<input type="checkbox" bind:checked={opts.bw} />
 					{app.t.exportBw}
 				</label>
+				<div class="xform">
+					<button
+						type="button"
+						class={['icon', { on: currentFlipH(opts) }]}
+						title={app.t.exportFlipH}
+						aria-label={app.t.exportFlipH}
+						aria-pressed={currentFlipH(opts)}
+						onclick={() => toggleExportFlipH(opts)}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M12 3.2v17.6" />
+							<path d="M9.2 7.2 4.2 12l5 4.8" />
+							<path d="M4.2 12H10" />
+							<path d="M14.8 7.2 19.8 12l-5 4.8" />
+							<path d="M19.8 12H14" />
+						</svg>
+					</button>
+					<button
+						type="button"
+						class={['icon', { on: currentFlipV(opts) }]}
+						title={app.t.exportFlipV}
+						aria-label={app.t.exportFlipV}
+						aria-pressed={currentFlipV(opts)}
+						onclick={() => toggleExportFlipV(opts)}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M3.2 12h17.6" />
+							<path d="M7.2 9.2 12 4.2l4.8 5" />
+							<path d="M12 4.2V10" />
+							<path d="M7.2 14.8 12 19.8l4.8-5" />
+							<path d="M12 19.8V14" />
+						</svg>
+					</button>
+					<button
+						type="button"
+						class={['icon', { on: opts.rotate !== 0 }]}
+						title={app.t.exportRotate}
+						aria-label={app.t.exportRotate}
+						onclick={() => rotateExport90(opts)}
+					>
+						<svg class="rotate" viewBox="0 0 458.228 458.229" aria-hidden="true">
+							<path
+								fill="currentColor"
+								d="M405.958 81.303c-15.021-17.78-32.731-33.265-52.6-45.852C316.754 12.259 274.402 0 230.884 0 169.685 0 112.149 23.832 68.875 67.106 25.601 110.38 1.769 167.916 1.769 229.114S25.601 347.85 68.875 391.123c43.274 43.273 100.81 67.105 162.009 67.105 47.021 0 92.212-14.145 130.688-40.906 37.567-26.131 66.195-62.395 82.788-104.87l-52.094-20.351c-26.149 66.943-89.498 110.199-161.384 110.199-95.496 0-173.188-77.691-173.188-173.188S135.387 55.925 230.883 55.925c48.337 0 93.034 19.639 125.137 53.303l-60.872 34.043 79.391 47.296 79.392 47.299 1.263-92.403 1.267-92.403L405.958 81.303z"
+							/>
+						</svg>
+					</button>
+				</div>
 				{#if opts.format === 'png'}
 					<label>
 						{app.t.exportPpi}
@@ -380,10 +478,6 @@
 					<label class="chk">
 						<input type="checkbox" bind:checked={opts.antiAlias} />
 						{app.t.exportAntiAlias}
-					</label>
-					<label class="chk">
-						<input type="checkbox" bind:checked={opts.whiteBg} />
-						{app.t.exportWhiteBg}
 					</label>
 				{/if}
 				{#if opts.format === 'svg' || opts.format === 'emf'}
@@ -452,10 +546,36 @@
 				<div class="layers">
 					<div class="layers-head">{app.t.exportLayers}</div>
 					<ul>
+						<li>
+							<div class="export-picker">
+								<LayerColorPicker
+									color={opts.bgColor}
+									label={app.t.exportBackground}
+									onChange={(c) => (opts.bgColor = copyRgba(c))}
+								/>
+							</div>
+							<span class="lname">{app.t.exportBackground}</span>
+							<button
+								type="button"
+								class={['icon', { off: !opts.bgEnabled }]}
+								title={opts.bgEnabled ? app.t.hideLayer : app.t.showLayer}
+								aria-label={opts.bgEnabled ? app.t.hideLayer : app.t.showLayer}
+								aria-pressed={opts.bgEnabled}
+								onclick={() => (opts.bgEnabled = !opts.bgEnabled)}
+							>
+								{@render visEye(opts.bgEnabled)}
+							</button>
+						</li>
 						{#each app.layers.layers as layer, i (i)}
 							{#if opts.layers[i]}
 								<li>
-									<span class="swatch" style:background={layerSwatch(i)}></span>
+									<div class="export-picker">
+										<LayerColorPicker
+											color={opts.layers[i].color}
+											label={app.t.exportLayerColor}
+											onChange={(c) => setLayerColor(i, c)}
+										/>
+									</div>
 									<span class="lname">{displayLayerName(layer.name, i, app.t)}</span>
 									<button
 										type="button"
@@ -465,54 +585,7 @@
 										aria-pressed={opts.layers[i].show}
 										onclick={() => (opts.layers[i].show = !opts.layers[i].show)}
 									>
-										{#if opts.layers[i].show}
-											<svg viewBox="0 0 24 24" aria-hidden="true">
-												<path
-													d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-												/>
-												<circle
-													cx="12"
-													cy="12"
-													r="3"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-												/>
-											</svg>
-										{:else}
-											<svg viewBox="0 0 24 24" aria-hidden="true">
-												<path
-													d="M3 3l18 18M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2M9.9 5.1A11 11 0 0 1 12 5c6 0 10 7 10 7a18 18 0 0 1-3.2 3.8M6.1 6.1C3.7 8 2 12 2 12s4 7 10 7a10 10 0 0 0 4-.8"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="2"
-													stroke-linecap="round"
-												/>
-											</svg>
-										{/if}
-									</button>
-									<button
-										type="button"
-										class={['icon', { off: !opts.layers[i].invert }]}
-										title={app.t.exportInvert}
-										aria-label={app.t.exportInvert}
-										aria-pressed={opts.layers[i].invert}
-										onclick={() => (opts.layers[i].invert = !opts.layers[i].invert)}
-									>
-										<svg viewBox="0 0 24 24" aria-hidden="true">
-											<circle
-												cx="12"
-												cy="12"
-												r="9"
-												fill="none"
-												stroke="currentColor"
-												stroke-width="2"
-											/>
-											<path d="M12 3a9 9 0 010 18z" fill="currentColor" />
-										</svg>
+										{@render visEye(opts.layers[i].show)}
 									</button>
 								</li>
 							{/if}
@@ -633,6 +706,36 @@
 		font-size: 11px;
 		color: var(--fg-muted);
 	}
+	.xform {
+		display: flex;
+		gap: 6px;
+	}
+	.xform .icon {
+		width: 36px;
+		height: 36px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		color: var(--fg);
+	}
+	.xform .icon svg {
+		width: 30px;
+		height: 30px;
+		overflow: visible;
+	}
+	.xform .icon svg.rotate {
+		width: 20px;
+		height: 20px;
+	}
+	.xform .icon.on {
+		color: var(--accent);
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 16%, transparent);
+	}
+	.export-picker {
+		flex-shrink: 0;
+		--cp-input-size: 22px;
+		--cp-z: calc(var(--z-modal) + 1);
+	}
 	input[type='number'],
 	select {
 		width: 100%;
@@ -663,12 +766,11 @@
 		align-items: center;
 		gap: 6px;
 	}
-	.swatch {
-		width: 12px;
-		height: 12px;
-		border-radius: 3px;
-		border: 1px solid var(--border);
-		flex-shrink: 0;
+	.layers ul:has(:global(.is-open)),
+	.side:has(:global(.is-open)) {
+		overflow: visible;
+		position: relative;
+		z-index: calc(var(--z-modal) + 1);
 	}
 	.lname {
 		flex: 1;

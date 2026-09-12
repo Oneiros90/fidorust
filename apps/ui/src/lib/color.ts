@@ -30,3 +30,12 @@ export function rgbaCss(color: number[]): string {
 	if (a >= 0.999) return `rgb(${r},${g},${b})`;
 	return `rgba(${r},${g},${b},${Math.round(a * 1000) / 1000})`;
 }
+
+export function copyRgba(color: number[]): [number, number, number, number] {
+	return [
+		Math.max(0, Math.min(255, Math.round(color[0] ?? 0))),
+		Math.max(0, Math.min(255, Math.round(color[1] ?? 0))),
+		Math.max(0, Math.min(255, Math.round(color[2] ?? 0))),
+		Math.max(0, Math.min(255, Math.round(color[3] ?? 255)))
+	];
+}

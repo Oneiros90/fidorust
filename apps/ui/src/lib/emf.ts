@@ -69,7 +69,7 @@ function boundsOf(pts: [number, number][]): { l: number; t: number; r: number; b
 	return { l, t, r, b };
 }
 
-export function svgToEmf(svg: string, scale = 1): Uint8Array {
+export function svgToEmf(svg: string, scale = 1, background: Rgba | null = null): Uint8Array {
 	const box = parseSvgViewBox(svg);
 	const s = Math.max(0.01, scale);
 	const x0 = box.x;
@@ -443,6 +443,20 @@ export function svgToEmf(svg: string, scale = 1): Uint8Array {
 		del(ih);
 	};
 
+	if (background && background[3] > 0) {
+		emit({
+			kind: 'rect',
+			x: box.x,
+			y: box.y,
+			w: box.w,
+			h: box.h,
+			rx: 0,
+			ry: 0,
+			fill: background,
+			stroke: null,
+			strokeWidth: 0
+		});
+	}
 	for (const prim of prims) emit(prim);
 
 	buf.u32(EMR_EOF);
