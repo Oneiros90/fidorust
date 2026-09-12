@@ -499,6 +499,28 @@ fn duplicate_drag_ghost_adds_preview_geometry() {
 }
 
 #[test]
+fn duplicate_selection_ghost_adds_preview_geometry() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.doc_mut().insert(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(10, 0),
+        layer: LayerId(0),
+    }));
+    ed.set_selected(vec![0]);
+    ed.set_hover(Some(Point::new(40, 20)));
+    let before = tessellate_editor(&ed);
+    ed.duplicate_selection();
+    let during = tessellate_editor(&ed);
+    assert!(
+        during.lines.len() > before.lines.len(),
+        "expected ghost geometry after Duplicate, before={} during={}",
+        before.lines.len(),
+        during.lines.len()
+    );
+}
+
+#[test]
 fn ruler_overlay_visible_only_when_tool_active() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().snap = 1;

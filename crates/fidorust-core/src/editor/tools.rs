@@ -119,6 +119,13 @@ pub(super) enum Drag {
         start_screen: (f32, f32),
         pan0: (f32, f32),
     },
+    /// Ghost clones follow the pointer until a click (Ctrl+D / Duplicate).
+    PlaceClone {
+        prims: Vec<crate::primitive::Primitive>,
+        /// Untranslated bbox min; snap offsets are relative to this so clones stay on-grid.
+        origin: crate::geom::Point,
+        last: crate::geom::Point,
+    },
 }
 
 /// Result of a canvas double-click.

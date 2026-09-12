@@ -1201,6 +1201,16 @@ fn duplicate_selection_places_bbox_min_at_cursor() {
     ed.set_selected(vec![0]);
     ed.set_hover(Some(Point::new(50, 20)));
     ed.duplicate_selection();
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert!(ed.duplicate_drag());
+    assert!(!ed.duplicate_drag_preview().is_empty());
+    match &ed.doc().primitives[0] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(0, 0), Point::new(10, 0)));
+        }
+        _ => panic!("expected original line"),
+    }
+    ed.pointer_down(Point::new(50, 20), (50.0, 20.0), false, false);
     assert_eq!(ed.doc().primitives.len(), 2);
     match &ed.doc().primitives[0] {
         Primitive::Line(Line { a, b, .. }) => {
@@ -1215,6 +1225,79 @@ fn duplicate_selection_places_bbox_min_at_cursor() {
         _ => panic!("expected cloned line"),
     }
     assert_eq!(ed.selected(), &[1]);
+    assert!(!ed.duplicate_drag());
+}
+
+#[test]
+fn duplicate_selection_without_hover_starts_ghost() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_selected(vec![0]);
+    ed.duplicate_selection();
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert!(ed.duplicate_drag());
+    ed.pointer_down(Point::new(50, 20), (50.0, 20.0), false, false);
+    assert_eq!(ed.doc().primitives.len(), 2);
+    match &ed.doc().primitives[1] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(50, 20), Point::new(60, 20)));
+        }
+        _ => panic!("expected cloned line"),
+    }
+    assert_eq!(ed.selected(), &[1]);
+}
+
+#[test]
+fn duplicate_selection_escape_cancels_ghost() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_selected(vec![0]);
+    ed.set_hover(Some(Point::new(50, 20)));
+    ed.duplicate_selection();
+    ed.cancel_draft();
+    assert!(!ed.duplicate_drag());
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert_eq!(ed.selected(), &[0]);
+}
+
+#[test]
+fn duplicate_selection_follows_pointer_then_places() {
+    let mut ed = Editor::new(builtin_libraries());
+    insert_h_line(&mut ed, Point::new(0, 0), Point::new(10, 0));
+    ed.set_selected(vec![0]);
+    ed.set_hover(Some(Point::new(50, 20)));
+    ed.duplicate_selection();
+    ed.pointer_move(Point::new(80, 40), (80.0, 40.0));
+    assert_eq!(ed.doc().primitives.len(), 1);
+    ed.pointer_down(Point::new(80, 40), (80.0, 40.0), false, false);
+    match &ed.doc().primitives[1] {
+        Primitive::Line(Line { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(80, 40), Point::new(90, 40)));
+        }
+        _ => panic!("expected cloned line"),
+    }
+    assert_eq!(ed.selected(), &[1]);
+}
+
+#[test]
+fn duplicate_selection_offset_stays_on_snap_lattice() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::PcbTrack(PcbTrack {
+        a: Point::new(0, 0),
+        b: Point::new(20, 0),
+        width: 4,
+        layer: LayerId(2),
+    }));
+    ed.set_selected(vec![0]);
+    ed.set_hover(Some(Point::new(52, 23)));
+    ed.duplicate_selection();
+    ed.pointer_down(Point::new(52, 23), (52.0, 23.0), false, false);
+    match &ed.doc().primitives[1] {
+        Primitive::PcbTrack(PcbTrack { a, b, .. }) => {
+            assert_eq!((*a, *b), (Point::new(50, 25), Point::new(70, 25)));
+        }
+        _ => panic!("expected cloned track"),
+    }
 }
 
 #[test]

@@ -120,6 +120,12 @@ impl Editor {
                 self.rotate_at(pt);
                 return true;
             }
+            Some(Drag::PlaceClone { .. }) => {
+                let pt = self.snap_pt(world);
+                self.hover = Some(pt);
+                self.rotate_place_clone(pt);
+                return true;
+            }
             Some(Drag::Marquee { kept, .. }) => {
                 let kept = kept.clone();
                 self.drag = None;
@@ -151,6 +157,7 @@ impl Editor {
     }
 
     pub fn prepare_context_menu_at(&mut self, x: f64, y: f64) {
+        self.hover = Some(self.snap_pt(Point::new(x.round() as i32, y.round() as i32)));
         if let Some(hit) = self.pick_at(x, y) {
             if !self.selected.contains(&hit.index) {
                 self.selected.clear();

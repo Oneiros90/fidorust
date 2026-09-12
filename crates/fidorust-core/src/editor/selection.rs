@@ -78,7 +78,7 @@ impl Editor {
             Some(Drag::Move {
                 duplicate: true,
                 ..
-            })
+            }) | Some(Drag::PlaceClone { .. })
         )
     }
 
@@ -107,40 +107,54 @@ impl Editor {
     }
 
     pub fn duplicate_selection(&mut self) {
-        if self.selected.is_empty() || self.drag.is_some() {
+        if self.selected.is_empty() {
             return;
         }
-        let Some(hover) = self.hover else {
+        if self.drag.is_some() && !matches!(self.drag, Some(Drag::PlaceClone { .. })) {
             return;
-        };
-        let pt = self.snap_pt(hover);
+        }
+        let mut clones = self.clone_selected();
+        if clones.is_empty() {
+            return;
+        }
         let bb = self.doc.selected_aabb(&self.selected, &self.libs);
         if bb.is_empty() {
             return;
         }
-        self.push_undo();
-        self.insert_translated_clones(pt.x - bb.min.x, pt.y - bb.min.y);
+        let dest = self.hover.map(|p| self.snap_pt(p)).unwrap_or(bb.min);
+        let offset = self.snap_delta(dest.x - bb.min.x, dest.y - bb.min.y);
+        translate_primitives(&mut clones, offset.x, offset.y);
+        self.drag = Some(Drag::PlaceClone {
+            prims: clones,
+            origin: bb.min,
+            last: Point::new(bb.min.x + offset.x, bb.min.y + offset.y),
+        });
     }
 
     pub fn duplicate_drag_preview(&self) -> Vec<Primitive> {
-        let Some(Drag::Move {
-            start,
-            last,
-            duplicate: true,
-        }) = &self.drag
-        else {
-            return Vec::new();
-        };
-        let mut prims: Vec<Primitive> = self
-            .selected
-            .iter()
-            .filter_map(|&i| self.doc.primitives.get(i).cloned())
-            .collect();
-        translate_primitives(&mut prims, last.x - start.x, last.y - start.y);
-        prims
-            .iter()
-            .flat_map(|p| expand_primitive(p, &self.libs))
-            .collect()
+        match &self.drag {
+            Some(Drag::PlaceClone { prims, .. }) => prims
+                .iter()
+                .flat_map(|p| expand_primitive(p, &self.libs))
+                .collect(),
+            Some(Drag::Move {
+                start,
+                last,
+                duplicate: true,
+            }) => {
+                let mut prims: Vec<Primitive> = self
+                    .selected
+                    .iter()
+                    .filter_map(|&i| self.doc.primitives.get(i).cloned())
+                    .collect();
+                translate_primitives(&mut prims, last.x - start.x, last.y - start.y);
+                prims
+                    .iter()
+                    .flat_map(|p| expand_primitive(p, &self.libs))
+                    .collect()
+            }
+            _ => Vec::new(),
+        }
     }
 
     pub fn delete_selected(&mut self) {
@@ -176,21 +190,76 @@ impl Editor {
     pub(super) fn rotate_at(&mut self, origin: Point) {
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
-                p.transform(|q| q.rotate90_cw(origin));
-                match p {
-                    Primitive::Component(ComponentRef { rotations, .. }) => {
-                        // `rotate90_cw` is CCW in Y-down. FidoCadJ CCW uses
-                        // `o = (o + 3) % 4` so internals follow the same turn
-                        // as rotating the expanded primitives together.
-                        *rotations = (*rotations + 3) % 4;
-                    }
-                    Primitive::Text(t) => {
-                        t.angle = (t.angle + 90).rem_euclid(360);
-                    }
-                    _ => {}
-                }
+                rotate_primitive(p, origin);
             }
         }
+    }
+
+    pub(super) fn move_place_clone(&mut self, pt: Point) {
+        let Some(Drag::PlaceClone { origin, last, .. }) = &self.drag else {
+            return;
+        };
+        let origin = *origin;
+        let last = *last;
+        let new_offset = self.snap_delta(pt.x - origin.x, pt.y - origin.y);
+        let delta = Point::new(
+            new_offset.x - (last.x - origin.x),
+            new_offset.y - (last.y - origin.y),
+        );
+        if delta == Point::new(0, 0) {
+            return;
+        }
+        if let Some(Drag::PlaceClone { prims, last, .. }) = &mut self.drag {
+            translate_primitives(prims, delta.x, delta.y);
+            *last = Point::new(origin.x + new_offset.x, origin.y + new_offset.y);
+        }
+    }
+
+    pub(super) fn rotate_place_clone(&mut self, origin: Point) {
+        self.move_place_clone(origin);
+        {
+            let Some(Drag::PlaceClone { prims, .. }) = &mut self.drag else {
+                return;
+            };
+            for p in prims {
+                rotate_primitive(p, origin);
+            }
+        }
+        let bb = {
+            let Some(Drag::PlaceClone { prims, .. }) = &self.drag else {
+                return;
+            };
+            let mut bb = crate::geom::Aabb::empty();
+            for p in prims {
+                bb.include_aabb(&crate::library::expanded_aabb(p, &self.libs));
+            }
+            bb
+        };
+        if let Some(Drag::PlaceClone {
+            origin: grab, last, ..
+        }) = &mut self.drag
+        {
+            *grab = bb.min;
+            *last = bb.min;
+        }
+    }
+
+    /// Place click-to-drop clones. Returns true if a place-clone session was active.
+    pub(super) fn place_pending_clone_at(&mut self, pt: Point) -> bool {
+        self.move_place_clone(pt);
+        let Some(Drag::PlaceClone { prims, .. }) = self.drag.take() else {
+            return false;
+        };
+        if prims.is_empty() {
+            return true;
+        }
+        self.push_undo();
+        self.selected.clear();
+        for p in prims {
+            let i = self.doc.insert(p);
+            self.selected.push(i);
+        }
+        true
     }
 
     pub fn invert_selection(&mut self) {
@@ -235,5 +304,21 @@ impl Editor {
                 p.set_layer(layer);
             }
         }
+    }
+}
+
+fn rotate_primitive(p: &mut Primitive, origin: Point) {
+    p.transform(|q| q.rotate90_cw(origin));
+    match p {
+        Primitive::Component(ComponentRef { rotations, .. }) => {
+            // `rotate90_cw` is CCW in Y-down. FidoCadJ CCW uses
+            // `o = (o + 3) % 4` so internals follow the same turn
+            // as rotating the expanded primitives together.
+            *rotations = (*rotations + 3) % 4;
+        }
+        Primitive::Text(t) => {
+            t.angle = (t.angle + 90).rem_euclid(360);
+        }
+        _ => {}
     }
 }

@@ -12,6 +12,14 @@ impl Editor {
         Point::new(snap(p.x, self.doc.snap), snap(p.y, self.doc.snap_y))
     }
 
+    /// Snap a translation so copies stay on the same lattice as the original.
+    pub(super) fn snap_delta(&self, dx: i32, dy: i32) -> Point {
+        if !self.doc.snap_enable {
+            return Point::new(dx, dy);
+        }
+        Point::new(snap(dx, self.doc.snap), snap(dy, self.doc.snap_y))
+    }
+
     pub fn wheel_zoom(&mut self, screen: (f32, f32), delta: f32) {
         let old = self.zoom;
         let factor = if delta < 0.0 {

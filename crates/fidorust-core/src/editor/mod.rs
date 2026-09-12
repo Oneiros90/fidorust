@@ -426,6 +426,12 @@ impl Editor {
     ) {
         let pt = self.snap_pt(world);
         self.refresh_hover_hit(hx, hy);
+        if matches!(&self.drag, Some(Drag::PlaceClone { .. })) {
+            if !pan_mod {
+                self.place_pending_clone_at(pt);
+            }
+            return;
+        }
         if pan_mod || self.tool == Tool::Pan {
             self.drag = Some(Drag::Pan {
                 start_screen: screen,
@@ -575,6 +581,7 @@ impl Editor {
                 }
                 self.apply_marquee_hits();
             }
+            Some(Drag::PlaceClone { .. }) => self.move_place_clone(pt),
             None => {}
         }
     }
@@ -585,6 +592,9 @@ impl Editor {
 
     pub fn pointer_up_at(&mut self, hx: f64, hy: f64, world: Point) {
         let pt = self.snap_pt(world);
+        if matches!(&self.drag, Some(Drag::PlaceClone { .. })) {
+            return;
+        }
         if matches!(&self.drag, Some(Drag::Marquee { .. })) {
             self.apply_marquee_hits();
         }

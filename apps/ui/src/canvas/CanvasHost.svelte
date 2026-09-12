@@ -264,6 +264,7 @@
 
 	function leave(e: PointerEvent) {
 		if (!engine || textEdit || panning || e.buttons !== 0) return;
+		if (app.ctxMenu || app.status.duplicate_drag) return;
 		engine.mutate(
 			(wasm) => {
 				wasm.clear_hover();
