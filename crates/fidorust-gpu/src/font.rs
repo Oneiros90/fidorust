@@ -229,7 +229,9 @@ fn point_in_tri(px: f32, py: f32, a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool
 /// Unit-cell coverage matching [`glyph_triangles`] (`u` along advance, `v` down the em box).
 pub fn glyph_covers(font: &str, ch: char, u: f32, v: f32) -> bool {
     glyph_triangles(font, ch)
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .any(|t| point_in_tri(u, v, t[0], t[1], t[2]))
 }
 

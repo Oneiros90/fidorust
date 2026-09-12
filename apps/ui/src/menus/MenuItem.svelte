@@ -32,6 +32,7 @@
 	type="button"
 	{disabled}
 	onclick={handleClick}
+	role={checkable ? 'menuitemradio' : 'menuitem'}
 	aria-checked={checkable ? active : undefined}
 >
 	{#if checkable}

@@ -127,6 +127,8 @@ mod tests {
         assert_eq!(Theme::from_canvas(CanvasTheme::White), Theme::WHITE);
         assert_eq!(Rgb::selection(CanvasTheme::White), Rgb::SELECTION_WHITE);
         assert_eq!(Rgb::accent(CanvasTheme::White), Rgb::ACCENT_WHITE);
-        assert!(Rgb::SELECTION_WHITE.0[2] > Rgb::SELECTION_WHITE.0[1]);
+        const {
+            assert!(Rgb::SELECTION_WHITE.0[2] > Rgb::SELECTION_WHITE.0[1]);
+        }
     }
 }

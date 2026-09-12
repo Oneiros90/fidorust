@@ -201,10 +201,12 @@ impl Text {
     }
 }
 
-static GLYPH_INK: OnceLock<fn(&str, char, f32, f32) -> bool> = OnceLock::new();
+type GlyphInkFn = fn(&str, char, f32, f32) -> bool;
+
+static GLYPH_INK: OnceLock<GlyphInkFn> = OnceLock::new();
 
 /// GPU installs real Courier-Prime coverage; without it, glyph cells are hollow.
-pub fn set_glyph_ink(hit: fn(&str, char, f32, f32) -> bool) {
+pub fn set_glyph_ink(hit: GlyphInkFn) {
     let _ = GLYPH_INK.set(hit);
 }
 

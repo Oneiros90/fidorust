@@ -17,7 +17,7 @@ use crate::consts::{
 };
 use crate::document::{Document, ProjectSettings};
 use crate::geom::Point;
-use crate::hit::{hit_test, marquee_select};
+use crate::hit::{hit_test, marquee_select, HitQuery};
 use crate::layers::LayerId;
 use crate::library::LibrarySet;
 use crate::primitive::{
@@ -237,10 +237,12 @@ impl Editor {
             &self.libs,
             &self.doc.layers,
             &self.selected,
-            x,
-            y,
-            self.zoom,
-            self.doc.stroke_width() as f64,
+            HitQuery {
+                x,
+                y,
+                zoom: self.zoom,
+                stroke_w: self.doc.stroke_width() as f64,
+            },
         )
     }
 

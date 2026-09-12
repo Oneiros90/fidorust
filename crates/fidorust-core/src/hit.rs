@@ -70,6 +70,14 @@ fn hit_prim(
     }
 }
 
+/// World-space pick: unrounded LU, view zoom, and stroke width in LU.
+pub struct HitQuery {
+    pub x: f64,
+    pub y: f64,
+    pub zoom: f32,
+    pub stroke_w: f64,
+}
+
 /// Pick the top-most primitive under `(x, y)` (world LU, unrounded).
 ///
 /// Priority: selected handles (drawn on top), then **opaque ink** at the point
@@ -82,18 +90,21 @@ pub fn hit_test(
     libs: &LibrarySet,
     layers: &LayerSet,
     selected: &[usize],
-    x: f64,
-    y: f64,
-    zoom: f32,
-    stroke_w: f64,
+    q: HitQuery,
 ) -> Option<Hit> {
+    let HitQuery {
+        x,
+        y,
+        zoom,
+        stroke_w,
+    } = q;
     let tol = HIT_TOLERANCE_PX / zoom.max(0.1) as f64;
     let tol2 = tol * tol;
     let handle_r2 = handle_r2_world(zoom);
     let mut best: Option<Candidate> = None;
 
     let consider = |best: &mut Option<Candidate>, cand: Candidate| {
-        if best.as_ref().map_or(true, |cur| cand.beats(cur)) {
+        if best.as_ref().is_none_or(|cur| cand.beats(cur)) {
             *best = Some(cand);
         }
     };
@@ -161,10 +172,12 @@ pub fn hit_test_pt(
         libs,
         layers,
         selected,
-        pt.x as f64,
-        pt.y as f64,
-        zoom,
-        crate::consts::DEFAULT_STROKE_HUNDREDTHS as f64 / 100.0,
+        HitQuery {
+            x: pt.x as f64,
+            y: pt.y as f64,
+            zoom,
+            stroke_w: crate::consts::DEFAULT_STROKE_HUNDREDTHS as f64 / 100.0,
+        },
     )
 }
 
