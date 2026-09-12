@@ -4,7 +4,7 @@ use fidorust_core::{
     DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
-use fidorust_gpu::{tessellate_editor, tessellate_primitives, Rgb};
+use fidorust_gpu::{tessellate_editor, tessellate_export, tessellate_primitives, Rgb};
 
 #[test]
 fn tessellate_alimentatore_has_strokes() {
@@ -496,6 +496,39 @@ fn duplicate_drag_ghost_adds_preview_geometry() {
         before.lines.len(),
         during.lines.len()
     );
+}
+
+#[test]
+fn ruler_overlay_visible_only_when_tool_active() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().snap = 1;
+    ed.set_tool(Tool::Ruler);
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_move(Point::new(100, 0), (100.0, 0.0));
+    ed.pointer_up(Point::new(100, 0));
+    let shown = tessellate_editor(&ed);
+    assert!(
+        shown.lines.len() >= 3,
+        "expected segment + end ticks, got {}",
+        shown.lines.len()
+    );
+    assert!(
+        !shown.fills.is_empty(),
+        "expected glyph fills for the length label"
+    );
+    let accent = Rgb::ACCENT_LIGHT.rgba(1.0);
+    assert!((shown.lines[0].r - accent[0]).abs() < 0.01);
+    assert!((shown.lines[0].g - accent[1]).abs() < 0.01);
+    assert!((shown.lines[0].b - accent[2]).abs() < 0.01);
+
+    ed.set_tool(Tool::Select);
+    let hidden = tessellate_editor(&ed);
+    assert!(hidden.lines.is_empty());
+    assert!(hidden.fills.is_empty());
+
+    let exported = tessellate_export(&ed, &ed.doc().layers);
+    assert!(exported.lines.is_empty());
+    assert!(exported.fills.is_empty());
 }
 
 fn sample_o(layer: LayerId) -> Primitive {

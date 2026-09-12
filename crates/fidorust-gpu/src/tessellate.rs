@@ -7,7 +7,7 @@ use fidorust_core::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
     BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
-use fidorust_core::Editor;
+use fidorust_core::{Editor, Tool};
 use lyon::math::point;
 use lyon::path::Path;
 use lyon::tessellation::FillRule;
@@ -320,6 +320,8 @@ struct TessellateInput<'a> {
     dark: bool,
     pending: Vec<Primitive>,
     marquee: Option<(f32, f32, f32, f32)>,
+    tool: Tool,
+    ruler_segments: &'a [(Point, Point)],
 }
 
 impl<'a> TessellateInput<'a> {
@@ -344,6 +346,8 @@ impl<'a> TessellateInput<'a> {
                 pending
             },
             marquee: ed.marquee_screen_rect(),
+            tool: ed.tool(),
+            ruler_segments: ed.ruler_segments(),
         }
     }
 }
@@ -421,6 +425,17 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         if input.layer.index() == li {
             add_draft(&mut scene, draft, preview, input.stroke_w);
         }
+        scene.mark_layer_end();
+    }
+    if input.tool == Tool::Ruler {
+        crate::ruler::add_overlay(
+            &mut scene,
+            input.ruler_segments,
+            draft,
+            input.zoom,
+            input.stroke_w,
+            input.dark,
+        );
         scene.mark_layer_end();
     }
     for (i, p) in input.primitives.iter().enumerate() {

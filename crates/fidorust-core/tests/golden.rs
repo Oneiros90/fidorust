@@ -1204,3 +1204,81 @@ fn stamp_drag_copy_without_move_drag_is_noop() {
     assert!(!ed.stamp_drag_copy());
     assert_eq!(ed.doc().primitives.len(), 1);
 }
+
+#[test]
+fn ruler_drag_is_not_serialized() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ruler);
+    ed.doc_mut().snap = 1;
+    ed.pointer_down(Point::new(10, 10), (0.0, 0.0), false, false);
+    ed.pointer_move(Point::new(30, 10), (20.0, 0.0));
+    ed.pointer_up(Point::new(30, 10));
+    assert_eq!(
+        ed.ruler_segments(),
+        &[(Point::new(10, 10), Point::new(30, 10))]
+    );
+    assert!(ed.doc().primitives.is_empty());
+    let fcd = serialize_document(ed.doc(), None);
+    assert!(!fcd.contains("LI "), "{fcd}");
+}
+
+#[test]
+fn ruler_click_click_commits_on_second_click() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ruler);
+    ed.doc_mut().snap = 1;
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_up(Point::new(0, 0));
+    assert!(ed.ruler_segments().is_empty());
+    assert_eq!(ed.draft_tool(), Some(Tool::Ruler));
+    ed.pointer_move(Point::new(40, 0), (40.0, 0.0));
+    ed.pointer_down(Point::new(40, 0), (40.0, 0.0), false, false);
+    ed.pointer_up(Point::new(40, 0));
+    assert_eq!(
+        ed.ruler_segments(),
+        &[(Point::new(0, 0), Point::new(40, 0))]
+    );
+    assert!(ed.doc().primitives.is_empty());
+    assert_eq!(ed.draft_tool(), None);
+}
+
+#[test]
+fn ruler_rejects_zero_length() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ruler);
+    ed.doc_mut().snap = 1;
+    let p = Point::new(10, 10);
+    ed.pointer_down(p, (0.0, 0.0), false, false);
+    ed.pointer_move(p, (0.0, 0.0));
+    ed.pointer_up(p);
+    assert!(ed.ruler_segments().is_empty());
+    assert_eq!(ed.draft_tool(), Some(Tool::Ruler));
+}
+
+#[test]
+fn ruler_right_click_clears_segments() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ruler);
+    ed.doc_mut().snap = 1;
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_move(Point::new(20, 0), (20.0, 0.0));
+    ed.pointer_up(Point::new(20, 0));
+    assert_eq!(ed.ruler_segments().len(), 1);
+    assert!(ed.right_click(Point::new(5, 5)));
+    assert!(ed.ruler_segments().is_empty());
+    assert_eq!(ed.draft_tool(), None);
+}
+
+#[test]
+fn ruler_survives_tool_switch_and_clears_on_load() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::Ruler);
+    ed.doc_mut().snap = 1;
+    ed.pointer_down(Point::new(0, 0), (0.0, 0.0), false, false);
+    ed.pointer_move(Point::new(20, 0), (20.0, 0.0));
+    ed.pointer_up(Point::new(20, 0));
+    ed.set_tool(Tool::Select);
+    assert_eq!(ed.ruler_segments().len(), 1);
+    ed.load_text("[FIDOCAD]\n").unwrap();
+    assert!(ed.ruler_segments().is_empty());
+}

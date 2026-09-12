@@ -68,6 +68,8 @@ pub struct Editor {
     canvas_dark: bool,
     libs_rev: u32,
     component_edit: Option<ComponentEditSession>,
+    /// Ephemeral measure overlay; never serialized.
+    ruler_segments: Vec<(Point, Point)>,
 }
 
 impl Editor {
@@ -103,6 +105,7 @@ impl Editor {
             canvas_dark: false,
             libs_rev: 0,
             component_edit: None,
+            ruler_segments: Vec::new(),
         }
     }
 
@@ -352,6 +355,10 @@ impl Editor {
         self.draft.as_ref().map(|d| d.tool)
     }
 
+    pub fn ruler_segments(&self) -> &[(Point, Point)] {
+        &self.ruler_segments
+    }
+
     /// True while the scene must follow the pointer (drag, draft, or pending component).
     pub fn scene_follows_pointer(&self) -> bool {
         self.drag.is_some() || self.draft.is_some() || self.pending_follow
@@ -463,6 +470,20 @@ impl Editor {
                     points: vec![pt],
                 });
             }
+            Tool::Ruler => {
+                if let Some(d) = self.draft.as_mut() {
+                    if d.points.len() < 2 {
+                        d.points.push(pt);
+                    } else {
+                        d.points[1] = pt;
+                    }
+                } else {
+                    self.draft = Some(Draft {
+                        tool: Tool::Ruler,
+                        points: vec![pt],
+                    });
+                }
+            }
             Tool::Poly | Tool::Bezier => {
                 if let Some(d) = self.draft.as_mut() {
                     d.points.push(pt);
@@ -490,7 +511,7 @@ impl Editor {
         if let Some(d) = &mut self.draft {
             if matches!(
                 d.tool,
-                Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack
+                Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack | Tool::Ruler
             ) {
                 if d.points.len() < 2 {
                     d.points.push(pt);
@@ -611,6 +632,13 @@ impl Editor {
                         layer: self.layer,
                     }));
                 }
+                Tool::Ruler => {
+                    if d.points.len() >= 2 && d.points[0] != d.points[1] {
+                        self.ruler_segments.push((d.points[0], d.points[1]));
+                    } else {
+                        self.draft = Some(d);
+                    }
+                }
                 Tool::Poly => {
                     let mut pts = d.points;
                     pts.push(pt);
@@ -716,6 +744,7 @@ impl Editor {
         self.selected.clear();
         self.drag = None;
         self.draft = None;
+        self.ruler_segments.clear();
         self.clamp_current_layer();
         self.fit_view(800.0, 600.0);
         Ok(())

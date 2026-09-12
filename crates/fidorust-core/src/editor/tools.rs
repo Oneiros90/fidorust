@@ -18,6 +18,7 @@ pub enum Tool {
     Component,
     Zoom,
     Pan,
+    Ruler,
 }
 
 impl Tool {
@@ -40,6 +41,7 @@ impl Tool {
             Self::Component => "component",
             Self::Zoom => "zoom",
             Self::Pan => "pan",
+            Self::Ruler => "ruler",
         }
     }
 }
@@ -61,6 +63,7 @@ impl std::str::FromStr for Tool {
             "component" | "macro" => Self::Component,
             "zoom" => Self::Zoom,
             "pan" => Self::Pan,
+            "ruler" => Self::Ruler,
             "select" => Self::Select,
             _ => return Err(()),
         })

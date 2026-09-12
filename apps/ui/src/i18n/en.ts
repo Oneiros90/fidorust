@@ -86,6 +86,7 @@ export const en = {
 	pcbPad: 'PCB pad',
 	component: 'Component',
 	pan: 'Pan',
+	ruler: 'Ruler',
 	libraries: 'Libraries',
 	searchComponents: 'Search components',
 	noMatchingComponents: 'No components',

@@ -68,6 +68,7 @@ pub(crate) fn add_draft(
                 }
             }
         }
+        Some(Tool::Ruler) => {}
         _ => {
             if a != b {
                 scene.push_line(a, b, stroke_w, preview, false);

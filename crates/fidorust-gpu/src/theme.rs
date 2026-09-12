@@ -7,6 +7,10 @@ impl Rgb {
     pub const SELECTION: Self = Self([0.85, 0.42, 0.22]);
     pub const PREVIEW_LIGHT: Self = Self([0.72, 0.42, 0.22]);
     pub const PREVIEW_DARK: Self = Self([0.85, 0.55, 0.32]);
+    /// UI `--accent` light `#b56a3c`.
+    pub const ACCENT_LIGHT: Self = Self([181.0 / 255.0, 106.0 / 255.0, 60.0 / 255.0]);
+    /// UI `--accent` dark `#d4a07a`.
+    pub const ACCENT_DARK: Self = Self([212.0 / 255.0, 160.0 / 255.0, 122.0 / 255.0]);
     /// How much white to mix into a hovered primitive's layer colour (`0` = none, `1` = white).
     pub const HOVER_LIGHTEN: f32 = 0.15;
 
@@ -43,6 +47,14 @@ impl Rgb {
             Self::PREVIEW_DARK
         } else {
             Self::PREVIEW_LIGHT
+        }
+    }
+
+    pub fn accent(dark: bool) -> Self {
+        if dark {
+            Self::ACCENT_DARK
+        } else {
+            Self::ACCENT_LIGHT
         }
     }
 }

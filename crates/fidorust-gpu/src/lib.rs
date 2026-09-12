@@ -2,6 +2,7 @@ mod draft;
 pub mod font;
 #[cfg(target_arch = "wasm32")]
 pub mod renderer;
+mod ruler;
 mod scene;
 mod shapes;
 mod svg;

@@ -127,6 +127,11 @@ impl Editor {
             Some(Drag::Handle { .. } | Drag::Pan { .. }) => return true,
             None => {}
         }
+        if self.tool == Tool::Ruler {
+            self.cancel_draft();
+            self.ruler_segments.clear();
+            return true;
+        }
         if self.draft.is_some() {
             self.cancel_draft();
             return true;

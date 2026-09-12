@@ -88,6 +88,7 @@ export const it: typeof en = {
 	pcbPad: 'Piazzola PCB',
 	component: 'Componente',
 	pan: 'Sposta vista',
+	ruler: 'Righello',
 	libraries: 'Librerie',
 	searchComponents: 'Cerca componenti',
 	noMatchingComponents: 'Nessun componente',
