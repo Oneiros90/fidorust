@@ -2,6 +2,9 @@ name: Pages
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 concurrency:
   group: pages
@@ -42,6 +45,10 @@ jobs:
         working-directory: apps/ui
         run: npm ci
 
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node tools/bump.mjs "${{ github.ref_name }}" --files-only
+
       - name: Build web
         working-directory: apps/ui
         run: |
@@ -54,14 +61,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash tools/stage-pro-modules.sh apps/ui/dist/pro
 
-      - name: Require module for this app version
+      - name: Note missing module for this app version
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./apps/ui/package.json').version")"
           DAT="apps/ui/dist/pro/${VERSION}/fidorust-pro.dat"
           if [ ! -f "$DAT" ]; then
-            echo "Missing $DAT. Upload fidorust-pro.bin to the v${VERSION} GitHub Release, then re-run Pages."
-            exit 1
+            echo "::warning::No Pro module for ${VERSION} yet. Site deploys anyway; activation 404s until fidorust-pro ships ${VERSION}."
           fi
 
       - name: Upload GitHub Pages artifact
