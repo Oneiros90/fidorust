@@ -10,6 +10,7 @@ import { defaultStatus } from './engineTypes';
 import type { ComponentCursor } from './engineTypes';
 import type { LibGhost, Theme } from './types';
 import { Engine } from './engine.svelte';
+import { ProSession } from './pro.svelte';
 import { Dialogs } from './dialogs.svelte';
 import { Settings } from './settings.svelte';
 import { UiState } from './uiState.svelte';
@@ -62,6 +63,7 @@ export class AppSession {
 	);
 	ui = new UiState();
 	dialogs = new Dialogs();
+	pro = new ProSession(this);
 	fileHandleName = $state(this.#session?.name ?? 'untitled.fcd');
 	filePicker: HTMLInputElement | undefined;
 	libraryPicker: HTMLInputElement | undefined;
@@ -246,6 +248,7 @@ export class AppSession {
 		this.engine = new Engine(new App());
 		await registerSystemMonospace(this.engine.app);
 		this.engine.app.render();
+		await this.pro.load();
 		const userLibs = loadUserLibraries();
 		this.engine.query((app) => {
 			app.set_locale(this.locale);

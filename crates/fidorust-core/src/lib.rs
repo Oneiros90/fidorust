@@ -3,6 +3,7 @@
 pub mod consts;
 pub mod document;
 pub mod editor;
+pub mod ext;
 pub mod fcd;
 pub mod geom;
 pub mod hit;

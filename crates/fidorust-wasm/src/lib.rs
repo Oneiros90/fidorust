@@ -425,6 +425,20 @@ impl App {
         self.backend.apply_theme(&mut self.editor, &self.theme);
     }
 
+    /// JSON in, JSON out. Unknown names return `{"ok":false,"error":...}`.
+    #[wasm_bindgen]
+    pub fn ext_command(&mut self, name: &str, payload: &str) -> String {
+        match fidorust_core::ext::dispatch(&mut self.editor, name, payload) {
+            Ok(body) => body,
+            Err(err) => to_json(&serde_json::json!({ "ok": false, "error": err }), "{}"),
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn capabilities_json(&self) -> String {
+        fidorust_core::ext::capabilities()
+    }
+
     #[wasm_bindgen]
     pub fn status_json(&self) -> String {
         to_json(&StatusDto::from_editor(&self.editor), "{}")

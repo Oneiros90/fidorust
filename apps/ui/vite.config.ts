@@ -7,11 +7,17 @@ import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 const host = process.env.TAURI_DEV_HOST;
 const uiRoot = path.dirname(fileURLToPath(import.meta.url));
 const cratesDir = path.resolve(uiRoot, '../../crates');
+const proRoot = path.resolve(uiRoot, '../../../fidorust-pro');
+const proEnabled = process.env.FIDORUST_PRO === '1';
+const wasmCrate = proEnabled
+	? path.resolve(proRoot, 'crates/fidorust-pro-wasm')
+	: path.resolve(cratesDir, 'fidorust-wasm');
+const watchDirs = proEnabled ? [cratesDir, path.resolve(proRoot, 'crates')] : [cratesDir];
 
 function wasmPackDev(): Plugin {
 	const args = [
 		'build',
-		path.resolve(cratesDir, 'fidorust-wasm'),
+		wasmCrate,
 		'--target',
 		'web',
 		'--out-dir',
@@ -54,31 +60,59 @@ function wasmPackDev(): Plugin {
 		}
 	};
 
+	const inWatchTree = (file: string) =>
+		watchDirs.some((dir) => {
+			const rel = path.relative(dir, file);
+			return rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+		});
+
 	return {
 		name: 'wasm-pack-dev',
 		apply: 'serve',
 		async configureServer(devServer) {
 			server = devServer;
 			await run();
-			devServer.watcher.add(cratesDir);
+			for (const dir of watchDirs) {
+				devServer.watcher.add(dir);
+			}
 			devServer.watcher.on('change', (file) => {
-				const rel = path.relative(cratesDir, file);
-				if (rel.startsWith('..') || path.isAbsolute(rel)) return;
-				if (rel.split(path.sep).includes('target')) return;
+				if (!inWatchTree(file)) return;
+				if (file.split(path.sep).includes('target')) return;
 				if (file.endsWith('.rs') || file.endsWith('Cargo.toml')) void rebuild();
 			});
 		}
 	};
 }
 
+function fidorustPro(): Plugin {
+	const registerPath = path.resolve(proRoot, 'ui/src/register.ts').replaceAll('\\', '/');
+	return {
+		name: 'fidorust-pro',
+		resolveId(id) {
+			if (id === 'virtual:fidorust-pro') return '\0virtual:fidorust-pro';
+		},
+		load(id) {
+			if (id !== '\0virtual:fidorust-pro') return;
+			if (!proEnabled) {
+				return 'export async function register() {\n\treturn null;\n}\n';
+			}
+			return `export { register } from ${JSON.stringify(registerPath)};\n`;
+		}
+	};
+}
+
 export default defineConfig({
-	plugins: [svelte(), wasmPackDev()],
+	plugins: [svelte(), fidorustPro(), wasmPackDev()],
+	resolve: proEnabled ? { alias: { '@fidorust-ui': path.resolve(uiRoot, 'src') } } : undefined,
 	clearScreen: false,
 	envPrefix: ['VITE_', 'TAURI_ENV_*'],
 	server: {
 		port: 5173,
 		strictPort: true,
 		host: host || false,
+		fs: {
+			allow: [path.resolve(uiRoot, '../..'), ...(proEnabled ? [proRoot] : [])]
+		},
 		hmr: host
 			? {
 					protocol: 'ws',
@@ -87,7 +121,8 @@ export default defineConfig({
 				}
 			: undefined,
 		watch: {
-			ignored: ['**/src-tauri/**', '**/target/**']
+			ignored: ['**/src-tauri/**', '**/target/**'],
+			...(proEnabled ? { followSymlinks: true } : {})
 		}
 	},
 	build: {

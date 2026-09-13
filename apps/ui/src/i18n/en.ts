@@ -231,7 +231,18 @@ export const en = {
 	exportPrintActual: 'Actual size (1:1)',
 	exportPrintMargin: 'Print margin (mm)',
 	exportFitView: 'Fit',
-	exportSize: 'Size'
+	exportSize: 'Size',
+	proEnter: 'FidoRust Pro',
+	licenseTitle: 'Activate FidoRust Pro',
+	licenseBody: 'Enter your license key to enable FidoRust Pro on this device.',
+	licenseKey: 'License key',
+	licenseKeyPlaceholder: 'XXXX-XXXX-XXXX',
+	licenseHint: 'The license is stored on this device. You can deactivate it at any time.',
+	licenseBuy: 'Purchase a license…',
+	licenseActivate: 'Activate',
+	proActive: 'FidoRust Pro is active',
+	proActiveBody: 'Premium features are enabled on this device.',
+	proDeactivate: 'Deactivate'
 };
 
 export type Dict = typeof en;

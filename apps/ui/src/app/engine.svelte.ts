@@ -47,6 +47,22 @@ export class Engine {
 
 	query = <T>(fn: (app: WasmApp) => T): T => fn(this.app);
 
+	extCommand = (name: string, payload: string): string => {
+		const app = this.app as WasmApp & { ext_command: (n: string, p: string) => string };
+		return app.ext_command(name, payload);
+	};
+
+	capabilities = (): { pro: boolean; commands: string[] } => {
+		const app = this.app as WasmApp & { capabilities_json?: () => string };
+		try {
+			const raw = app.capabilities_json?.() ?? '{"pro":false,"commands":[]}';
+			const parsed = JSON.parse(raw) as { pro?: boolean; commands?: string[] };
+			return { pro: !!parsed.pro, commands: parsed.commands ?? [] };
+		} catch {
+			return { pro: false, commands: [] };
+		}
+	};
+
 	attachCanvas = (node: HTMLCanvasElement) => {
 		this.canvas = node;
 		this.app.attach_canvas(node);

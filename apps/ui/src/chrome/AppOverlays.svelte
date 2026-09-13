@@ -15,6 +15,7 @@
 	import ExportPreviewDialog from '../dialogs/ExportPreviewDialog.svelte';
 	import UnresolvedComponentsDialog from '../dialogs/UnresolvedComponentsDialog.svelte';
 	import ComponentLayerWarningDialog from '../dialogs/ComponentLayerWarningDialog.svelte';
+	import LicenseDialog from '../dialogs/LicenseDialog.svelte';
 	import ComponentGhost from '../library/ComponentGhost.svelte';
 	import LibraryItemContextMenu from '../library/LibraryItemContextMenu.svelte';
 	import LibraryContextMenu from '../library/LibraryContextMenu.svelte';
@@ -123,4 +124,11 @@
 	<UnresolvedComponentsDialog />
 {:else if dialog?.kind === 'componentLayerWarning'}
 	<ComponentLayerWarningDialog />
+{:else if dialog?.kind === 'license'}
+	<LicenseDialog />
+{/if}
+
+{#if app.pro.active && app.pro.Overlay}
+	{@const Overlay = app.pro.Overlay}
+	<Overlay />
 {/if}
