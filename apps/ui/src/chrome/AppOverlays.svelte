@@ -128,7 +128,6 @@
 	<LicenseDialog />
 {/if}
 
-{#if app.pro.active && app.pro.Overlay}
-	{@const Overlay = app.pro.Overlay}
-	<Overlay />
+{#if app.pro.active && app.pro.mountOverlay}
+	<div class="pro-overlay" {@attach app.pro.overlayAttach}></div>
 {/if}

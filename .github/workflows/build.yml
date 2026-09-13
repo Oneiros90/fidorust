@@ -131,6 +131,11 @@ jobs:
           npx vite build --base /${{ github.event.repository.name }}/
           touch dist/.nojekyll
 
+      - name: Stage encrypted Pro modules from Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/stage-pro-modules.sh apps/ui/dist/pro
+
       - name: Upload web artifact
         uses: actions/upload-artifact@v6
         with:

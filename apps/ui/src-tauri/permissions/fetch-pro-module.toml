@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-fetch-pro-module"
+description = "Download the encrypted Pro module from GitHub Pages"
+commands.allow = ["fetch_pro_module"]

@@ -244,5 +244,8 @@ export const it: typeof en = {
 	licenseActivate: 'Attiva',
 	proActive: 'FidoRust Pro è attivo',
 	proActiveBody: 'Le funzioni premium sono abilitate su questo dispositivo.',
-	proDeactivate: 'Disattiva'
+	proDeactivate: 'Disattiva',
+	proLoadFailed:
+		'Impossibile caricare FidoRust Pro. Il disegno continua a funzionare senza le funzioni premium.',
+	proLoading: 'Caricamento di FidoRust Pro…'
 };

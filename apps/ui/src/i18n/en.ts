@@ -242,7 +242,9 @@ export const en = {
 	licenseActivate: 'Activate',
 	proActive: 'FidoRust Pro is active',
 	proActiveBody: 'Premium features are enabled on this device.',
-	proDeactivate: 'Deactivate'
+	proDeactivate: 'Deactivate',
+	proLoadFailed: 'Could not load FidoRust Pro. Drawing still works without premium features.',
+	proLoading: 'Loading FidoRust Pro…'
 };
 
 export type Dict = typeof en;

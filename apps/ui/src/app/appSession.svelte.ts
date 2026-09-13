@@ -28,6 +28,7 @@ import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 import { startDesktopFileBridge } from '../lib/desktopFiles';
 import { loadUserLibraries } from '../lib/userLibraries';
 import type { SaveLibraryPolicy } from './fileOps';
+import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 
 export type { RecentEntry };
 export type { LibGhost };
@@ -245,12 +246,10 @@ export class AppSession {
 		const initWasm = (await import('../wasm/fidorust_wasm.js')).default;
 		const { App } = await import('../wasm/fidorust_wasm.js');
 		await initWasm();
-		this.engine = new Engine(new App());
-		await registerSystemMonospace(this.engine.app);
-		this.engine.app.render();
+		await this.adoptEngine(new App());
 		await this.pro.load();
 		const userLibs = loadUserLibraries();
-		this.engine.query((app) => {
+		this.engine?.query((app) => {
 			app.set_locale(this.locale);
 			app.set_theme(this.theme);
 			if (userLibs.length) app.load_user_libraries(JSON.stringify(userLibs));
@@ -281,21 +280,68 @@ export class AppSession {
 		}
 		this.syncTitleEpoch();
 		this.#persist.enabled = true;
-		if (this.engine) {
-			let libsRev = this.engine.libsRev;
-			this.engine.onRefresh = () => {
-				if (this.engine && this.engine.libsRev !== libsRev) {
-					libsRev = this.engine.libsRev;
-					this.cursorCache.clear();
-					this.previewCache.clear();
-				}
-				this.syncTitleEpoch();
-				this.schedulePersist();
-			};
-		}
+		this.bindEngineRefresh();
 		window.addEventListener('pagehide', this.flushPersist);
 		document.addEventListener('visibilitychange', this.onVisibilityChange);
 		this.schedulePersist();
+	};
+
+	bindEngineRefresh = () => {
+		if (!this.engine) return;
+		let libsRev = this.engine.libsRev;
+		this.engine.onRefresh = () => {
+			if (this.engine && this.engine.libsRev !== libsRev) {
+				libsRev = this.engine.libsRev;
+				this.cursorCache.clear();
+				this.previewCache.clear();
+			}
+			this.syncTitleEpoch();
+			this.schedulePersist();
+		};
+	};
+
+	adoptEngine = async (wasm: WasmApp) => {
+		const prev = this.engine;
+		const snap = prev
+			? {
+					fcd: prev.query((app) => app.save_fcd()),
+					zoom: prev.status.zoom,
+					panX: prev.status.pan_x,
+					panY: prev.status.pan_y,
+					tool: prev.status.tool,
+					layer: prev.status.layer,
+					hideComponentOrigin: prev.status.hide_component_origin
+				}
+			: null;
+		this.engine = new Engine(wasm);
+		await registerSystemMonospace(this.engine.app);
+		const userLibs = loadUserLibraries();
+		this.engine.query((app) => {
+			app.set_locale(this.locale);
+			app.set_theme(this.theme);
+			if (userLibs.length) app.load_user_libraries(JSON.stringify(userLibs));
+		});
+		if (snap) {
+			this.engine.mutate((app) => {
+				app.load_fcd(snap.fcd);
+				app.set_view(snap.zoom, snap.panX, snap.panY);
+				const tool = snap.tool === 'component' || snap.tool === 'macro' ? 'select' : snap.tool;
+				app.set_tool(tool);
+				app.set_layer(snap.layer);
+				app.set_hide_component_origin(snap.hideComponentOrigin);
+			});
+		} else {
+			this.engine.app.render();
+		}
+		this.bindEngineRefresh();
+		this.refresh();
+	};
+
+	restoreFreeEngine = async () => {
+		const initWasm = (await import('../wasm/fidorust_wasm.js')).default;
+		const { App } = await import('../wasm/fidorust_wasm.js');
+		await initWasm();
+		await this.adoptEngine(new App());
 	};
 
 	restoreSession = (session: SessionState) => restoreSessionState(this, session);

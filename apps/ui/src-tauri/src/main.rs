@@ -96,6 +96,32 @@ fn read_open_files(paths: Vec<String>) -> Vec<OpenedFile> {
         .collect()
 }
 
+#[tauri::command]
+async fn fetch_pro_module(url: String) -> Result<String, String> {
+    if !pro_module_url_allowed(&url) {
+        return Err("blocked module url".into());
+    }
+    let bytes = reqwest::get(&url)
+        .await
+        .and_then(|res| res.error_for_status())
+        .map_err(|err| err.to_string())?
+        .bytes()
+        .await
+        .map_err(|err| err.to_string())?;
+    Ok(STANDARD.encode(bytes))
+}
+
+fn pro_module_url_allowed(url: &str) -> bool {
+    const PREFIXES: &[&str] = &["https://oneiros90.github.io/fidorust/"];
+    if PREFIXES.iter().any(|prefix| url.starts_with(prefix)) {
+        return true;
+    }
+    cfg!(debug_assertions)
+        && (url.starts_with("http://127.0.0.1:") || url.starts_with("http://localhost:"))
+        && url.contains("/pro/")
+        && url.ends_with("/fidorust-pro.bin")
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -105,7 +131,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             system_mono_fonts,
             take_pending_opens,
-            read_open_files
+            read_open_files,
+            fetch_pro_module
         ])
         .setup(|#[allow(unused_variables)] app| {
             #[cfg(any(windows, target_os = "linux"))]
