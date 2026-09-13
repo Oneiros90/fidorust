@@ -4,6 +4,11 @@ import { defaultStatus, type LayersData, type LibraryEntry, type Status } from '
 
 export type MutateOpts = { refreshFirst?: boolean };
 
+function extCommandDirtiesScene(name: string, _out: string): boolean {
+	if (name === 'ping' || name === 'circuit.status' || name === 'circuit.sync') return false;
+	return name.startsWith('circuit.');
+}
+
 export class Engine {
 	app: WasmApp;
 	status = $state<Status>(defaultStatus());
@@ -11,6 +16,7 @@ export class Engine {
 	libs = $state<LibraryEntry[]>([]);
 	libsRev = $state(0);
 	canvas: HTMLCanvasElement | null = null;
+	refreshListeners = new Set<() => void>();
 	onRefresh: (() => void) | null = null;
 
 	constructor(app: WasmApp) {
@@ -30,26 +36,30 @@ export class Engine {
 				this.libs = JSON.parse(this.app.library_json());
 			}
 			this.onRefresh?.();
+			for (const cb of [...this.refreshListeners]) cb();
 		});
 	};
 
-	mutate = (fn: (app: WasmApp) => void, opts?: MutateOpts) => {
-		if (opts?.refreshFirst) {
-			fn(this.app);
-			this.refresh();
-			this.app.render();
-			return;
-		}
+	subscribeRefresh = (cb: () => void) => {
+		this.refreshListeners.add(cb);
+		return () => {
+			this.refreshListeners.delete(cb);
+		};
+	};
+
+	mutate = (fn: (app: WasmApp) => void, _opts?: MutateOpts) => {
 		fn(this.app);
-		this.app.render();
 		this.refresh();
+		this.app.render();
 	};
 
 	query = <T>(fn: (app: WasmApp) => T): T => fn(this.app);
 
 	extCommand = (name: string, payload: string): string => {
 		const app = this.app as WasmApp & { ext_command: (n: string, p: string) => string };
-		return app.ext_command(name, payload);
+		const out = app.ext_command(name, payload);
+		if (extCommandDirtiesScene(name, out)) this.app.render();
+		return out;
 	};
 
 	capabilities = (): { pro: boolean; commands: string[] } => {

@@ -58,6 +58,12 @@
 	{:else if name === 'zoom'}
 		<circle cx="10.5" cy="10.5" r="5.6" />
 		<line x1="14.6" y1="14.6" x2="19.4" y2="19.4" />
+	{:else if name === 'circuit'}
+		<rect x="7.5" y="6" width="9" height="12" rx="1.2" />
+		<path d="M4 9.5h3.5M4 12h3.5M4 14.5h3.5M16.5 9.5H20M16.5 12H20M16.5 14.5H20" />
+		<circle cx="5.2" cy="9.5" r="0.9" fill="currentColor" stroke="none" />
+		<circle cx="5.2" cy="12" r="0.9" fill="currentColor" stroke="none" />
+		<circle cx="5.2" cy="14.5" r="0.9" fill="currentColor" stroke="none" />
 	{:else}
 		<rect x="6" y="6" width="12" height="12" rx="1.2" />
 	{/if}

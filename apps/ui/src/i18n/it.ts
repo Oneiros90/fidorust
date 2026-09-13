@@ -242,10 +242,13 @@ export const it: typeof en = {
 		'La licenza è salvata su questo dispositivo. Puoi disattivarla in qualsiasi momento.',
 	licenseBuy: 'Acquista una licenza…',
 	licenseActivate: 'Attiva',
+	licenseInvalid: 'Questa chiave di licenza non è valida.',
 	proActive: 'FidoRust Pro è attivo',
 	proActiveBody: 'Le funzioni premium sono abilitate su questo dispositivo.',
 	proDeactivate: 'Disattiva',
 	proLoadFailed:
 		'Impossibile caricare FidoRust Pro. Il disegno continua a funzionare senza le funzioni premium.',
-	proLoading: 'Caricamento di FidoRust Pro…'
+	proLoading: 'Caricamento di FidoRust Pro…',
+	circuitMode: 'Circuito',
+	circuitModeLocked: 'Modalità Circuito (FidoRust Pro)'
 };

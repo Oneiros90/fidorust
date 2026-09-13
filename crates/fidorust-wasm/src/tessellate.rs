@@ -26,6 +26,7 @@ pub fn tessellate_input<'a>(ed: &'a Editor, viewport: Option<(f32, f32)>) -> Tes
         marquee: ed.marquee_screen_rect(),
         tool: ed.tool(),
         ruler_segments: ed.ruler_segments(),
+        view: ed.view_overlay(),
     }
 }
 

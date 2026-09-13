@@ -11,13 +11,25 @@ import { instantiateOverlay, instantiateProApp, revokeProBlobUrls } from '../lib
 import { fetchAndDecryptModule } from '../lib/proModule';
 import type { AppSession } from './appSession.svelte';
 
+function commandOn(raw: string): boolean {
+	try {
+		return !!(JSON.parse(raw) as { on?: boolean }).on;
+	} catch {
+		return false;
+	}
+}
+
 export class ProSession {
 	licensed = $state(isLicensed());
 	active = $state(false);
 	wasmPro = $state(false);
 	loading = $state(false);
+	circuitOn = $state(false);
 	lastResult = $state<string | null>(null);
 	mountOverlay = $state.raw<ProPack['mount'] | null>(null);
+	private pack: ProPack | null = null;
+	private unsubRefresh: (() => void) | null = null;
+	private pendingCircuit = false;
 
 	constructor(private readonly app: AppSession) {}
 
@@ -34,7 +46,8 @@ export class ProSession {
 		},
 		deactivate: () => void this.deactivate(),
 		exit: () => this.exit(),
-		extCommand: (name, payload) => this.app.engine?.extCommand(name, payload) ?? '{"ok":false}'
+		extCommand: (name, payload) => this.app.engine?.extCommand(name, payload) ?? '{"ok":false}',
+		subscribeRefresh: (cb) => this.app.engine?.subscribeRefresh(cb) ?? (() => {})
 	});
 
 	overlayAttach = (node: HTMLElement) => {
@@ -43,13 +56,28 @@ export class ProSession {
 		return mount(node, this.host());
 	};
 
+	bindEngine = () => {
+		this.unsubRefresh?.();
+		this.unsubRefresh = this.app.engine
+			? this.app.engine.subscribeRefresh(() => {
+					if (this.circuitOn) this.app.engine?.extCommand('circuit.sync', '{}');
+				})
+			: null;
+	};
+
+	adoptPack = (pack: ProPack) => {
+		this.pack = pack;
+		this.mountOverlay = pack.mount;
+		this.bindEngine();
+	};
+
 	load = async () => {
 		const caps = this.app.engine?.capabilities() ?? { pro: false, commands: [] };
 		this.wasmPro = caps.pro;
 		const { register } = await import('virtual:fidorust-pro');
 		const pack = await register();
 		if (pack) {
-			this.mountOverlay = pack.mount;
+			this.adoptPack(pack);
 			return;
 		}
 		if (this.licensed && !this.wasmPro) {
@@ -68,20 +96,46 @@ export class ProSession {
 		this.active = true;
 	};
 
+	requestCircuit = async () => {
+		if (!this.licensed) {
+			this.pendingCircuit = true;
+			this.app.dialogs.open({ kind: 'license' });
+			return;
+		}
+		if (this.circuitOn) {
+			this.app.engine?.extCommand('circuit.set', '{"on":false}');
+			this.circuitOn = false;
+			this.pack?.setCircuitChrome(false);
+			return;
+		}
+		await this.enableCircuit();
+	};
+
 	exit = () => {
 		this.active = false;
 	};
 
-	activate = async (key: string) => {
-		if (!activateLicense(key)) return;
+	activate = async (key: string): Promise<boolean> => {
+		if (!activateLicense(key)) return false;
 		this.licensed = true;
 		this.app.dialogs.close();
 		await this.tryEnter();
+		if (this.pendingCircuit) {
+			this.pendingCircuit = false;
+			await this.enableCircuit();
+		}
+		return true;
 	};
 
 	deactivate = async () => {
+		this.pack?.setCircuitChrome(false);
+		this.circuitOn = false;
+		this.pendingCircuit = false;
 		this.active = false;
 		this.mountOverlay = null;
+		this.pack = null;
+		this.unsubRefresh?.();
+		this.unsubRefresh = null;
 		deactivateLicense();
 		this.licensed = false;
 		this.lastResult = null;
@@ -96,6 +150,15 @@ export class ProSession {
 
 	runSmoke = () => {
 		this.lastResult = this.app.engine?.extCommand('ping', '{}') ?? null;
+	};
+
+	private enableCircuit = async () => {
+		const ok = await this.ensureModule();
+		if (!ok) return;
+		this.bindEngine();
+		const raw = this.app.engine?.extCommand('circuit.set', '{"on":true}') ?? '{}';
+		this.circuitOn = commandOn(raw);
+		this.pack?.setCircuitChrome(this.circuitOn);
 	};
 
 	ensureModule = async (): Promise<boolean> => {
@@ -117,12 +180,13 @@ export class ProSession {
 			);
 			await this.app.adoptEngine(wasmApp);
 			const pack = await instantiateOverlay(payload.files['overlay.js']);
-			this.mountOverlay = pack.mount;
+			this.adoptPack(pack);
 			this.wasmPro = this.app.engine?.capabilities().pro ?? false;
 			if (!this.wasmPro) throw new Error('pro module did not install');
 			return true;
 		} catch (err) {
 			this.mountOverlay = null;
+			this.pack = null;
 			if (!wasPro) await this.app.restoreFreeEngine();
 			this.wasmPro = this.app.engine?.capabilities().pro ?? false;
 			this.app.error = this.app.t.proLoadFailed;

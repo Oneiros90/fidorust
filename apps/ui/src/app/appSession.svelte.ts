@@ -298,6 +298,7 @@ export class AppSession {
 			this.syncTitleEpoch();
 			this.schedulePersist();
 		};
+		this.pro.bindEngine();
 	};
 
 	adoptEngine = async (wasm: WasmApp) => {

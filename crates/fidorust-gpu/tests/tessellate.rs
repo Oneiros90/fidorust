@@ -681,3 +681,43 @@ fn unresolved_component_is_invisible() {
         scene.circles.len()
     );
 }
+
+#[test]
+fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(20, 0),
+        layer: LayerId(1),
+    }));
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 10),
+        b: Point::new(20, 10),
+        layer: LayerId(1),
+    }));
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        ink: Some([0, 0, 0, 255]),
+        accent_ids: vec![0],
+        accent: [255, 0, 0, 255],
+        markers: vec![fidorust_core::OverlayMarker {
+            pos: Point::new(0, 0),
+            radius: 1.5,
+            color: [255, 0, 0, 255],
+        }],
+        canvas: None,
+    }));
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.lines.len(), 2);
+    assert!((scene.lines[0].r - 1.0).abs() < 1e-5);
+    assert!(scene.lines[0].g.abs() < 1e-5);
+    assert!(scene.lines[1].r.abs() < 1e-5);
+    assert!(scene.lines[1].g.abs() < 1e-5);
+    assert!(scene.lines[1].b.abs() < 1e-5);
+    assert_eq!(scene.circles.len(), 1);
+    assert!((scene.circles[0].r - 1.0).abs() < 1e-5);
+
+    let exported = tessellate_export(&ed, &ed.doc().layers);
+    let layer = Rgb::from_rgba_u8(ed.doc().layers.color(LayerId(1)));
+    assert!((exported.lines[0].r - layer[0]).abs() < 1e-5);
+    assert!(exported.circles.is_empty());
+}

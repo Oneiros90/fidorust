@@ -51,6 +51,8 @@ jobs:
 
       - name: Build web
         working-directory: apps/ui
+        env:
+          VITE_PRO_LICENSE_HASH: ${{ secrets.VITE_PRO_LICENSE_HASH }}
         run: |
           npm run wasm
           npx vite build --base /${{ github.event.repository.name }}/

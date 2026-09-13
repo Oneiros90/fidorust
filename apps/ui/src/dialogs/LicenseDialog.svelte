@@ -4,10 +4,12 @@
 
 	const app = getAppSession();
 	let key = $state('');
+	let invalid = $state(false);
 
-	function activate() {
+	async function activate() {
 		if (!key.trim()) return;
-		app.pro.activate(key);
+		invalid = false;
+		invalid = !(await app.pro.activate(key));
 	}
 </script>
 
@@ -24,11 +26,22 @@
 		<span>{app.t.licenseKey}</span>
 		<input
 			type="text"
-			bind:value={key}
+			bind:value={
+				() => key,
+				(v) => {
+					key = v;
+					invalid = false;
+				}
+			}
 			placeholder={app.t.licenseKeyPlaceholder}
 			autocomplete="off"
+			aria-invalid={invalid}
+			aria-describedby={invalid ? 'license-invalid' : undefined}
 		/>
 	</label>
+	{#if invalid}
+		<p id="license-invalid" class="error" role="alert">{app.t.licenseInvalid}</p>
+	{/if}
 	<p class="hint">{app.t.licenseHint}</p>
 	{#snippet actions()}
 		<div class="actions">
@@ -61,6 +74,11 @@
 		margin: 10px 0 0;
 		font-size: 12px;
 		color: var(--fg-muted);
+	}
+	.error {
+		margin: 8px 0 0;
+		font-size: 12px;
+		color: var(--danger);
 	}
 	.actions {
 		display: flex;

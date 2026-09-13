@@ -17,6 +17,7 @@ use crate::draft::add_draft;
 use crate::scene::DEFAULT_STROKE_W;
 use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
 use crate::theme::Rgb;
+use fidorust_core::ViewOverlay;
 
 pub use crate::draft::DraftParams;
 pub use crate::scene::{
@@ -249,11 +250,23 @@ fn color(
     selected: bool,
     hovered: bool,
     theme: CanvasTheme,
+    overlay: Option<&ViewOverlay>,
+    top_index: Option<usize>,
 ) -> [f32; 4] {
     if selected {
         return Rgb::selection(theme).rgba(1.0);
     }
-    let base = Rgb::from_rgba_u8(layers.color(p.layer()));
+    let base = if let Some(overlay) = overlay {
+        if top_index.is_some_and(|i| overlay.is_accent(i)) {
+            Rgb::from_rgba_u8(overlay.accent)
+        } else if let Some(ink) = overlay.ink {
+            Rgb::from_rgba_u8(ink)
+        } else {
+            Rgb::from_rgba_u8(layers.color(p.layer()))
+        }
+    } else {
+        Rgb::from_rgba_u8(layers.color(p.layer()))
+    };
     if hovered {
         Rgb::mix_white(base, Rgb::HOVER_LIGHTEN)
     } else {
@@ -269,11 +282,13 @@ fn add_prim(
     hovered: bool,
     stroke_w: f32,
     theme: CanvasTheme,
+    overlay: Option<&ViewOverlay>,
+    top_index: Option<usize>,
 ) {
     if !layers.visible(p.layer()) {
         return;
     }
-    let rgb = color(layers, p, selected, hovered, theme);
+    let rgb = color(layers, p, selected, hovered, theme, overlay, top_index);
     fidorust_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
@@ -314,6 +329,8 @@ fn tessellate_primitives_with_stroke(
                 false,
                 stroke_w,
                 CanvasTheme::Light,
+                None,
+                None,
             );
         }
         scene.mark_layer_end();
@@ -339,6 +356,7 @@ pub struct TessellateInput<'a> {
     pub marquee: Option<(f32, f32, f32, f32)>,
     pub tool: Tool,
     pub ruler_segments: &'a [(Point, Point)],
+    pub view: Option<&'a ViewOverlay>,
 }
 
 /// Flattened document geometry for file export: no draft, selection, handles, or pending components.
@@ -374,7 +392,8 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     let mut scene = Scene::default();
     let layers = input.layers;
     let preview = Rgb::preview(input.theme).rgba(1.0);
-    let expanded: Vec<(bool, bool, Primitive)> = input
+    let overlay = input.view;
+    let expanded: Vec<(Option<usize>, bool, bool, Primitive)> = input
         .primitives
         .iter()
         .enumerate()
@@ -389,19 +408,19 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                         .map(|v| q.aabb().expand(AABB_CULL_EXPAND).intersects(v))
                         .unwrap_or(true)
                 })
-                .map(move |q| (sel, hov, q))
+                .map(move |q| (Some(i), sel, hov, q))
         })
         .collect();
     let n = layers.len();
-    let mut by_layer = group_by_layer(n, expanded, |(_, _, q)| q.layer().index());
+    let mut by_layer = group_by_layer(n, expanded, |(_, _, _, q)| q.layer().index());
     for q in input.pending {
         let i = q.layer().index();
         if i < n {
-            by_layer[i].push((false, false, q));
+            by_layer[i].push((None, false, false, q));
         }
     }
     for (li, bucket) in by_layer.into_iter().enumerate() {
-        for (sel, hov, q) in &bucket {
+        for (top, sel, hov, q) in &bucket {
             add_prim(
                 &mut scene,
                 q,
@@ -410,6 +429,8 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 *hov,
                 input.stroke_w,
                 input.theme,
+                overlay,
+                *top,
             );
         }
         if input.layer.index() == li {
@@ -427,6 +448,24 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
             input.theme,
         );
         scene.mark_layer_end();
+    }
+    if let Some(overlay) = overlay {
+        for m in &overlay.markers {
+            let rgb = Rgb::from_rgba_u8(m.color);
+            scene.push_circle(
+                m.pos.x as f32,
+                m.pos.y as f32,
+                m.radius,
+                m.radius,
+                0.0,
+                0.0,
+                rgb,
+                false,
+            );
+        }
+        if !overlay.markers.is_empty() {
+            scene.mark_layer_end();
+        }
     }
     for (i, p) in input.primitives.iter().enumerate() {
         if !input.selected.contains(&i) {

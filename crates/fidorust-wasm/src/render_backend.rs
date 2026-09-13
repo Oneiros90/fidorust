@@ -35,8 +35,20 @@ impl Backend {
 
     pub fn apply_theme(&mut self, editor: &mut Editor, theme: &str) {
         let canvas = CanvasTheme::parse(theme);
-        let palette = Theme::from_canvas(canvas);
         editor.set_canvas_theme(canvas);
+        self.apply_effective_theme(editor);
+    }
+
+    fn apply_effective_theme(&mut self, editor: &Editor) {
+        let palette = editor
+            .view_overlay()
+            .and_then(|v| v.canvas)
+            .map(|p| Theme {
+                bg: p.bg,
+                grid: p.grid,
+                selection: p.selection,
+            })
+            .unwrap_or_else(|| Theme::from_canvas(editor.canvas_theme()));
         #[cfg(target_arch = "wasm32")]
         if let Some(r) = self.renderer.as_mut() {
             r.set_theme_enum(&palette);
@@ -48,6 +60,7 @@ impl Backend {
     }
 
     pub fn draw(&mut self, editor: &Editor, size: (f32, f32), show_grid: bool) {
+        self.apply_effective_theme(editor);
         let scene = crate::tessellate::tessellate_view(editor, Some(size));
         self.draw_scene(editor, &scene, size, show_grid);
     }

@@ -13,7 +13,10 @@ pub mod primitive;
 pub mod properties;
 
 pub use document::{Document, ProjectSettings};
-pub use editor::{CanvasTheme, DblClickAction, Editor, EditorError, TextEditSession, Tool};
+pub use editor::{
+    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker,
+    TextEditSession, Tool, ViewOverlay,
+};
 pub use fcd::{
     parse_document, parse_document_with_project_library, parse_library, serialize_document,
     serialize_document_with_policy, ParseError, SaveLibraryPolicy,

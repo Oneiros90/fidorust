@@ -26,13 +26,14 @@
 		"wasm-pack": "^0.15.0"
 	},
 	"dependencies": {
+		"@noble/ciphers": "^2.4.0",
+		"@noble/ed25519": "^3.2.0",
+		"@noble/hashes": "^2.4.0",
 		"@tauri-apps/api": "^2.8.0",
 		"@tauri-apps/plugin-dialog": "^2.4.0",
 		"@tauri-apps/plugin-fs": "^2.4.0",
 		"@tauri-apps/plugin-opener": "^2.4.0",
-		"svelte-awesome-color-picker": "^4.1.0",
-		"@noble/ciphers": "^2.4.0",
-		"@noble/ed25519": "^3.2.0",
-		"fflate": "^0.8.3"
+		"fflate": "^0.8.3",
+		"svelte-awesome-color-picker": "^4.1.0"
 	}
 }

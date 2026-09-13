@@ -240,11 +240,14 @@ export const en = {
 	licenseHint: 'The license is stored on this device. You can deactivate it at any time.',
 	licenseBuy: 'Purchase a license…',
 	licenseActivate: 'Activate',
+	licenseInvalid: 'This license key is not valid.',
 	proActive: 'FidoRust Pro is active',
 	proActiveBody: 'Premium features are enabled on this device.',
 	proDeactivate: 'Deactivate',
 	proLoadFailed: 'Could not load FidoRust Pro. Drawing still works without premium features.',
-	proLoading: 'Loading FidoRust Pro…'
+	proLoading: 'Loading FidoRust Pro…',
+	circuitMode: 'Circuit',
+	circuitModeLocked: 'Circuit mode (FidoRust Pro)'
 };
 
 export type Dict = typeof en;

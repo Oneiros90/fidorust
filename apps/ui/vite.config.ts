@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +11,25 @@ const uiRoot = path.dirname(fileURLToPath(import.meta.url));
 const cratesDir = path.resolve(uiRoot, '../../crates');
 const proRoot = path.resolve(uiRoot, '../../../fidorust-pro');
 const proEnabled = process.env.FIDORUST_PRO === '1';
+
+/** Bake SHA-256 of sibling `.keys/license.passphrase` when the env is unset (local only). */
+function resolveLicenseHash(): string {
+	const fromEnv = process.env.VITE_PRO_LICENSE_HASH?.trim().toLowerCase() ?? '';
+	if (/^[0-9a-f]{64}$/.test(fromEnv)) return fromEnv;
+	try {
+		const phrase =
+			fs
+				.readFileSync(path.join(proRoot, '.keys/license.passphrase'), 'utf8')
+				.split(/\r?\n/)[0]
+				?.trim() ?? '';
+		if (!phrase) return '';
+		return createHash('sha256').update(phrase, 'utf8').digest('hex');
+	} catch {
+		return '';
+	}
+}
+
+process.env.VITE_PRO_LICENSE_HASH = resolveLicenseHash();
 const wasmCrate = proEnabled
 	? path.resolve(proRoot, 'crates/fidorust-pro-wasm')
 	: path.resolve(cratesDir, 'fidorust-wasm');

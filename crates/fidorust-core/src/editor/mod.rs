@@ -8,8 +8,10 @@ mod selection;
 mod text_edit;
 mod tools;
 mod view;
+mod view_overlay;
 
 pub use tools::{DblClickAction, EditorError, TextEditSession, Tool};
+pub use view_overlay::{CanvasPalette, OverlayMarker, ViewOverlay};
 
 use crate::consts::{
     DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_TRACK_WIDTH, FIT_MARGIN, GRID_MAX,
@@ -85,6 +87,8 @@ pub struct Editor {
     component_edit: Option<ComponentEditSession>,
     /// Ephemeral measure overlay; never serialized.
     ruler_segments: Vec<(Point, Point)>,
+    /// Ephemeral presentation; never serialized or undoable.
+    view_overlay: Option<ViewOverlay>,
 }
 
 impl Editor {
@@ -121,6 +125,7 @@ impl Editor {
             libs_rev: 0,
             component_edit: None,
             ruler_segments: Vec::new(),
+            view_overlay: None,
         }
     }
 
@@ -349,6 +354,14 @@ impl Editor {
 
     pub fn ruler_segments(&self) -> &[(Point, Point)] {
         &self.ruler_segments
+    }
+
+    pub fn view_overlay(&self) -> Option<&ViewOverlay> {
+        self.view_overlay.as_ref()
+    }
+
+    pub fn set_view_overlay(&mut self, overlay: Option<ViewOverlay>) {
+        self.view_overlay = overlay;
     }
 
     /// True while the scene must follow the pointer (drag, draft, or pending component).
