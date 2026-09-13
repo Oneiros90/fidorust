@@ -43,7 +43,7 @@ pub const HANDLE_RADIUS_PX: f32 = 6.0;
 /// Click/hover slop around drawn geometry, in canvas pixels.
 pub const HIT_TOLERANCE_PX: f64 = 6.0;
 /// Drawn connection-dot radius in LU (matches tessellation).
-pub const CONNECTION_RADIUS: f64 = 1.3;
+pub const CONNECTION_RADIUS: f64 = 1.0;
 /// Unexpanded-component origin hit radius² (fallback when children miss).
 pub const COMPONENT_HIT_R2: f64 = 64.0;
 /// Text-hit padding in local glyph space.

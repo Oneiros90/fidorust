@@ -2,12 +2,14 @@
 
 use crate::geom::Point;
 
-/// Extra filled circle in world LU, drawn after document layers.
+/// Extra filled circle in world LU, or screen pixels when [`Self::screen`] is set.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OverlayMarker {
     pub pos: Point,
     pub radius: f32,
     pub color: [u8; 4],
+    /// If true, [`Self::radius`] is screen pixels and stays constant under zoom.
+    pub screen: bool,
 }
 
 /// Canvas chrome (background / grid / selection) independent of the UI theme picker.
@@ -18,21 +20,32 @@ pub struct CanvasPalette {
     pub selection: [f32; 3],
 }
 
+/// Top-level primitive indices painted a colour other than [`ViewOverlay::ink`].
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct OverlayTint {
+    pub ids: Vec<usize>,
+    pub color: [u8; 4],
+}
+
 /// Non-document colour and marker override applied at tessellation time.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ViewOverlay {
-    /// Replace layer ink for primitives that are not accented or selected.
+    /// Replace layer ink for primitives that are not tinted or selected.
     pub ink: Option<[u8; 4]>,
-    /// Top-level primitive indices painted with [`Self::accent`].
-    pub accent_ids: Vec<usize>,
-    pub accent: [u8; 4],
+    /// First match wins.
+    pub tints: Vec<OverlayTint>,
     pub markers: Vec<OverlayMarker>,
+    /// Top-level primitives drawn again after [`Self::markers`] (same tint rules).
+    pub foreground_ids: Vec<usize>,
     pub canvas: Option<CanvasPalette>,
 }
 
 impl ViewOverlay {
-    pub fn is_accent(&self, index: usize) -> bool {
-        self.accent_ids.contains(&index)
+    pub fn tint_color(&self, index: usize) -> Option<[u8; 4]> {
+        self.tints
+            .iter()
+            .find(|t| t.ids.contains(&index))
+            .map(|t| t.color)
     }
 }
 

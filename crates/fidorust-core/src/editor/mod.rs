@@ -11,7 +11,7 @@ mod view;
 mod view_overlay;
 
 pub use tools::{DblClickAction, EditorError, TextEditSession, Tool};
-pub use view_overlay::{CanvasPalette, OverlayMarker, ViewOverlay};
+pub use view_overlay::{CanvasPalette, OverlayMarker, OverlayTint, ViewOverlay};
 
 use crate::consts::{
     DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_TRACK_WIDTH, FIT_MARGIN, GRID_MAX,

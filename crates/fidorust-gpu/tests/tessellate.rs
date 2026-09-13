@@ -2,8 +2,8 @@ mod common;
 
 use fidorust_core::parse::{builtin_libraries, parse_document};
 use fidorust_core::{
-    CanvasTheme, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive, Rect, Text,
-    Tool, DEFAULT_FONT,
+    CanvasTheme, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive,
+    Rect, Text, Tool, DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
 use fidorust_gpu::{tessellate_primitives, Rgb};
@@ -697,13 +697,17 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
     }));
     ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
         ink: Some([0, 0, 0, 255]),
-        accent_ids: vec![0],
-        accent: [255, 0, 0, 255],
+        tints: vec![fidorust_core::OverlayTint {
+            ids: vec![0],
+            color: [255, 0, 0, 255],
+        }],
         markers: vec![fidorust_core::OverlayMarker {
             pos: Point::new(0, 0),
             radius: 1.5,
             color: [255, 0, 0, 255],
+            screen: false,
         }],
+        foreground_ids: vec![],
         canvas: None,
     }));
     let scene = tessellate_editor(&ed);
@@ -715,9 +719,55 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
     assert!(scene.lines[1].b.abs() < 1e-5);
     assert_eq!(scene.circles.len(), 1);
     assert!((scene.circles[0].r - 1.0).abs() < 1e-5);
+    assert!((scene.circles[0].rx - 1.5).abs() < 1e-5);
+
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        ink: Some([0, 0, 0, 255]),
+        tints: vec![],
+        markers: vec![fidorust_core::OverlayMarker {
+            pos: Point::new(0, 0),
+            radius: 8.0,
+            color: [255, 0, 0, 255],
+            screen: true,
+        }],
+        foreground_ids: vec![],
+        canvas: None,
+    }));
+    let screen = tessellate_editor(&ed);
+    assert!((screen.circles[0].rx - 8.0 / ed.zoom()).abs() < 1e-5);
 
     let exported = tessellate_export(&ed, &ed.doc().layers);
     let layer = Rgb::from_rgba_u8(ed.doc().layers.color(LayerId(1)));
     assert!((exported.lines[0].r - layer[0]).abs() < 1e-5);
     assert!(exported.circles.is_empty());
+}
+
+#[test]
+fn overlay_foreground_is_drawn_after_markers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut()
+        .primitives
+        .push(Primitive::Connection(Connection {
+            pos: Point::new(0, 0),
+            layer: LayerId(0),
+        }));
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        ink: None,
+        tints: vec![],
+        markers: vec![fidorust_core::OverlayMarker {
+            pos: Point::new(0, 0),
+            radius: 3.0,
+            color: [0, 255, 0, 255],
+            screen: false,
+        }],
+        foreground_ids: vec![0],
+        canvas: None,
+    }));
+    let scene = tessellate_editor(&ed);
+    assert!(scene.circles.len() >= 3);
+    let last = scene.circles.last().unwrap();
+    assert!((last.rx - 1.0).abs() < 1e-5);
+    let marker = &scene.circles[scene.circles.len() - 2];
+    assert!((marker.rx - 3.0).abs() < 1e-5);
+    assert!((marker.g - 1.0).abs() < 1e-5);
 }

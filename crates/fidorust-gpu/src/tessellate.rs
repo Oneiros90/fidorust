@@ -86,8 +86,8 @@ impl Tessellate for Connection {
         scene.push_circle(
             self.pos.x as f32,
             self.pos.y as f32,
-            1.3,
-            1.3,
+            1.0,
+            1.0,
             0.0,
             0.0,
             rgb,
@@ -257,8 +257,8 @@ fn color(
         return Rgb::selection(theme).rgba(1.0);
     }
     let base = if let Some(overlay) = overlay {
-        if top_index.is_some_and(|i| overlay.is_accent(i)) {
-            Rgb::from_rgba_u8(overlay.accent)
+        if let Some(c) = top_index.and_then(|i| overlay.tint_color(i)) {
+            Rgb::from_rgba_u8(c)
         } else if let Some(ink) = overlay.ink {
             Rgb::from_rgba_u8(ink)
         } else {
@@ -453,18 +453,37 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     if let Some(overlay) = overlay {
         for m in &overlay.markers {
             let rgb = Rgb::from_rgba_u8(m.color);
-            scene.push_circle(
-                m.pos.x as f32,
-                m.pos.y as f32,
-                m.radius,
-                m.radius,
-                0.0,
-                0.0,
-                rgb,
-                false,
-            );
+            let r = if m.screen {
+                m.radius / input.zoom.max(0.01)
+            } else {
+                m.radius
+            };
+            scene.push_circle(m.pos.x as f32, m.pos.y as f32, r, r, 0.0, 0.0, rgb, false);
         }
-        if !overlay.markers.is_empty() {
+        for &i in &overlay.foreground_ids {
+            let Some(p) = input.primitives.get(i) else {
+                continue;
+            };
+            if input.editing_text == Some(i) {
+                continue;
+            }
+            let sel = input.selected.contains(&i);
+            let hov = !sel && input.hover == Some(i);
+            for q in fidorust_core::library::expand_primitive(p, input.libs) {
+                add_prim(
+                    &mut scene,
+                    &q,
+                    layers,
+                    sel,
+                    hov,
+                    input.stroke_w,
+                    input.theme,
+                    Some(overlay),
+                    Some(i),
+                );
+            }
+        }
+        if !overlay.markers.is_empty() || !overlay.foreground_ids.is_empty() {
             scene.mark_layer_end();
         }
     }

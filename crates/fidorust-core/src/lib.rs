@@ -14,7 +14,7 @@ pub mod properties;
 
 pub use document::{Document, ProjectSettings};
 pub use editor::{
-    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker,
+    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker, OverlayTint,
     TextEditSession, Tool, ViewOverlay,
 };
 pub use fcd::{
