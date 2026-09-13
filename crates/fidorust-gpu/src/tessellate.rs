@@ -274,6 +274,7 @@ fn color(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn add_prim(
     scene: &mut Scene,
     p: &Primitive,
