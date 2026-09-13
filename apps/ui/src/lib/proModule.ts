@@ -7,7 +7,7 @@ export const DEFAULT_PRO_MODULE_BASE = 'https://oneiros90.github.io/fidorust';
 export function proModuleUrl(version = appVersion): string {
 	const raw = import.meta.env.VITE_PRO_MODULE_BASE as string | undefined;
 	const base = (raw && raw.length > 0 ? raw : DEFAULT_PRO_MODULE_BASE).replace(/\/$/, '');
-	return `${base}/pro/${version}/fidorust-pro.bin`;
+	return `${base}/pro/${version}/fidorust-pro.dat`;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {

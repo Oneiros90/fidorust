@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Copy every fidorust-pro.bin GitHub Release asset into dist/pro/<version>/.
+# Copy every Pro GitHub Release asset into dist/pro/<version>/.
+# Pages gets both fidorust-pro.bin (release name) and fidorust-pro.dat (loader URL).
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,13 +21,23 @@ for tag in "${tags[@]}"; do
 	[[ "$tag" == v* ]] || continue
 	ver="${tag#v}"
 	dir="$dest/$ver"
-	mkdir -p "$dir"
-	if gh release download "$tag" --repo "$repo" --pattern 'fidorust-pro.bin' --dir "$dir" --clobber >/dev/null 2>&1; then
-		echo "staged $tag -> pro/$ver/fidorust-pro.bin"
-		staged=$((staged + 1))
-	else
-		rmdir "$dir" 2>/dev/null || rm -rf "$dir"
+	tmp="$(mktemp -d)"
+	src=""
+	if gh release download "$tag" --repo "$repo" --pattern 'fidorust-pro.bin' --dir "$tmp" --clobber >/dev/null 2>&1 \
+		&& [[ -f "$tmp/fidorust-pro.bin" ]]; then
+		src="$tmp/fidorust-pro.bin"
+	elif gh release download "$tag" --repo "$repo" --pattern 'fidorust-pro.dat' --dir "$tmp" --clobber >/dev/null 2>&1 \
+		&& [[ -f "$tmp/fidorust-pro.dat" ]]; then
+		src="$tmp/fidorust-pro.dat"
 	fi
+	if [[ -n "$src" ]]; then
+		mkdir -p "$dir"
+		cp "$src" "$dir/fidorust-pro.bin"
+		cp "$src" "$dir/fidorust-pro.dat"
+		echo "staged $tag -> pro/$ver/fidorust-pro.{bin,dat}"
+		staged=$((staged + 1))
+	fi
+	rm -rf "$tmp"
 done
 
 echo "staged $staged pro module(s) into $dest"

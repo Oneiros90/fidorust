@@ -119,7 +119,7 @@ fn pro_module_url_allowed(url: &str) -> bool {
     cfg!(debug_assertions)
         && (url.starts_with("http://127.0.0.1:") || url.starts_with("http://localhost:"))
         && url.contains("/pro/")
-        && url.ends_with("/fidorust-pro.bin")
+        && (url.ends_with("/fidorust-pro.bin") || url.ends_with("/fidorust-pro.dat"))
 }
 
 fn main() {
