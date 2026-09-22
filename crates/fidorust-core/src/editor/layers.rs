@@ -93,7 +93,50 @@ impl Editor {
     }
 
     pub fn set_layer_show(&mut self, index: usize, show: bool) -> bool {
-        self.update_layer(index, |l| l.show = show)
+        if !self.update_layer(index, |l| l.show = show) {
+            return false;
+        }
+        if !show {
+            self.prune_hidden_selections();
+        }
+        true
+    }
+
+    fn prune_hidden_selections(&mut self) {
+        let masks: Vec<Vec<bool>> = {
+            let libs = &self.libs;
+            let layers = &self.doc.layers;
+            self.doc
+                .sheets
+                .iter()
+                .map(|sheet| {
+                    sheet
+                        .primitives
+                        .iter()
+                        .map(|p| crate::hit::primitive_selectable(p, libs, layers))
+                        .collect()
+                })
+                .collect()
+        };
+        let cur = self.doc.view_index();
+        retain_selectable(&masks, cur, &mut self.selected);
+        if !self.hover_index.is_some_and(|i| mask_at(&masks, cur, i)) {
+            self.hover_index = None;
+            self.hover_hit = false;
+        }
+        if self.editing_text.is_some_and(|i| !mask_at(&masks, cur, i)) {
+            self.editing_text = None;
+        }
+        for pane in &mut self.panes {
+            retain_selectable(&masks, pane.sheet_index, &mut pane.selected);
+            if !pane
+                .hover_index
+                .is_some_and(|i| mask_at(&masks, pane.sheet_index, i))
+            {
+                pane.hover_index = None;
+                pane.hover_hit = false;
+            }
+        }
     }
 
     pub fn set_layer_name(&mut self, index: usize, name: String) -> bool {
@@ -122,4 +165,16 @@ impl Editor {
             self.layer = LayerId(max);
         }
     }
+}
+
+fn mask_at(masks: &[Vec<bool>], sheet: usize, i: usize) -> bool {
+    masks
+        .get(sheet)
+        .and_then(|m| m.get(i))
+        .copied()
+        .unwrap_or(false)
+}
+
+fn retain_selectable(masks: &[Vec<bool>], sheet: usize, selected: &mut Vec<usize>) {
+    selected.retain(|&i| mask_at(masks, sheet, i));
 }

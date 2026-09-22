@@ -1,10 +1,30 @@
 //! Hit-testing against flattened primitives.
 
 use crate::consts::{HANDLE_RADIUS_PX, HIT_TOLERANCE_PX};
-use crate::geom::Point;
+use crate::geom::{Aabb, Point};
 use crate::layers::LayerSet;
 use crate::library::LibrarySet;
 use crate::primitive::Primitive;
+
+/// True when `p` has any expanded geometry on a visible layer.
+pub fn primitive_selectable(p: &Primitive, libs: &LibrarySet, layers: &LayerSet) -> bool {
+    if !p.uses_component_layers() {
+        return layers.visible(p.layer());
+    }
+    crate::library::expand_primitive(p, libs)
+        .iter()
+        .any(|q| layers.visible(q.layer()))
+}
+
+fn selectable_aabb(p: &Primitive, libs: &LibrarySet, layers: &LayerSet) -> Aabb {
+    let mut bb = Aabb::empty();
+    for q in crate::library::expand_primitive(p, libs) {
+        if layers.visible(q.layer()) {
+            bb.include_aabb(&q.aabb());
+        }
+    }
+    bb
+}
 
 pub struct Hit {
     pub index: usize,
@@ -110,7 +130,7 @@ pub fn hit_test(
     };
 
     for (index, p) in prims.iter().enumerate() {
-        if !p.uses_component_layers() && !layers.visible(p.layer()) {
+        if !primitive_selectable(p, libs, layers) {
             continue;
         }
         let expanded = crate::library::expand_primitive(p, libs);
@@ -181,14 +201,26 @@ pub fn hit_test_pt(
     )
 }
 
-pub fn marquee_select(prims: &[Primitive], libs: &LibrarySet, a: Point, b: Point) -> Vec<usize> {
+pub fn marquee_select(
+    prims: &[Primitive],
+    libs: &LibrarySet,
+    layers: &LayerSet,
+    a: Point,
+    b: Point,
+) -> Vec<usize> {
     let minx = a.x.min(b.x);
     let maxx = a.x.max(b.x);
     let miny = a.y.min(b.y);
     let maxy = a.y.max(b.y);
     let mut out = Vec::new();
     for (i, p) in prims.iter().enumerate() {
-        let bb = crate::library::expanded_aabb(p, libs);
+        if !primitive_selectable(p, libs, layers) {
+            continue;
+        }
+        let bb = selectable_aabb(p, libs, layers);
+        if bb.is_empty() {
+            continue;
+        }
         if bb.min.x >= minx && bb.max.x <= maxx && bb.min.y >= miny && bb.max.y <= maxy {
             out.push(i);
         }
@@ -465,5 +497,124 @@ mod tests {
         let prims = vec![sample_text(Point::new(10, 20), LayerId(0), "AB")];
         let hit = pick(&prims, &[], Point::new(11, 21), 4.0);
         assert_eq!(hit.map(|h| h.index), Some(0));
+    }
+
+    fn two_layer_rects() -> Vec<Primitive> {
+        vec![
+            Primitive::Rect(Rect {
+                a: Point::new(0, 0),
+                b: Point::new(10, 10),
+                filled: true,
+                layer: LayerId(0),
+            }),
+            Primitive::Rect(Rect {
+                a: Point::new(20, 0),
+                b: Point::new(30, 10),
+                filled: true,
+                layer: LayerId(1),
+            }),
+        ]
+    }
+
+    #[test]
+    fn hidden_layer_is_not_hit() {
+        let mut layers = LayerSet::default();
+        layers.update(0, |l| l.show = false);
+        let hit = pick_layers(&two_layer_rects(), &layers, Point::new(5, 5), 4.0);
+        assert!(hit.is_none());
+        let visible = pick_layers(&two_layer_rects(), &layers, Point::new(25, 5), 4.0);
+        assert_eq!(visible.map(|h| h.index), Some(1));
+    }
+
+    #[test]
+    fn marquee_skips_hidden_layer() {
+        let mut layers = LayerSet::default();
+        layers.update(0, |l| l.show = false);
+        let sel = marquee_select(
+            &two_layer_rects(),
+            &LibrarySet::default(),
+            &layers,
+            Point::new(-1, -1),
+            Point::new(40, 20),
+        );
+        assert_eq!(sel, vec![1]);
+    }
+
+    fn fc_component() -> (LibrarySet, Primitive) {
+        use crate::library::{ComponentDef, Library};
+        use crate::primitive::ComponentRef;
+        let mut lib = Library::empty_project();
+        lib.components.push(ComponentDef {
+            key: "C01".into(),
+            name: "Test".into(),
+            category: String::new(),
+            primitives: vec![
+                Primitive::Rect(Rect {
+                    a: Point::new(100, 100),
+                    b: Point::new(110, 110),
+                    filled: true,
+                    layer: LayerId(0),
+                }),
+                Primitive::Rect(Rect {
+                    a: Point::new(130, 100),
+                    b: Point::new(140, 110),
+                    filled: true,
+                    layer: LayerId(1),
+                }),
+            ],
+        });
+        let mut libs = LibrarySet::default();
+        libs.set_project(lib);
+        let inst = Primitive::Component(ComponentRef {
+            pos: Point::new(0, 0),
+            rotations: 0,
+            mirrored: false,
+            name: "project.C01".into(),
+            standard: false,
+            layer: LayerId(0),
+            use_component_layers: true,
+        });
+        (libs, inst)
+    }
+
+    #[test]
+    fn hidden_component_layers_are_not_hit() {
+        let (libs, inst) = fc_component();
+        let prims = vec![inst];
+        let mut layers = LayerSet::default();
+        layers.update(0, |l| l.show = false);
+        // Visible part at (30,0)-(40,10); hidden rect at the origin.
+        assert!(hit_test_pt(&prims, &libs, &layers, &[], Point::new(5, 5), 4.0).is_none());
+        assert_eq!(
+            hit_test_pt(&prims, &libs, &layers, &[], Point::new(35, 5), 4.0).map(|h| h.index),
+            Some(0)
+        );
+        layers.update(1, |l| l.show = false);
+        assert!(hit_test_pt(&prims, &libs, &layers, &[], Point::new(35, 5), 4.0).is_none());
+        assert!(hit_test_pt(&prims, &libs, &layers, &[], Point::new(0, 0), 4.0).is_none());
+    }
+
+    #[test]
+    fn marquee_uses_visible_component_geometry() {
+        let (libs, inst) = fc_component();
+        let prims = vec![inst];
+        let mut layers = LayerSet::default();
+        layers.update(0, |l| l.show = false);
+        let around_hidden = marquee_select(
+            &prims,
+            &libs,
+            &layers,
+            Point::new(-1, -1),
+            Point::new(12, 12),
+        );
+        assert!(around_hidden.is_empty());
+        let around_visible = marquee_select(
+            &prims,
+            &libs,
+            &layers,
+            Point::new(29, -1),
+            Point::new(41, 12),
+        );
+        assert_eq!(around_visible, vec![0]);
     }
 }

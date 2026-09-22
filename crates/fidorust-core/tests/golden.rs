@@ -691,6 +691,42 @@ fn invert_selection_toggles_indices() {
     assert_eq!(ed.selected(), [1].as_slice());
 }
 
+#[test]
+fn hidden_layer_is_not_selectable() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_snap_enable(false);
+    ed.set_tool(Tool::Select);
+    ed.set_view(1.0, (0.0, 0.0));
+    ed.doc_mut().insert(Primitive::Connection(Connection {
+        pos: Point::new(20, 20),
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().insert(Primitive::Connection(Connection {
+        pos: Point::new(80, 20),
+        layer: LayerId(1),
+    }));
+    ed.set_layer_show(0, false);
+
+    ed.select_all();
+    assert_eq!(ed.selected(), [1].as_slice());
+    ed.set_selected(vec![1]);
+    ed.invert_selection();
+    assert!(ed.selected().is_empty());
+
+    ed.set_selected(vec![0, 1]);
+    ed.set_layer_show(1, false);
+    assert!(ed.selected().is_empty());
+    ed.set_layer_show(1, true);
+
+    ed.begin_marquee((-5.0, -5.0), false);
+    ed.pointer_move(Point::new(100, 40), (100.0, 40.0));
+    ed.pointer_up(Point::new(100, 40));
+    assert_eq!(ed.selected(), [1].as_slice());
+
+    ed.pointer_down(Point::new(20, 20), (20.0, 20.0), false, false);
+    assert!(ed.selected().is_empty());
+}
+
 fn sample_text(pos: Point, text: &str) -> Primitive {
     Primitive::Text(Text {
         pos,

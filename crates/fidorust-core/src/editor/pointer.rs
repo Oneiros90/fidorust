@@ -64,7 +64,7 @@ impl Editor {
         let (start, current, kept) = (*start, *current, kept.clone());
         let a = self.screen_to_world(start.0, start.1);
         let b = self.screen_to_world(current.0, current.1);
-        let extra = marquee_select(&self.doc.primitives, &self.libs, a, b);
+        let extra = marquee_select(&self.doc.primitives, &self.libs, &self.doc.layers, a, b);
         self.selected.clear();
         self.selected.extend(kept);
         for i in extra {

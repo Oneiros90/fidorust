@@ -172,7 +172,16 @@ impl Editor {
     }
 
     pub fn select_all(&mut self) {
-        self.selected = (0..self.doc.primitives.len()).collect();
+        self.selected = (0..self.doc.primitives.len())
+            .filter(|&i| self.primitive_is_selectable(i))
+            .collect();
+    }
+
+    pub(super) fn primitive_is_selectable(&self, index: usize) -> bool {
+        self.doc
+            .primitives
+            .get(index)
+            .is_some_and(|p| crate::hit::primitive_selectable(p, &self.libs, &self.doc.layers))
     }
 
     pub fn rotate_selected(&mut self) {
@@ -265,7 +274,9 @@ impl Editor {
     pub fn invert_selection(&mut self) {
         let n = self.doc.primitives.len();
         let sel: std::collections::HashSet<usize> = self.selected.iter().copied().collect();
-        self.selected = (0..n).filter(|i| !sel.contains(i)).collect();
+        self.selected = (0..n)
+            .filter(|&i| !sel.contains(&i) && self.primitive_is_selectable(i))
+            .collect();
     }
 
     pub fn mirror_selected(&mut self) {

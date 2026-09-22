@@ -34,4 +34,4 @@ BE 90 5 90 5 95 0 95 0
 MC 100 20 0 0 080
 
 ---meta---
-undo=true redo=false sel=[0] layer=4
+undo=true redo=false sel=[] layer=4
