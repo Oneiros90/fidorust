@@ -16,8 +16,8 @@ pub use document::{
     default_sheet_name, sheet_copy_name, Document, ProjectSettings, Sheet, DEFAULT_SHEET_NAME,
 };
 pub use editor::{
-    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker, OverlayTint,
-    PaneState, TextEditSession, Tool, ViewOverlay,
+    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker, OverlayStroke,
+    OverlayTint, PaneState, TextEditSession, Tool, ViewOverlay,
 };
 pub use fcd::{
     parse_document, parse_document_with_project_library, parse_library, serialize_document,

@@ -460,6 +460,9 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
             };
             scene.push_circle(m.pos.x as f32, m.pos.y as f32, r, r, 0.0, 0.0, rgb, false);
         }
+        for s in &overlay.strokes {
+            scene.push_line(s.a, s.b, input.stroke_w, Rgb::from_rgba_u8(s.color), false);
+        }
         for &i in &overlay.foreground_ids {
             let Some(p) = input.primitives.get(i) else {
                 continue;
@@ -483,7 +486,10 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 );
             }
         }
-        if !overlay.markers.is_empty() || !overlay.foreground_ids.is_empty() {
+        if !overlay.markers.is_empty()
+            || !overlay.foreground_ids.is_empty()
+            || !overlay.strokes.is_empty()
+        {
             scene.mark_layer_end();
         }
     }

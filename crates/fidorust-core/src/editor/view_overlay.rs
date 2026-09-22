@@ -27,6 +27,14 @@ pub struct OverlayTint {
     pub color: [u8; 4],
 }
 
+/// Extra stroke not tied to a document primitive (partial wire highlights).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverlayStroke {
+    pub a: Point,
+    pub b: Point,
+    pub color: [u8; 4],
+}
+
 /// Non-document colour and marker override applied at tessellation time.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ViewOverlay {
@@ -38,6 +46,7 @@ pub struct ViewOverlay {
     /// Top-level primitives drawn again after [`Self::markers`] (same tint rules).
     pub foreground_ids: Vec<usize>,
     pub canvas: Option<CanvasPalette>,
+    pub strokes: Vec<OverlayStroke>,
 }
 
 impl ViewOverlay {

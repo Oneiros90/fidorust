@@ -709,6 +709,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
         }],
         foreground_ids: vec![],
         canvas: None,
+        strokes: vec![],
     }));
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.lines.len(), 2);
@@ -732,6 +733,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
         }],
         foreground_ids: vec![],
         canvas: None,
+        strokes: vec![],
     }));
     let screen = tessellate_editor(&ed);
     assert!((screen.circles[0].rx - 8.0 / ed.zoom()).abs() < 1e-5);
@@ -762,6 +764,7 @@ fn overlay_foreground_is_drawn_after_markers() {
         }],
         foreground_ids: vec![0],
         canvas: None,
+        strokes: vec![],
     }));
     let scene = tessellate_editor(&ed);
     assert!(scene.circles.len() >= 3);
