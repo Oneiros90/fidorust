@@ -5,14 +5,19 @@ use crate::layers::{count_on_layer, remap_primitive_layers, LayerId, LayerInfo, 
 
 impl Editor {
     pub fn layer_object_count(&self, index: usize) -> usize {
-        count_on_layer(&self.doc.primitives, LayerId(index as u8))
+        let id = LayerId(index as u8);
+        self.doc
+            .sheets
+            .iter()
+            .map(|s| count_on_layer(&s.primitives, id))
+            .sum()
     }
 
     pub fn add_layer(&mut self) -> Option<LayerId> {
         if self.doc.layers.len() >= MAX_LAYERS {
             return None;
         }
-        self.push_undo();
+        self.push_project_undo();
         let id = self.doc.layers.add()?;
         self.layer = id;
         Some(id)
@@ -29,22 +34,24 @@ impl Editor {
                 return false;
             }
         }
-        self.push_undo();
+        self.push_project_undo();
         let removed = LayerId(index as u8);
         if let Some(dest) = move_to {
             let dest_id = LayerId(dest as u8);
-            for p in &mut self.doc.primitives {
-                if p.assigned_layer() == Some(removed) {
-                    p.set_layer(dest_id);
+            self.doc.for_each_primitives_mut(|prims| {
+                for p in prims {
+                    if p.assigned_layer() == Some(removed) {
+                        p.set_layer(dest_id);
+                    }
                 }
-            }
+            });
         } else {
-            self.doc
-                .primitives
-                .retain(|p| p.assigned_layer() != Some(removed));
+            self.doc.for_each_primitives_mut(|prims| {
+                prims.retain(|p| p.assigned_layer() != Some(removed));
+            });
         }
-        remap_primitive_layers(&mut self.doc.primitives, |id| {
-            id.remap_after_remove(index as u8)
+        self.doc.for_each_primitives_mut(|prims| {
+            remap_primitive_layers(prims, |id| id.remap_after_remove(index as u8));
         });
         self.doc.layers.remove(index);
         let cur = self.layer.0 as usize;
@@ -53,7 +60,7 @@ impl Editor {
         } else if cur > index {
             self.layer = LayerId((cur - 1) as u8);
         }
-        self.selected.clear();
+        self.clear_all_selections();
         true
     }
 
@@ -62,10 +69,10 @@ impl Editor {
         if from >= n || to >= n || from == to {
             return false;
         }
-        self.push_undo();
+        self.push_project_undo();
         self.doc.layers.move_item(from, to);
-        remap_primitive_layers(&mut self.doc.primitives, |id| {
-            id.remap_after_reorder(from as u8, to as u8)
+        self.doc.for_each_primitives_mut(|prims| {
+            remap_primitive_layers(prims, |id| id.remap_after_reorder(from as u8, to as u8));
         });
         self.layer = self.layer.remap_after_reorder(from as u8, to as u8);
         true
@@ -80,7 +87,7 @@ impl Editor {
         if after == before {
             return false;
         }
-        self.push_undo();
+        self.push_project_undo();
         self.doc.layers.update(index, |l| *l = after);
         true
     }
@@ -102,7 +109,7 @@ impl Editor {
         }
         let coalesce = self.layer_color_edit == Some(index);
         if !coalesce {
-            self.push_undo();
+            self.push_project_undo();
         }
         self.layer_color_edit = Some(index);
         self.doc.layers.update(index, |l| l.color = color);

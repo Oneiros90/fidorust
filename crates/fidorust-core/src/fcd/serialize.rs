@@ -1,9 +1,9 @@
 //! Serialize a document back to FidoCAD 0.96 text (CRLF, omit layer 0 except TY).
 
-use crate::document::Document;
+use crate::document::{Document, Sheet};
 use crate::layers::LayerInfo;
 use crate::library::{
-    explode_user_components_for_save, fold_user_components_into_project, Library, LibrarySet,
+    explode_user_components_in_document, fold_user_components_in_document, Library, LibrarySet,
 };
 use crate::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
@@ -150,20 +150,24 @@ pub fn serialize_primitive(p: &Primitive) -> String {
     s
 }
 
-pub fn serialize_project_settings(doc: &Document) -> String {
+pub fn serialize_project_settings_for(doc: &Document, sheet: &Sheet) -> String {
     let vis = |on: bool| if on { 1 } else { 0 };
     format!(
         "PS {} {} {} {} {} {} {} {} {}\r\n",
-        doc.grid,
-        doc.grid_y,
-        doc.snap,
-        doc.snap_y,
-        vis(doc.show_grid),
-        vis(doc.snap_enable),
+        sheet.grid,
+        sheet.grid_y,
+        sheet.snap,
+        sheet.snap_y,
+        vis(sheet.show_grid),
+        vis(sheet.snap_enable),
         vis(doc.hide_component_origin),
         doc.stroke_hundredths,
         vis(doc.default_filled),
     )
+}
+
+pub fn serialize_project_settings(doc: &Document) -> String {
+    serialize_project_settings_for(doc, doc)
 }
 
 pub fn serialize_layer(info: &LayerInfo) -> String {
@@ -215,13 +219,13 @@ pub fn serialize_document_with_policy(
         SaveLibraryPolicy::FoldIntoProject => {
             let mut doc = doc.clone();
             let mut libs = libs.clone();
-            fold_user_components_into_project(&mut doc.primitives, &mut libs);
+            fold_user_components_in_document(&mut doc, &mut libs);
             serialize_document(&doc, Some(&libs))
         }
         SaveLibraryPolicy::ExplodeUser => {
             let mut doc = doc.clone();
             let mut libs = libs.clone();
-            explode_user_components_for_save(&mut doc.primitives, &mut libs);
+            explode_user_components_in_document(&mut doc, &mut libs);
             serialize_document(&doc, Some(&libs))
         }
     }
@@ -239,9 +243,20 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
     for layer in doc.layers.iter() {
         out.push_str(&serialize_layer(layer));
     }
-    out.push_str(&serialize_project_settings(doc));
-    for p in &doc.primitives {
-        out.push_str(&serialize_primitive(p));
+    let multi = doc.sheets.len() > 1;
+    for sheet in &doc.sheets {
+        if multi {
+            out.push_str("[FIDOSHEET");
+            if !sheet.name.is_empty() {
+                out.push(' ');
+                out.push_str(&sheet.name);
+            }
+            out.push_str("]\r\n");
+        }
+        out.push_str(&serialize_project_settings_for(doc, sheet));
+        for p in &sheet.primitives {
+            out.push_str(&serialize_primitive(p));
+        }
     }
     if let Some(libs) = libs {
         if let Some(project) = libs.project() {

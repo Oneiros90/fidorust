@@ -26,8 +26,13 @@ pub(crate) fn to_js(err: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&err.to_string())
 }
 
+#[allow(dead_code)]
 fn screen_world(ed: &Editor, sx: f32, sy: f32) -> (f64, f64, Point) {
-    let (x, y) = ed.screen_to_world_xy(sx, sy);
+    screen_world_pane(ed, ed.active_pane(), sx, sy)
+}
+
+fn screen_world_pane(ed: &Editor, pane: usize, sx: f32, sy: f32) -> (f64, f64, Point) {
+    let (x, y) = ed.screen_to_world_xy_pane(pane, sx, sy);
     (x, y, Point::new(x.round() as i32, y.round() as i32))
 }
 
@@ -37,6 +42,7 @@ pub struct App {
     backend: Backend,
     pub(crate) width: f32,
     pub(crate) height: f32,
+    sizes: [(f32, f32); 2],
     #[allow(dead_code)]
     locale: String,
     theme: String,
@@ -53,6 +59,7 @@ impl App {
             backend: Backend::new(),
             width: 800.0,
             height: 600.0,
+            sizes: [(800.0, 600.0), (800.0, 600.0)],
             locale: "it".into(),
             theme: "light".into(),
             skip_draw: false,
@@ -61,15 +68,39 @@ impl App {
 
     #[wasm_bindgen]
     pub fn attach_canvas(&mut self, canvas: HtmlCanvasElement) -> Result<(), JsValue> {
-        self.backend.attach_canvas(canvas)?;
+        self.attach_pane_canvas(0, canvas)
+    }
+
+    #[wasm_bindgen]
+    pub fn attach_pane_canvas(
+        &mut self,
+        pane: u32,
+        canvas: HtmlCanvasElement,
+    ) -> Result<(), JsValue> {
+        self.backend.attach_pane_canvas(pane as usize, canvas)?;
         self.backend.apply_theme(&mut self.editor, &self.theme);
         Ok(())
     }
 
     #[wasm_bindgen]
+    pub fn detach_pane_canvas(&mut self, pane: u32) {
+        self.backend.detach_pane(pane as usize);
+    }
+
+    #[wasm_bindgen]
     pub fn resize(&mut self, w: f32, h: f32) {
-        self.width = w.max(1.0);
-        self.height = h.max(1.0);
+        self.resize_pane(0, w, h);
+    }
+
+    #[wasm_bindgen]
+    pub fn resize_pane(&mut self, pane: u32, w: f32, h: f32) {
+        let pane = (pane as usize).min(1);
+        let size = (w.max(1.0), h.max(1.0));
+        self.sizes[pane] = size;
+        if pane == 0 {
+            self.width = size.0;
+            self.height = size.1;
+        }
     }
 
     #[wasm_bindgen]
@@ -78,11 +109,15 @@ impl App {
             self.skip_draw = false;
             return;
         }
-        self.backend.draw(
-            &self.editor,
-            (self.width, self.height),
-            self.editor.show_grid(),
-        );
+        let n = if self.editor.split() { 2 } else { 1 };
+        for pane in 0..n {
+            self.backend.draw_pane(
+                pane,
+                &self.editor,
+                self.sizes[pane],
+                self.editor.pane_sheet(pane).show_grid,
+            );
+        }
     }
 
     #[wasm_bindgen]
@@ -96,6 +131,20 @@ impl App {
     pub fn load_fcd_bytes(&mut self, bytes: &[u8]) -> Result<(), JsValue> {
         let text = fidorust_core::parse::decode_bytes(bytes);
         self.load_fcd(&text)
+    }
+
+    /// Append sheets and project-library components from another FCD into the current project.
+    #[wasm_bindgen]
+    pub fn import_fcd(&mut self, text: &str) -> Result<u32, JsValue> {
+        let idx = self.editor.import_fcd_sheets(text).map_err(to_js)?;
+        self.fit_pane(self.editor.active_pane() as u32);
+        Ok(idx as u32)
+    }
+
+    #[wasm_bindgen]
+    pub fn import_fcd_bytes(&mut self, bytes: &[u8]) -> Result<u32, JsValue> {
+        let text = fidorust_core::parse::decode_bytes(bytes);
+        self.import_fcd(&text)
     }
 
     #[wasm_bindgen]
@@ -126,44 +175,91 @@ impl App {
             .filter_map(|&i| self.editor.doc().primitives.get(i).cloned())
             .collect();
         if prims.is_empty() {
-            serialize_document(self.editor.doc(), Some(self.editor.libs()))
+            serialize_document(
+                &self.editor.isolate_active_sheet_doc(),
+                Some(self.editor.libs()),
+            )
         } else {
             serialize_clipboard(&prims)
         }
     }
 
+    fn use_pointer_pane(&mut self, pane: u32) -> usize {
+        if !self.editor.scene_follows_pointer() {
+            self.editor.set_active_pane(pane as usize);
+        }
+        self.editor.active_pane()
+    }
+
+    #[wasm_bindgen]
+    pub fn hover_pane(&mut self, pane: u32) {
+        if !self.editor.scene_follows_pointer() {
+            self.editor.set_active_pane(pane as usize);
+        }
+    }
+
     #[wasm_bindgen]
     pub fn pointer_down(&mut self, sx: f32, sy: f32, shift: bool, pan: bool) {
+        self.pointer_down_on(0, sx, sy, shift, pan);
+    }
+
+    #[wasm_bindgen]
+    pub fn pointer_down_on(&mut self, pane: u32, sx: f32, sy: f32, shift: bool, pan: bool) {
         self.skip_draw = false;
-        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        let pane = self.use_pointer_pane(pane);
+        let (x, y, w) = screen_world_pane(&self.editor, pane, sx, sy);
         self.editor.pointer_down_at(x, y, w, (sx, sy), shift, pan);
     }
 
     #[wasm_bindgen]
     pub fn begin_marquee(&mut self, sx: f32, sy: f32, shift: bool) {
+        self.begin_marquee_on(0, sx, sy, shift);
+    }
+
+    #[wasm_bindgen]
+    pub fn begin_marquee_on(&mut self, pane: u32, sx: f32, sy: f32, shift: bool) {
         self.skip_draw = false;
+        let _ = self.use_pointer_pane(pane);
         self.editor.begin_marquee((sx, sy), shift);
     }
 
     #[wasm_bindgen]
     pub fn pointer_move(&mut self, sx: f32, sy: f32) {
+        self.pointer_move_on(0, sx, sy);
+    }
+
+    #[wasm_bindgen]
+    pub fn pointer_move_on(&mut self, pane: u32, sx: f32, sy: f32) {
         let hover0 = self.editor.hover_index();
         let live = self.editor.scene_follows_pointer();
-        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        let pane = self.use_pointer_pane(pane);
+        let (x, y, w) = screen_world_pane(&self.editor, pane, sx, sy);
         self.editor.pointer_move_at(x, y, w, (sx, sy));
         self.skip_draw = !live && hover0 == self.editor.hover_index();
     }
 
     #[wasm_bindgen]
     pub fn pointer_up(&mut self, sx: f32, sy: f32) {
+        self.pointer_up_on(0, sx, sy);
+    }
+
+    #[wasm_bindgen]
+    pub fn pointer_up_on(&mut self, pane: u32, sx: f32, sy: f32) {
         self.skip_draw = false;
-        let (x, y, w) = screen_world(&self.editor, sx, sy);
+        let pane = self.use_pointer_pane(pane);
+        let (x, y, w) = screen_world_pane(&self.editor, pane, sx, sy);
         self.editor.pointer_up_at(x, y, w);
     }
 
     #[wasm_bindgen]
     pub fn dblclick(&mut self, sx: f32, sy: f32) -> String {
-        let (x, y, _) = screen_world(&self.editor, sx, sy);
+        self.dblclick_on(0, sx, sy)
+    }
+
+    #[wasm_bindgen]
+    pub fn dblclick_on(&mut self, pane: u32, sx: f32, sy: f32) -> String {
+        let pane = self.use_pointer_pane(pane);
+        let (x, y, _) = screen_world_pane(&self.editor, pane, sx, sy);
         let action = self.editor.handle_dblclick_at(x, y);
         dblclick_json(&self.editor, action)
     }
@@ -188,15 +284,46 @@ impl App {
 
     #[wasm_bindgen]
     pub fn world_to_screen_json(&self, wx: f32, wy: f32) -> String {
-        let (x, y) = self.editor.world_to_screen(wx, wy);
-        // `format!` (not serde_json) so whole-number f32 keep a trailing `.0`.
-        format!("{{\"x\":{x},\"y\":{y},\"zoom\":{}}}", self.editor.zoom())
+        self.world_to_screen_json_on(self.editor.active_pane() as u32, wx, wy)
+    }
+
+    #[wasm_bindgen]
+    pub fn world_to_screen_json_on(&self, pane: u32, wx: f32, wy: f32) -> String {
+        let pane = (pane as usize).min(1);
+        let (x, y) = self.editor.world_to_screen_pane(pane, wx, wy);
+        format!(
+            "{{\"x\":{x},\"y\":{y},\"zoom\":{}}}",
+            self.editor.pane_zoom(pane)
+        )
     }
 
     #[wasm_bindgen]
     pub fn wheel(&mut self, sx: f32, sy: f32, delta: f32) {
+        self.wheel_on(0, sx, sy, delta);
+    }
+
+    #[wasm_bindgen]
+    pub fn wheel_on(&mut self, pane: u32, sx: f32, sy: f32, delta: f32) {
         self.skip_draw = false;
+        let pane = self.use_pointer_pane(pane);
+        let (sx, sy) = {
+            let _ = pane;
+            (sx, sy)
+        };
         self.editor.wheel_zoom((sx, sy), delta);
+    }
+
+    #[wasm_bindgen]
+    pub fn fit(&mut self) {
+        self.fit_pane(self.editor.active_pane() as u32);
+    }
+
+    #[wasm_bindgen]
+    pub fn fit_pane(&mut self, pane: u32) {
+        let pane = (pane as usize).min(1);
+        self.editor.set_active_pane(pane);
+        let (w, h) = self.sizes[pane];
+        self.editor.fit_view(w, h);
     }
 
     #[wasm_bindgen]
@@ -283,6 +410,12 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, stroke: i32, filled: bool) {
+        self.editor
+            .apply_drawing_defaults(hide_origin, stroke, filled);
+    }
+
+    #[wasm_bindgen]
     pub fn set_filled(&mut self, on: bool) {
         self.editor.set_filled(on);
     }
@@ -327,13 +460,28 @@ impl App {
 
     #[wasm_bindgen]
     pub fn pointer_right(&mut self, sx: f32, sy: f32) -> bool {
-        let w = self.editor.screen_to_world(sx, sy);
+        self.pointer_right_on(0, sx, sy)
+    }
+
+    #[wasm_bindgen]
+    pub fn pointer_right_on(&mut self, pane: u32, sx: f32, sy: f32) -> bool {
+        let pane = self.use_pointer_pane(pane);
+        let w = {
+            let (x, y, _) = screen_world_pane(&self.editor, pane, sx, sy);
+            Point::new(x.round() as i32, y.round() as i32)
+        };
         self.editor.right_click(w)
     }
 
     #[wasm_bindgen]
     pub fn prepare_context_menu(&mut self, sx: f32, sy: f32) {
-        let (x, y, _) = screen_world(&self.editor, sx, sy);
+        self.prepare_context_menu_on(0, sx, sy);
+    }
+
+    #[wasm_bindgen]
+    pub fn prepare_context_menu_on(&mut self, pane: u32, sx: f32, sy: f32) {
+        let pane = self.use_pointer_pane(pane);
+        let (x, y, _) = screen_world_pane(&self.editor, pane, sx, sy);
         self.editor.prepare_context_menu_at(x, y);
     }
 
@@ -397,19 +545,21 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn fit(&mut self) {
-        self.editor.fit_view(self.width, self.height);
+    pub fn set_view(&mut self, zoom: f32, pan_x: f32, pan_y: f32) {
+        self.editor.set_view(zoom, (pan_x, pan_y));
     }
 
     #[wasm_bindgen]
-    pub fn set_view(&mut self, zoom: f32, pan_x: f32, pan_y: f32) {
-        self.editor.set_view(zoom, (pan_x, pan_y));
+    pub fn set_pane_view(&mut self, pane: u32, zoom: f32, pan_x: f32, pan_y: f32) {
+        self.editor
+            .set_pane_view(pane as usize, zoom, (pan_x, pan_y));
     }
 
     #[wasm_bindgen]
     pub fn new_doc(&mut self) {
         let blob = crate::components::user_libraries_blob(self);
         self.editor = Editor::new(builtin_libraries());
+        self.editor.set_locale(&self.locale);
         crate::components::load_user_libraries(self, &blob);
         self.backend.apply_theme(&mut self.editor, &self.theme);
     }
@@ -417,6 +567,73 @@ impl App {
     #[wasm_bindgen]
     pub fn set_locale(&mut self, loc: &str) {
         self.locale = loc.to_string();
+        self.editor.set_locale(loc);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_split(&mut self, on: bool) {
+        self.editor.set_split(on);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_pane_sheet(&mut self, pane: u32, sheet: u32) {
+        let pane_i = pane as usize;
+        let prev = self.editor.pane_sheet_index(pane_i);
+        self.editor.set_pane_sheet(pane_i, sheet as usize);
+        if prev != self.editor.pane_sheet_index(pane_i) {
+            self.fit_pane(pane);
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn add_sheet(&mut self) -> u32 {
+        self.add_sheet_on(self.editor.active_pane() as u32)
+    }
+
+    #[wasm_bindgen]
+    pub fn add_sheet_on(&mut self, pane: u32) -> u32 {
+        let idx = self.editor.add_sheet_on(pane as usize) as u32;
+        self.fit_pane(pane);
+        idx
+    }
+
+    #[wasm_bindgen]
+    pub fn duplicate_sheet(&mut self, index: u32) -> i32 {
+        self.duplicate_sheet_on(self.editor.active_pane() as u32, index)
+    }
+
+    #[wasm_bindgen]
+    pub fn duplicate_sheet_on(&mut self, pane: u32, index: u32) -> i32 {
+        match self
+            .editor
+            .duplicate_sheet_on(pane as usize, index as usize)
+        {
+            Some(i) => {
+                self.fit_pane(pane);
+                i as i32
+            }
+            None => -1,
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn rename_sheet(&mut self, index: u32, name: &str) -> bool {
+        self.editor.rename_sheet(index as usize, name)
+    }
+
+    #[wasm_bindgen]
+    pub fn delete_sheet(&mut self, index: u32) -> bool {
+        self.editor.delete_sheet(index as usize)
+    }
+
+    #[wasm_bindgen]
+    pub fn reorder_sheets(&mut self, from: u32, to: u32) -> bool {
+        self.editor.reorder_sheets(from as usize, to as usize)
+    }
+
+    #[wasm_bindgen]
+    pub fn sheet_is_empty(&self, index: u32) -> bool {
+        self.editor.sheet_is_empty(index as usize)
     }
 
     #[wasm_bindgen]

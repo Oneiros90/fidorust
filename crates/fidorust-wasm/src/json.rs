@@ -44,6 +44,13 @@ pub struct StatusDto {
     pub editing_component_name: Option<String>,
     pub editing_component_dirty: bool,
     pub libs_rev: u32,
+    pub split: bool,
+    pub active_pane: usize,
+    pub pane_sheets: [usize; 2],
+    pub pane_zoom: [f32; 2],
+    pub pane_pan_x: [f32; 2],
+    pub pane_pan_y: [f32; 2],
+    pub sheets: Vec<String>,
 }
 
 impl StatusDto {
@@ -94,6 +101,13 @@ impl StatusDto {
             editing_component_name: ed.editing_component_name(),
             editing_component_dirty: ed.editing_component_dirty(),
             libs_rev: ed.libs_rev(),
+            split: ed.split(),
+            active_pane: ed.active_pane(),
+            pane_sheets: [ed.pane_sheet_index(0), ed.pane_sheet_index(1)],
+            pane_zoom: [ed.pane_zoom(0), ed.pane_zoom(1)],
+            pane_pan_x: [ed.pane_pan(0).0, ed.pane_pan(1).0],
+            pane_pan_y: [ed.pane_pan(0).1, ed.pane_pan(1).1],
+            sheets: ed.sheet_names(),
         }
     }
 }

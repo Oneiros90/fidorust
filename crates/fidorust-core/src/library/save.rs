@@ -3,6 +3,7 @@
 use super::expand::expand_primitive;
 use super::rewrite::{rewrite_component_names, rewrite_component_names_in_libs};
 use super::{component_full_name, ComponentDef, LibraryKind, LibrarySet, PROJECT_STEM};
+use crate::document::Document;
 use crate::primitive::{ComponentRef, Primitive};
 
 fn primitives_use_user_components(prims: &[Primitive], libs: &LibrarySet) -> bool {
@@ -122,4 +123,66 @@ pub fn explode_user_components_for_save(doc_prims: &mut Vec<Primitive>, libs: &m
         }
     }
     explode_local_refs(doc_prims, &snapshot);
+}
+
+pub fn document_uses_user_library_components(doc: &Document, libs: &LibrarySet) -> bool {
+    doc.sheets
+        .iter()
+        .any(|s| primitives_use_user_components(&s.primitives, libs))
+        || drawing_uses_user_library_components(&[], libs)
+}
+
+pub fn fold_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) {
+    libs.ensure_user_libraries();
+    let mut used = Vec::new();
+    for sheet in &doc.sheets {
+        collect_used_user_defs(&sheet.primitives, libs, &mut used);
+    }
+    if let Some(project) = libs.project() {
+        for def in &project.components {
+            collect_used_user_defs(&def.primitives, libs, &mut used);
+        }
+    }
+    let mut mapping: Vec<(String, String)> = Vec::new();
+    for (stem, def) in used {
+        let old_full = component_full_name(&stem, &def.key);
+        let dest_key = {
+            let project = match libs.project_mut() {
+                Some(p) => p,
+                None => continue,
+            };
+            if project.find(&def.key).is_none() {
+                def.key.clone()
+            } else {
+                project.next_key()
+            }
+        };
+        let new_full = component_full_name(PROJECT_STEM, &dest_key);
+        if let Some(project) = libs.project_mut() {
+            let mut moved = def;
+            moved.key = dest_key;
+            project.components.push(moved);
+        }
+        if old_full != new_full {
+            mapping.push((old_full, new_full));
+        }
+    }
+    for (from, to) in &mapping {
+        for sheet in &mut doc.sheets {
+            rewrite_component_names(&mut sheet.primitives, from, to);
+        }
+        rewrite_component_names_in_libs(libs, from, to);
+    }
+}
+
+pub fn explode_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) {
+    let snapshot = libs.clone();
+    if let Some(project) = libs.project_mut() {
+        for def in &mut project.components {
+            explode_local_refs(&mut def.primitives, &snapshot);
+        }
+    }
+    for sheet in &mut doc.sheets {
+        explode_local_refs(&mut sheet.primitives, &snapshot);
+    }
 }

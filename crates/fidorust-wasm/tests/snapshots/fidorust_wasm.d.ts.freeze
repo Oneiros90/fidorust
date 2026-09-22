@@ -5,12 +5,19 @@ export class App {
     free(): void;
     [Symbol.dispose](): void;
     add_layer(): void;
+    add_sheet(): number;
+    add_sheet_on(pane: number): number;
+    apply_drawing_defaults(hide_origin: boolean, stroke: number, filled: boolean): void;
     apply_project_settings(json: string): void;
     apply_selection_props(patch_json: string): void;
     attach_canvas(canvas: HTMLCanvasElement): void;
+    attach_pane_canvas(pane: number, canvas: HTMLCanvasElement): void;
+    begin_marquee(sx: number, sy: number, shift: boolean): void;
+    begin_marquee_on(pane: number, sx: number, sy: number, shift: boolean): void;
     begin_selected_text_edit(): string;
     cancel_component_edit(): boolean;
     cancel_text_edit(): void;
+    capabilities_json(): string;
     clear_hover(): void;
     clear_project_library(): boolean;
     clipboard_fcd(): string;
@@ -20,21 +27,41 @@ export class App {
     create_component_from_selection(target: string, display_name: string): string;
     create_user_library(title: string): string;
     dblclick(sx: number, sy: number): string;
+    dblclick_on(pane: number, sx: number, sy: number): string;
     delete_component(stem: string, key: string): boolean;
     /**
      * `mode` is `"objects"` (delete primitives) or `"move"` (relocate to `move_to`).
      */
     delete_layer(n: number, mode: string, move_to: number): void;
+    delete_sheet(index: number): boolean;
+    detach_pane_canvas(pane: number): void;
     duplicate_selection(): void;
+    duplicate_sheet(index: number): number;
+    duplicate_sheet_on(pane: number, index: number): number;
     edit_selected_component(): boolean;
     editing_local_component_uses_nonzero_layers(): boolean;
     enter_component_edit(stem: string, key: string): boolean;
     export_library_fcl(stem: string): string;
     /**
-     * `opts_json` is `{ margin_lu, bw, layers: [{ show, invert }] }`. Empty / invalid JSON uses document layers.
+     * `opts_json` is `{ margin_lu, bw, layers: [{ show, color }] }`. Empty / invalid JSON uses document layers.
      */
     export_svg(opts_json: string): string;
+    /**
+     * JSON in, JSON out. Unknown names return `{"ok":false,"error":...}`.
+     */
+    ext_command(name: string, payload: string): string;
     fit(): void;
+    fit_pane(pane: number): void;
+    /**
+     * TTF/OTF bytes for a family. Courier Prime is always the bundled face.
+     */
+    font_file_bytes(name: string): Uint8Array;
+    hover_pane(pane: number): void;
+    /**
+     * Append sheets and project-library components from another FCD into the current project.
+     */
+    import_fcd(text: string): number;
+    import_fcd_bytes(bytes: Uint8Array): number;
     import_library(text: string, filename: string): string;
     invert_selection(): void;
     key(key: string, meta: boolean): boolean;
@@ -52,26 +79,34 @@ export class App {
     paste_selection(text: string): void;
     place_component_at(name: string, sx: number, sy: number): void;
     pointer_down(sx: number, sy: number, shift: boolean, pan: boolean): void;
+    pointer_down_on(pane: number, sx: number, sy: number, shift: boolean, pan: boolean): void;
     pointer_move(sx: number, sy: number): void;
+    pointer_move_on(pane: number, sx: number, sy: number): void;
     pointer_right(sx: number, sy: number): boolean;
+    pointer_right_on(pane: number, sx: number, sy: number): boolean;
     pointer_up(sx: number, sy: number): void;
+    pointer_up_on(pane: number, sx: number, sy: number): void;
     prepare_context_menu(sx: number, sy: number): void;
+    prepare_context_menu_on(pane: number, sx: number, sy: number): void;
     redo(): void;
     register_font(name: string, data: Uint8Array): boolean;
     registered_fonts_json(): string;
     remove_user_library(stem: string): boolean;
     rename_component(stem: string, key: string, name: string): boolean;
+    rename_component_key(stem: string, key: string, new_key: string): boolean;
     rename_library(stem: string, title: string): string;
+    rename_sheet(index: number, name: string): boolean;
     render(): void;
     reorder_layer(from: number, to: number): void;
+    reorder_sheets(from: number, to: number): boolean;
     resize(w: number, h: number): void;
+    resize_pane(pane: number, w: number, h: number): void;
     rotate(): void;
     save_component_edit(): boolean;
     save_fcd(): string;
     save_fcd_with_policy(policy: string): string;
     selection_props_form_json(): string;
     selection_props_json(): string;
-    rename_component_key(stem: string, key: string, new_key: string): boolean;
     set_filled(on: boolean): void;
     set_grid(x: number, y: number): void;
     set_hide_component_origin(on: boolean): void;
@@ -81,6 +116,8 @@ export class App {
     set_layer_show(n: number, show: boolean): void;
     set_locale(loc: string): void;
     set_move_duplicate(on: boolean): void;
+    set_pane_sheet(pane: number, sheet: number): void;
+    set_pane_view(pane: number, zoom: number, pan_x: number, pan_y: number): void;
     set_pcb_mode(on: boolean): void;
     set_pending_component(name: string): void;
     set_pending_follow(on: boolean): void;
@@ -88,10 +125,12 @@ export class App {
     set_show_grid(on: boolean): void;
     set_snap(x: number, y: number): void;
     set_snap_enable(on: boolean): void;
+    set_split(on: boolean): void;
     set_theme(theme: string): void;
     set_tool(id: string): void;
     set_track_width(w: number): void;
     set_view(zoom: number, pan_x: number, pan_y: number): void;
+    sheet_is_empty(index: number): boolean;
     split_selected_components(): void;
     stamp_drag_copy(): boolean;
     status_json(): string;
@@ -101,7 +140,9 @@ export class App {
     user_libraries_json(): string;
     uses_user_library_components(): boolean;
     wheel(sx: number, sy: number, delta: number): void;
+    wheel_on(pane: number, sx: number, sy: number, delta: number): void;
     world_to_screen_json(wx: number, wy: number): string;
+    world_to_screen_json_on(pane: number, wx: number, wy: number): string;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -110,12 +151,19 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_app_free: (a: number, b: number) => void;
     readonly app_add_layer: (a: number) => void;
+    readonly app_add_sheet: (a: number) => number;
+    readonly app_add_sheet_on: (a: number, b: number) => number;
+    readonly app_apply_drawing_defaults: (a: number, b: number, c: number, d: number) => void;
     readonly app_apply_project_settings: (a: number, b: number, c: number) => [number, number];
     readonly app_apply_selection_props: (a: number, b: number, c: number) => [number, number];
     readonly app_attach_canvas: (a: number, b: any) => [number, number];
+    readonly app_attach_pane_canvas: (a: number, b: number, c: any) => [number, number];
+    readonly app_begin_marquee: (a: number, b: number, c: number, d: number) => void;
+    readonly app_begin_marquee_on: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly app_begin_selected_text_edit: (a: number) => [number, number];
     readonly app_cancel_component_edit: (a: number) => number;
     readonly app_cancel_text_edit: (a: number) => void;
+    readonly app_capabilities_json: (a: number) => [number, number];
     readonly app_clear_hover: (a: number) => void;
     readonly app_clear_project_library: (a: number) => number;
     readonly app_clipboard_fcd: (a: number) => [number, number];
@@ -125,14 +173,26 @@ export interface InitOutput {
     readonly app_create_component_from_selection: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly app_create_user_library: (a: number, b: number, c: number) => [number, number];
     readonly app_dblclick: (a: number, b: number, c: number) => [number, number];
+    readonly app_dblclick_on: (a: number, b: number, c: number, d: number) => [number, number];
     readonly app_delete_component: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_delete_layer: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly app_delete_sheet: (a: number, b: number) => number;
+    readonly app_detach_pane_canvas: (a: number, b: number) => void;
     readonly app_duplicate_selection: (a: number) => void;
+    readonly app_duplicate_sheet: (a: number, b: number) => number;
+    readonly app_duplicate_sheet_on: (a: number, b: number, c: number) => number;
     readonly app_edit_selected_component: (a: number) => number;
+    readonly app_editing_local_component_uses_nonzero_layers: (a: number) => number;
     readonly app_enter_component_edit: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_export_library_fcl: (a: number, b: number, c: number) => [number, number];
     readonly app_export_svg: (a: number, b: number, c: number) => [number, number];
+    readonly app_ext_command: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly app_fit: (a: number) => void;
+    readonly app_fit_pane: (a: number, b: number) => void;
+    readonly app_font_file_bytes: (a: number, b: number, c: number) => [number, number];
+    readonly app_hover_pane: (a: number, b: number) => void;
+    readonly app_import_fcd: (a: number, b: number, c: number) => [number, number, number];
+    readonly app_import_fcd_bytes: (a: number, b: number, c: number) => [number, number, number];
     readonly app_import_library: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly app_invert_selection: (a: number) => void;
     readonly app_key: (a: number, b: number, c: number, d: number) => number;
@@ -142,6 +202,7 @@ export interface InitOutput {
     readonly app_load_fcd: (a: number, b: number, c: number) => [number, number];
     readonly app_load_fcd_bytes: (a: number, b: number, c: number) => [number, number];
     readonly app_load_user_libraries: (a: number, b: number, c: number) => void;
+    readonly app_local_component_uses_nonzero_layers: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_mirror: (a: number) => void;
     readonly app_move_component: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly app_new: () => number;
@@ -149,26 +210,34 @@ export interface InitOutput {
     readonly app_paste_selection: (a: number, b: number, c: number) => void;
     readonly app_place_component_at: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly app_pointer_down: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly app_pointer_down_on: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly app_pointer_move: (a: number, b: number, c: number) => void;
+    readonly app_pointer_move_on: (a: number, b: number, c: number, d: number) => void;
     readonly app_pointer_right: (a: number, b: number, c: number) => number;
+    readonly app_pointer_right_on: (a: number, b: number, c: number, d: number) => number;
     readonly app_pointer_up: (a: number, b: number, c: number) => void;
+    readonly app_pointer_up_on: (a: number, b: number, c: number, d: number) => void;
     readonly app_prepare_context_menu: (a: number, b: number, c: number) => void;
+    readonly app_prepare_context_menu_on: (a: number, b: number, c: number, d: number) => void;
     readonly app_redo: (a: number) => void;
     readonly app_register_font: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly app_registered_fonts_json: (a: number) => [number, number];
     readonly app_remove_user_library: (a: number, b: number, c: number) => number;
     readonly app_rename_component: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly app_rename_component_key: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly app_rename_library: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly app_rename_sheet: (a: number, b: number, c: number, d: number) => number;
     readonly app_render: (a: number) => void;
     readonly app_reorder_layer: (a: number, b: number, c: number) => void;
+    readonly app_reorder_sheets: (a: number, b: number, c: number) => number;
     readonly app_resize: (a: number, b: number, c: number) => void;
+    readonly app_resize_pane: (a: number, b: number, c: number, d: number) => void;
     readonly app_rotate: (a: number) => void;
     readonly app_save_component_edit: (a: number) => number;
     readonly app_save_fcd: (a: number) => [number, number];
     readonly app_save_fcd_with_policy: (a: number, b: number, c: number) => [number, number];
     readonly app_selection_props_form_json: (a: number) => [number, number];
     readonly app_selection_props_json: (a: number) => [number, number];
-    readonly app_rename_component_key: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly app_set_filled: (a: number, b: number) => void;
     readonly app_set_grid: (a: number, b: number, c: number) => void;
     readonly app_set_hide_component_origin: (a: number, b: number) => void;
@@ -178,6 +247,8 @@ export interface InitOutput {
     readonly app_set_layer_show: (a: number, b: number, c: number) => void;
     readonly app_set_locale: (a: number, b: number, c: number) => void;
     readonly app_set_move_duplicate: (a: number, b: number) => void;
+    readonly app_set_pane_sheet: (a: number, b: number, c: number) => void;
+    readonly app_set_pane_view: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly app_set_pcb_mode: (a: number, b: number) => void;
     readonly app_set_pending_component: (a: number, b: number, c: number) => void;
     readonly app_set_pending_follow: (a: number, b: number) => void;
@@ -185,10 +256,12 @@ export interface InitOutput {
     readonly app_set_show_grid: (a: number, b: number) => void;
     readonly app_set_snap: (a: number, b: number, c: number) => void;
     readonly app_set_snap_enable: (a: number, b: number) => void;
+    readonly app_set_split: (a: number, b: number) => void;
     readonly app_set_theme: (a: number, b: number, c: number) => void;
     readonly app_set_tool: (a: number, b: number, c: number) => void;
     readonly app_set_track_width: (a: number, b: number) => void;
     readonly app_set_view: (a: number, b: number, c: number, d: number) => void;
+    readonly app_sheet_is_empty: (a: number, b: number) => number;
     readonly app_split_selected_components: (a: number) => void;
     readonly app_stamp_drag_copy: (a: number) => number;
     readonly app_status_json: (a: number) => [number, number];
@@ -198,7 +271,9 @@ export interface InitOutput {
     readonly app_user_libraries_json: (a: number) => [number, number];
     readonly app_uses_user_library_components: (a: number) => number;
     readonly app_wheel: (a: number, b: number, c: number, d: number) => void;
+    readonly app_wheel_on: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly app_world_to_screen_json: (a: number, b: number, c: number) => [number, number];
+    readonly app_world_to_screen_json_on: (a: number, b: number, c: number, d: number) => [number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __externref_table_alloc: () => number;

@@ -5,6 +5,7 @@ mod history;
 mod layers;
 mod pointer;
 mod selection;
+mod sheets;
 mod text_edit;
 mod tools;
 mod view;
@@ -25,8 +26,33 @@ use crate::primitive::{PadStyle, Primitive};
 use crate::properties::{apply_selection_props, selection_props_form, PropPatch};
 
 use components::ComponentEditSession;
-use history::HistorySnapshot;
+use history::HistoryOp;
 use tools::{Draft, Drag};
+
+#[derive(Clone, Debug)]
+pub struct PaneState {
+    pub sheet_index: usize,
+    pub zoom: f32,
+    pub pan: (f32, f32),
+    pub selected: Vec<usize>,
+    pub hover: Option<Point>,
+    pub hover_hit: bool,
+    pub hover_index: Option<usize>,
+}
+
+impl PaneState {
+    pub(super) fn new() -> Self {
+        Self {
+            sheet_index: 0,
+            zoom: 4.0,
+            pan: (FIT_MARGIN, FIT_MARGIN),
+            selected: Vec::new(),
+            hover: None,
+            hover_hit: false,
+            hover_index: None,
+        }
+    }
+}
 
 /// Screen chrome only: overlay colours. Not saved with the document.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -68,10 +94,10 @@ pub struct Editor {
     pending_text: String,
     /// Primitive index whose glyphs are hidden while the UI overlay edits them.
     editing_text: Option<usize>,
-    undo: Vec<HistorySnapshot>,
-    redo: Vec<HistorySnapshot>,
-    /// Pre-move / pre-handle snapshot; committed on pointer_up if the document changed.
-    drag_checkpoint: Option<Document>,
+    undo: Vec<HistoryOp>,
+    redo: Vec<HistoryOp>,
+    /// Pre-move / pre-handle snapshot of one sheet; committed on pointer_up if it changed.
+    drag_checkpoint: Option<(usize, crate::document::Sheet)>,
     /// Layer index of an in-progress color drag; consecutive updates share one undo frame.
     layer_color_edit: Option<usize>,
     draft: Option<Draft>,
@@ -87,8 +113,12 @@ pub struct Editor {
     component_edit: Option<ComponentEditSession>,
     /// Ephemeral measure overlay; never serialized.
     ruler_segments: Vec<(Point, Point)>,
-    /// Ephemeral presentation; never serialized or undoable.
-    view_overlay: Option<ViewOverlay>,
+    /// Ephemeral presentation; never serialized or undoable. One slot per pane.
+    view_overlay: [Option<ViewOverlay>; 2],
+    panes: [PaneState; 2],
+    split: bool,
+    active_pane: usize,
+    locale: String,
 }
 
 impl Editor {
@@ -125,7 +155,11 @@ impl Editor {
             libs_rev: 0,
             component_edit: None,
             ruler_segments: Vec::new(),
-            view_overlay: None,
+            view_overlay: [None, None],
+            panes: [PaneState::new(), PaneState::new()],
+            split: false,
+            active_pane: 0,
+            locale: "it".into(),
         }
     }
 
@@ -139,6 +173,10 @@ impl Editor {
     }
 
     pub fn set_filled(&mut self, on: bool) {
+        if self.doc.default_filled == on {
+            return;
+        }
+        self.push_project_undo();
         self.doc.default_filled = on;
     }
 
@@ -206,6 +244,7 @@ impl Editor {
     pub fn set_view(&mut self, zoom: f32, pan: (f32, f32)) {
         self.zoom = zoom;
         self.pan = pan;
+        self.store_active_pane();
     }
 
     pub fn filled(&self) -> bool {
@@ -253,6 +292,10 @@ impl Editor {
     }
 
     pub fn set_hide_component_origin(&mut self, on: bool) {
+        if self.doc.hide_component_origin == on {
+            return;
+        }
+        self.push_project_undo();
         self.doc.hide_component_origin = on;
     }
 
@@ -269,8 +312,31 @@ impl Editor {
         if self.doc.project_settings() == s {
             return;
         }
-        self.push_undo();
+        let project_changed = self.doc.hide_component_origin != s.hide_component_origin
+            || self.doc.stroke_hundredths != s.stroke_hundredths
+            || self.doc.default_filled != s.default_filled;
+        if project_changed {
+            self.push_project_undo();
+        } else {
+            self.push_undo();
+        }
         self.doc.apply_project_settings(s);
+    }
+
+    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, stroke: i32, filled: bool) {
+        if self.doc.hide_component_origin == hide_origin
+            && self.doc.stroke_hundredths == stroke
+            && self.doc.default_filled == filled
+        {
+            return;
+        }
+        self.push_project_undo();
+        self.doc.hide_component_origin = hide_origin;
+        self.doc.stroke_hundredths = stroke.clamp(
+            crate::consts::STROKE_HUNDREDTHS_MIN,
+            crate::consts::STROKE_HUNDREDTHS_MAX,
+        );
+        self.doc.default_filled = filled;
     }
 
     pub fn pending_rotations(&self) -> u8 {
@@ -293,7 +359,7 @@ impl Editor {
         if self.doc.pcb_mode == on {
             return;
         }
-        self.push_undo();
+        self.push_project_undo();
         self.doc.pcb_mode = on;
     }
 
@@ -357,11 +423,19 @@ impl Editor {
     }
 
     pub fn view_overlay(&self) -> Option<&ViewOverlay> {
-        self.view_overlay.as_ref()
+        self.view_overlay_for_pane(self.active_pane())
+    }
+
+    pub fn view_overlay_for_pane(&self, pane: usize) -> Option<&ViewOverlay> {
+        self.view_overlay[pane.min(1)].as_ref()
     }
 
     pub fn set_view_overlay(&mut self, overlay: Option<ViewOverlay>) {
-        self.view_overlay = overlay;
+        self.view_overlay = [overlay.clone(), overlay];
+    }
+
+    pub fn set_view_overlay_for_pane(&mut self, pane: usize, overlay: Option<ViewOverlay>) {
+        self.view_overlay[pane.min(1)] = overlay;
     }
 
     /// True while the scene must follow the pointer (drag, draft, or pending component).
@@ -411,16 +485,26 @@ impl Editor {
         self.doc = doc;
         self.set_project_library(project);
         if self.doc.inferred_layers {
-            let max = crate::library::max_used_layer_index(&self.doc.primitives, &self.libs);
+            let mut max = 0;
+            for sheet in &self.doc.sheets {
+                max = max.max(crate::library::max_used_layer_index(
+                    &sheet.primitives,
+                    &self.libs,
+                ));
+            }
             self.doc.layers.ensure_len(max + 1);
         }
         self.component_edit = None;
+        self.split = false;
+        self.active_pane = 0;
+        self.panes = [PaneState::new(), PaneState::new()];
         self.clear_history();
         self.selected.clear();
         self.drag = None;
         self.draft = None;
         self.ruler_segments.clear();
         self.clamp_current_layer();
+        self.sync_view_sheet();
         self.fit_view(800.0, 600.0);
         Ok(())
     }

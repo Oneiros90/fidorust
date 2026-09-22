@@ -9,9 +9,16 @@ export function fcdHasProjectSettings(text: string): boolean {
 export function restoreSession(s: AppSession, session: SessionState) {
 	if (!s.engine) return;
 	try {
+		s.splitRatio = session.splitRatio;
 		s.engine.mutate((app) => {
 			app.load_fcd(session.fcd);
-			app.set_view(session.zoom, session.panX, session.panY);
+			app.set_split(session.split);
+			app.set_pane_sheet(0, session.panes[0].sheetIndex);
+			app.set_pane_view(0, session.panes[0].zoom, session.panes[0].panX, session.panes[0].panY);
+			if (session.split) {
+				app.set_pane_sheet(1, session.panes[1].sheetIndex);
+				app.set_pane_view(1, session.panes[1].zoom, session.panes[1].panX, session.panes[1].panY);
+			}
 			app.set_tool(
 				session.tool === 'component' || session.tool === 'macro' ? 'select' : session.tool
 			);
@@ -75,7 +82,23 @@ export class SessionPersist {
 			showGrid: status.show_grid,
 			hideComponentOrigin: status.hide_component_origin,
 			theme: s.theme,
-			locale: s.locale
+			locale: s.locale,
+			split: status.split,
+			splitRatio: s.splitRatio,
+			panes: [
+				{
+					sheetIndex: status.pane_sheets?.[0] ?? 0,
+					zoom: status.pane_zoom?.[0] ?? status.zoom,
+					panX: status.pane_pan_x?.[0] ?? status.pan_x,
+					panY: status.pane_pan_y?.[0] ?? status.pan_y
+				},
+				{
+					sheetIndex: status.pane_sheets?.[1] ?? 0,
+					zoom: status.pane_zoom?.[1] ?? status.zoom,
+					panX: status.pane_pan_x?.[1] ?? status.pan_x,
+					panY: status.pane_pan_y?.[1] ?? status.pan_y
+				}
+			]
 		});
 		persistUserLibrariesBlob(s.engine.query((app) => app.user_libraries_blob()));
 	}

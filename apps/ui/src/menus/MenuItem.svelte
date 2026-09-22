@@ -13,7 +13,7 @@
 		label: string;
 		shortcut?: string;
 		disabled?: boolean;
-		/** Reserved checkmark column (language, theme, …). */
+		/** Trailing checkmark (language, theme, …). */
 		checkable?: boolean;
 		active?: boolean;
 		closeOnClick?: boolean;
@@ -35,11 +35,11 @@
 	role={checkable ? 'menuitemradio' : 'menuitem'}
 	aria-checked={checkable ? active : undefined}
 >
+	<span class="lbl">{label}</span>
+	{#if shortcut}<span class="acc">{shortcut}</span>{/if}
 	{#if checkable}
 		<span class="mark" aria-hidden="true">{active ? '✓' : ''}</span>
 	{/if}
-	<span class="lbl">{label}</span>
-	{#if shortcut}<span class="acc">{shortcut}</span>{/if}
 </button>
 
 <style>
@@ -60,6 +60,7 @@
 	.mark {
 		width: 14px;
 		flex-shrink: 0;
+		text-align: right;
 		color: var(--accent);
 		font-size: 12px;
 		line-height: 1;

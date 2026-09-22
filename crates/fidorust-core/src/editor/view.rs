@@ -32,6 +32,7 @@ impl Editor {
         let wy = (screen.1 - self.pan.1) / old;
         self.pan.0 = screen.0 - wx * self.zoom;
         self.pan.1 = screen.1 - wy * self.zoom;
+        self.store_active_pane();
     }
 
     pub fn screen_to_world(&self, sx: f32, sy: f32) -> Point {
@@ -41,10 +42,61 @@ impl Editor {
 
     /// Unrounded world LU for hit-testing (preserves sub-LU cursor position).
     pub fn screen_to_world_xy(&self, sx: f32, sy: f32) -> (f64, f64) {
-        (
-            ((sx - self.pan.0) / self.zoom) as f64,
-            ((sy - self.pan.1) / self.zoom) as f64,
-        )
+        self.screen_to_world_xy_pane(self.active_pane(), sx, sy)
+    }
+
+    pub fn pane_zoom(&self, pane: usize) -> f32 {
+        if pane == self.active_pane() {
+            self.zoom
+        } else {
+            self.panes[pane.min(1)].zoom
+        }
+    }
+
+    pub fn pane_pan(&self, pane: usize) -> (f32, f32) {
+        if pane == self.active_pane() {
+            self.pan
+        } else {
+            self.panes[pane.min(1)].pan
+        }
+    }
+
+    pub fn pane_selected(&self, pane: usize) -> &[usize] {
+        if pane == self.active_pane() {
+            &self.selected
+        } else {
+            &self.panes[pane.min(1)].selected
+        }
+    }
+
+    pub fn pane_hover_index(&self, pane: usize) -> Option<usize> {
+        if pane == self.active_pane() {
+            self.hover_index
+        } else {
+            self.panes[pane.min(1)].hover_index
+        }
+    }
+
+    pub fn pane_sheet(&self, pane: usize) -> &crate::document::Sheet {
+        let i = self.panes[pane.min(1)].sheet_index;
+        let i = i.min(self.doc.sheets.len().saturating_sub(1));
+        &self.doc.sheets[i]
+    }
+
+    pub fn pane_sheet_index(&self, pane: usize) -> usize {
+        self.panes[pane.min(1)].sheet_index
+    }
+
+    pub fn screen_to_world_xy_pane(&self, pane: usize, sx: f32, sy: f32) -> (f64, f64) {
+        let zoom = self.pane_zoom(pane);
+        let pan = self.pane_pan(pane);
+        (((sx - pan.0) / zoom) as f64, ((sy - pan.1) / zoom) as f64)
+    }
+
+    pub fn world_to_screen_pane(&self, pane: usize, wx: f32, wy: f32) -> (f32, f32) {
+        let zoom = self.pane_zoom(pane);
+        let pan = self.pane_pan(pane);
+        (wx * zoom + pan.0, wy * zoom + pan.1)
     }
 
     pub fn world_to_screen(&self, wx: f32, wy: f32) -> (f32, f32) {
@@ -56,6 +108,7 @@ impl Editor {
         if bb.is_empty() {
             self.zoom = 4.0;
             self.pan = (FIT_MARGIN, FIT_MARGIN);
+            self.store_active_pane();
             return;
         }
         let margin = FIT_MARGIN;
@@ -66,5 +119,6 @@ impl Editor {
             margin - bb.min.x as f32 * self.zoom,
             margin - bb.min.y as f32 * self.zoom,
         );
+        self.store_active_pane();
     }
 }

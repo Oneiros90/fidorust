@@ -4,6 +4,13 @@ import type { Theme } from '../app/types';
 export const SESSION_KEY = 'fidorust.session';
 export const SESSION_DEBOUNCE_MS = 400;
 
+export type PaneView = {
+	sheetIndex: number;
+	zoom: number;
+	panX: number;
+	panY: number;
+};
+
 export type SessionState = {
 	version: 1;
 	fcd: string;
@@ -19,6 +26,9 @@ export type SessionState = {
 	hideComponentOrigin: boolean;
 	theme: Theme;
 	locale: Locale;
+	split: boolean;
+	splitRatio: number;
+	panes: [PaneView, PaneView];
 };
 
 export function loadSession(): SessionState | null {
@@ -38,6 +48,25 @@ export function saveSession(state: SessionState) {
 	} catch {
 		/* quota / private mode */
 	}
+}
+
+function paneView(v: unknown, fallback: PaneView): PaneView {
+	if (!v || typeof v !== 'object') return fallback;
+	const p = v as Record<string, unknown>;
+	if (
+		typeof p.sheetIndex !== 'number' ||
+		typeof p.zoom !== 'number' ||
+		typeof p.panX !== 'number' ||
+		typeof p.panY !== 'number'
+	) {
+		return fallback;
+	}
+	return {
+		sheetIndex: p.sheetIndex,
+		zoom: p.zoom,
+		panX: p.panX,
+		panY: p.panY
+	};
 }
 
 function isSessionState(v: unknown): v is SessionState {
@@ -68,5 +97,18 @@ function isSessionState(v: unknown): v is SessionState {
 		return false;
 	}
 	(s as SessionState).hideComponentOrigin = hide;
+	const fallback: PaneView = {
+		sheetIndex: 0,
+		zoom: s.zoom as number,
+		panX: s.panX as number,
+		panY: s.panY as number
+	};
+	(s as SessionState).split = s.split === true;
+	(s as SessionState).splitRatio =
+		typeof s.splitRatio === 'number' && Number.isFinite(s.splitRatio)
+			? Math.min(0.8, Math.max(0.2, s.splitRatio))
+			: 0.5;
+	const panes = Array.isArray(s.panes) ? s.panes : [];
+	(s as SessionState).panes = [paneView(panes[0], fallback), paneView(panes[1], fallback)];
 	return true;
 }

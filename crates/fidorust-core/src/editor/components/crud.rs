@@ -27,7 +27,7 @@ impl Editor {
         if bb.is_empty() {
             return None;
         }
-        self.push_undo();
+        self.push_project_undo();
         let origin = bb.min;
         let set: std::collections::HashSet<usize> = self.selected.iter().copied().collect();
         let mut body = Vec::new();
@@ -87,7 +87,7 @@ impl Editor {
         if def.name == name {
             return false;
         }
-        self.push_undo();
+        self.push_project_undo();
         if let Some(def) = self.libs.library_mut(stem).and_then(|l| l.find_mut(key)) {
             def.name = name.to_string();
             self.bump_libs_rev();
@@ -118,7 +118,7 @@ impl Editor {
         {
             return false;
         }
-        self.push_undo();
+        self.push_project_undo();
         let old_full = component_full_name(stem, key);
         let new_full = component_full_name(stem, new_key);
         if let Some(def) = self.libs.library_mut(stem).and_then(|l| l.find_mut(key)) {
@@ -127,10 +127,14 @@ impl Editor {
             return false;
         }
         if old_full != new_full {
-            rewrite_component_names(&mut self.doc.primitives, &old_full, &new_full);
             rewrite_component_names_in_libs(&mut self.libs, &old_full, &new_full);
+            self.doc.for_each_primitives_mut(|prims| {
+                rewrite_component_names(prims, &old_full, &new_full);
+            });
             if let Some(session) = &mut self.component_edit {
-                rewrite_component_names(&mut session.saved_doc.primitives, &old_full, &new_full);
+                session.saved_doc.for_each_primitives_mut(|prims| {
+                    rewrite_component_names(prims, &old_full, &new_full);
+                });
                 if session.stem.eq_ignore_ascii_case(stem) && session.key.eq_ignore_ascii_case(key)
                 {
                     session.key = new_key.to_string();
@@ -162,9 +166,11 @@ impl Editor {
         if !lib.writable() || lib.find(key).is_none() {
             return false;
         }
-        self.push_undo();
+        self.push_project_undo();
         let full = component_full_name(stem, key);
-        explode_named_everywhere(&mut self.doc.primitives, &mut self.libs, &full);
+        self.doc.for_each_primitives_mut(|prims| {
+            explode_named_everywhere(prims, &mut self.libs, &full);
+        });
         if let Some(lib) = self.libs.library_mut(stem) {
             lib.components.retain(|c| !c.key.eq_ignore_ascii_case(key));
         }
@@ -183,7 +189,7 @@ impl Editor {
             return None;
         }
         let def = self.libs.library(stem)?.find(key)?.clone();
-        self.push_undo();
+        self.push_project_undo();
         let dest_key = {
             let dest = self.libs.library_mut(dest_stem)?;
             if dest.find(&def.key).is_none() {
@@ -203,7 +209,9 @@ impl Editor {
             dest.components.push(moved);
         }
         if old_full != new_full {
-            rewrite_component_names(&mut self.doc.primitives, &old_full, &new_full);
+            self.doc.for_each_primitives_mut(|prims| {
+                rewrite_component_names(prims, &old_full, &new_full);
+            });
             rewrite_component_names_in_libs(&mut self.libs, &old_full, &new_full);
         }
         self.bump_libs_rev();

@@ -3,8 +3,11 @@
 	import AboutDialog from '../dialogs/AboutDialog.svelte';
 	import TechnologiesDialog from '../dialogs/TechnologiesDialog.svelte';
 	import ConfirmDialog from '../dialogs/ConfirmDialog.svelte';
+	import OpenFcdDialog from '../dialogs/OpenFcdDialog.svelte';
 	import ErrorDialog from '../dialogs/ErrorDialog.svelte';
 	import ProjectSettingsDialog from '../dialogs/ProjectSettingsDialog.svelte';
+	import SheetSettingsDialog from '../dialogs/SheetSettingsDialog.svelte';
+	import DeleteSheetDialog from '../dialogs/DeleteSheetDialog.svelte';
 	import DeleteLayerDialog from '../dialogs/DeleteLayerDialog.svelte';
 	import DeleteComponentDialog from '../dialogs/DeleteComponentDialog.svelte';
 	import DeleteLibraryDialog from '../dialogs/DeleteLibraryDialog.svelte';
@@ -22,6 +25,7 @@
 	import ContextMenu from '../menus/ContextMenu.svelte';
 	import EditMenu from '../menus/EditMenu.svelte';
 	import LayerContextMenu from '../layers/LayerContextMenu.svelte';
+	import SheetContextMenu from '../canvas/SheetContextMenu.svelte';
 	import Scrim from './Scrim.svelte';
 
 	const app = getAppSession();
@@ -61,6 +65,8 @@
 			<EditMenu />
 		{:else if app.ctxMenu.kind === 'layer'}
 			<LayerContextMenu index={app.ctxMenu.index} />
+		{:else if app.ctxMenu.kind === 'sheet'}
+			<SheetContextMenu pane={app.ctxMenu.pane} index={app.ctxMenu.index} />
 		{:else if app.ctxMenu.kind === 'library'}
 			<LibraryContextMenu stem={app.ctxMenu.stem} />
 		{:else}
@@ -89,19 +95,29 @@
 	<ProjectSettingsDialog
 		t={app.t}
 		values={{
+			hideComponentOrigin: app.status.hide_component_origin,
+			strokeHundredths: app.status.stroke_hundredths,
+			defaultFilled: app.status.default_filled
+		}}
+		onApply={app.applyDrawingDefaults}
+		onCancel={() => app.dialogs.close()}
+	/>
+{:else if dialog?.kind === 'sheetSettings'}
+	<SheetSettingsDialog
+		t={app.t}
+		values={{
 			gridX: app.status.grid,
 			gridY: app.status.grid_y,
 			snapX: app.status.snap,
 			snapY: app.status.snap_y,
 			showGrid: app.status.show_grid,
-			snapEnable: app.status.snap_enable,
-			hideComponentOrigin: app.status.hide_component_origin,
-			strokeHundredths: app.status.stroke_hundredths,
-			defaultFilled: app.status.default_filled
+			snapEnable: app.status.snap_enable
 		}}
-		onApply={app.applyProjectSettings}
+		onApply={app.applySheetSettings}
 		onCancel={() => app.dialogs.close()}
 	/>
+{:else if dialog?.kind === 'deleteSheet'}
+	<DeleteSheetDialog />
 {:else if dialog?.kind === 'properties'}
 	<PropertiesDialog
 		t={app.t}
@@ -114,6 +130,8 @@
 	<ErrorDialog />
 {:else if dialog?.kind === 'discard'}
 	<ConfirmDialog />
+{:else if dialog?.kind === 'openFcd'}
+	<OpenFcdDialog />
 {:else if dialog?.kind === 'shareLink'}
 	<ShareLinkDialog url={dialog.url} />
 {:else if dialog?.kind === 'shareFcd'}

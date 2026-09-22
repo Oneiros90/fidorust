@@ -36,6 +36,13 @@ export type Status = {
 	editing_component_name: string | null;
 	editing_component_dirty: boolean;
 	libs_rev: number;
+	split: boolean;
+	active_pane: number;
+	pane_sheets: [number, number];
+	pane_zoom: [number, number];
+	pane_pan_x: [number, number];
+	pane_pan_y: [number, number];
+	sheets: string[];
 };
 
 export type Layer = {
@@ -123,5 +130,12 @@ export const defaultStatus = (): Status => ({
 	editing_component: null,
 	editing_component_name: null,
 	editing_component_dirty: false,
-	libs_rev: 0
+	libs_rev: 0,
+	split: false,
+	active_pane: 0,
+	pane_sheets: [0, 0],
+	pane_zoom: [4, 4],
+	pane_pan_x: [40, 40],
+	pane_pan_y: [40, 40],
+	sheets: ['Foglio 1']
 });

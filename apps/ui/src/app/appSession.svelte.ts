@@ -21,25 +21,30 @@ import { restoreSession as restoreSessionState, SessionPersist } from './persist
 import * as clip from './clipboardOps';
 import * as share from './shareOps';
 import * as edit from './editCommands';
+import * as sheets from './sheetOps';
 import { LibraryDragSession, getCursor } from './libraryDrag.svelte';
 import { PreviewCache } from '../lib/previewCache';
 import { APP_SHORTCUTS, runShortcuts } from './shortcuts';
 import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 import { startDesktopFileBridge } from '../lib/desktopFiles';
 import { loadUserLibraries } from '../lib/userLibraries';
+import { ensureLegacyPaneApi } from '../lib/wasmCompat';
 import type { SaveLibraryPolicy } from './fileOps';
 import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 
 export type { RecentEntry };
 export type { LibGhost };
 
-export type ProjectSettingsValues = {
+export type SheetSettingsValues = {
 	gridX: number;
 	gridY: number;
 	snapX: number;
 	snapY: number;
 	showGrid: boolean;
 	snapEnable: boolean;
+};
+
+export type DrawingDefaultsValues = {
 	hideComponentOrigin: boolean;
 	strokeHundredths: number;
 	defaultFilled: boolean;
@@ -74,9 +79,11 @@ export class AppSession {
 	recents = $state<RecentEntry[]>(loadRecents());
 	savedSnapshot = $state('');
 	pendingDiscard: (() => void) | null = null;
+	pendingInclude: (() => void) | null = null;
 	#libraryDrag = new LibraryDragSession(this);
 	#titleSig = '';
 	#titleEpoch = $state(0);
+	splitRatio = $state(this.#session?.splitRatio ?? 0.5);
 
 	windowTitle = $derived.by(() => {
 		void this.#titleEpoch;
@@ -132,6 +139,12 @@ export class AppSession {
 	}
 	set editingLayerName(v) {
 		this.ui.editingLayerName = v;
+	}
+	get editingSheetName() {
+		return this.ui.editingSheetName;
+	}
+	set editingSheetName(v) {
+		this.ui.editingSheetName = v;
 	}
 	get editingLibraryField() {
 		return this.ui.editingLibraryField;
@@ -314,7 +327,7 @@ export class AppSession {
 					hideComponentOrigin: prev.status.hide_component_origin
 				}
 			: null;
-		this.engine = new Engine(wasm);
+		this.engine = new Engine(ensureLegacyPaneApi(wasm));
 		await registerSystemMonospace(this.engine.app);
 		const userLibs = loadUserLibraries();
 		this.engine.query((app) => {
@@ -403,6 +416,23 @@ export class AppSession {
 	openTechnologies = () => this.dialogs.open({ kind: 'technologies' });
 	openProjectSettings = () => this.dialogs.open({ kind: 'projectSettings' });
 
+	hoverPane = (pane: number) => sheets.hoverPane(this, pane);
+	toggleSplit = () => sheets.toggleSplit(this);
+	selectSheet = (pane: number, index: number) => sheets.selectSheet(this, pane, index);
+	addSheet = (pane: number) => sheets.addSheet(this, pane);
+	duplicateSheet = (pane: number, index: number) => sheets.duplicateSheet(this, pane, index);
+	renameSheet = (index: number, name: string) => sheets.renameSheet(this, index, name);
+	beginRenameSheet = (pane: number, index: number) => sheets.beginRenameSheet(this, pane, index);
+	reorderSheets = (from: number, to: number) => sheets.reorderSheets(this, from, to);
+	requestDeleteSheet = (index: number) => sheets.requestDeleteSheet(this, index);
+	confirmDeleteSheet = () => sheets.confirmDeleteSheet(this);
+	cancelDeleteSheet = () => sheets.cancelDeleteSheet(this);
+	openSheetSettings = (pane: number, index: number) => sheets.openSheetSettings(this, pane, index);
+	openSheetContextMenu = (x: number, y: number, pane: number, index: number) =>
+		sheets.openSheetContextMenu(this, x, y, pane, index);
+	applySheetSettings = (v: SheetSettingsValues) => sheets.applySheetSettings(this, v);
+	applyDrawingDefaults = (v: DrawingDefaultsValues) => sheets.applyDrawingDefaults(this, v);
+
 	openProperties = () => {
 		if (!this.engine || this.status.selected === 0) return;
 		const fields = parsePropForm(this.engine.query((app) => app.selection_props_form_json()));
@@ -435,6 +465,7 @@ export class AppSession {
 	rememberCurrent = (name: string) => files.rememberCurrent(this, name);
 	confirmDiscard = (action: () => void) => files.confirmDiscard(this, action);
 	acceptDiscard = () => files.acceptDiscard(this);
+	acceptIncludeFcd = () => files.acceptIncludeFcd(this);
 	cancelDiscard = () => files.cancelDiscard(this);
 	loadBytes = (bytes: Uint8Array, name: string) => files.loadBytes(this, bytes, name);
 	loadText = (text: string, name: string) => files.loadText(this, text, name);
@@ -540,25 +571,6 @@ export class AppSession {
 
 	getCursor = (name: string) => getCursor(this, name);
 	armLibraryDrag = (name: string, e: PointerEvent) => this.#libraryDrag.arm(name, e);
-
-	applyProjectSettings = (v: ProjectSettingsValues) => {
-		this.engine?.mutate((app) => {
-			app.apply_project_settings(
-				JSON.stringify({
-					grid: v.gridX,
-					grid_y: v.gridY,
-					snap: v.snapX,
-					snap_y: v.snapY,
-					show_grid: v.showGrid,
-					snap_enable: v.snapEnable,
-					hide_component_origin: v.hideComponentOrigin,
-					stroke_hundredths: v.strokeHundredths,
-					default_filled: v.defaultFilled
-				})
-			);
-		});
-		this.dialogs.close();
-	};
 
 	setGrid = (x: number, y: number) => {
 		this.engine?.mutate((app) => {

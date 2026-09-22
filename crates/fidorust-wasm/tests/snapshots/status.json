@@ -1,4 +1,5 @@
 {
+  "active_pane": 0,
   "can_create_component": false,
   "can_edit_component": false,
   "can_redo": false,
@@ -19,13 +20,33 @@
   "n": 0,
   "pan_x": 40.0,
   "pan_y": 40.0,
+  "pane_pan_x": [
+    40.0,
+    40.0
+  ],
+  "pane_pan_y": [
+    40.0,
+    40.0
+  ],
+  "pane_sheets": [
+    0,
+    0
+  ],
+  "pane_zoom": [
+    4.0,
+    4.0
+  ],
   "pcb": false,
   "pending_component": null,
   "selected": 0,
+  "sheets": [
+    "Foglio 1"
+  ],
   "show_grid": true,
   "snap": 5,
   "snap_enable": true,
   "snap_y": 5,
+  "split": false,
   "stroke_hundredths": 25,
   "title": "",
   "tool": "select",

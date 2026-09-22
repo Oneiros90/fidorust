@@ -15,6 +15,23 @@ pub fn rewrite_component_names(prims: &mut [Primitive], from: &str, to: &str) {
     }
 }
 
+/// Rewrite MC names in one pass so chained remaps (`C01→C03`, `C03→C04`) do not collide.
+pub fn rewrite_component_names_map(
+    prims: &mut [Primitive],
+    map: &std::collections::HashMap<String, String>,
+) {
+    if map.is_empty() {
+        return;
+    }
+    for p in prims {
+        if let Primitive::Component(c) = p {
+            if let Some(to) = map.get(&c.name.to_ascii_lowercase()) {
+                c.name = to.clone();
+            }
+        }
+    }
+}
+
 pub fn rewrite_component_names_in_libs(libs: &mut LibrarySet, from: &str, to: &str) {
     for lib in &mut libs.libraries {
         for def in &mut lib.components {

@@ -8,4 +8,5 @@ interface ImportMetaEnv {
 
 declare module 'virtual:fidorust-pro' {
 	export function register(): Promise<import('./lib/proHost').ProPack | null>;
+	export const embeddedPro: boolean;
 }

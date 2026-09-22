@@ -16,6 +16,7 @@ export class Engine {
 	libs = $state<LibraryEntry[]>([]);
 	libsRev = $state(0);
 	canvas: HTMLCanvasElement | null = null;
+	canvases: [HTMLCanvasElement | null, HTMLCanvasElement | null] = [null, null];
 	refreshListeners = new Set<() => void>();
 	onRefresh: (() => void) | null = null;
 
@@ -28,7 +29,11 @@ export class Engine {
 
 	refresh = () => {
 		untrack(() => {
-			const status: Status = JSON.parse(this.app.status_json());
+			const parsed = JSON.parse(this.app.status_json()) as Partial<Status>;
+			const status: Status = { ...defaultStatus(), ...parsed };
+			if (!Array.isArray(status.sheets) || status.sheets.length === 0) {
+				status.sheets = defaultStatus().sheets;
+			}
 			this.status = status;
 			this.layers = JSON.parse(this.app.layers_json());
 			if (status.libs_rev !== this.libsRev) {
@@ -73,11 +78,17 @@ export class Engine {
 		}
 	};
 
-	attachCanvas = (node: HTMLCanvasElement) => {
-		this.canvas = node;
-		this.app.attach_canvas(node);
+	attachCanvas = (node: HTMLCanvasElement) => this.attachPaneCanvas(0, node);
+
+	attachPaneCanvas = (pane: number, node: HTMLCanvasElement) => {
+		const i = pane === 1 ? 1 : 0;
+		this.canvases[i] = node;
+		if (i === 0) this.canvas = node;
+		this.app.attach_pane_canvas(i, node);
 		return () => {
-			if (this.canvas === node) this.canvas = null;
+			this.app.detach_pane_canvas(i);
+			if (this.canvases[i] === node) this.canvases[i] = null;
+			if (this.canvas === node) this.canvas = this.canvases[0] ?? this.canvases[1];
 		};
 	};
 }

@@ -1,6 +1,6 @@
 import { looksLikeFcd } from '../lib/shareCodec';
 import type { AppSession } from './appSession.svelte';
-import { confirmDiscard, loadText } from './fileOps';
+import { confirmOpenFcd, includeFcdText, loadText } from './fileOps';
 
 export async function copyFcd(s: AppSession) {
 	if (!s.engine) return;
@@ -31,5 +31,9 @@ export async function pasteNewDoc(s: AppSession) {
 		s.error = s.t.clipboardNotFcd;
 		return;
 	}
-	confirmDiscard(s, () => loadText(s, text, 'clipboard.fcd'));
+	confirmOpenFcd(
+		s,
+		() => loadText(s, text, 'clipboard.fcd'),
+		() => includeFcdText(s, text)
+	);
 }

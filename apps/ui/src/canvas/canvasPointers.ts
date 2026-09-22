@@ -53,6 +53,7 @@ export function isPanInput(space: boolean, button: number, tool: string): boolea
 
 export function commitRightMarquee(
 	engine: Engine,
+	pane: number,
 	sx: number,
 	sy: number,
 	clientX: number,
@@ -61,19 +62,23 @@ export function commitRightMarquee(
 ) {
 	engine.mutate(
 		(wasm) => {
-			wasm.pointer_up(sx, sy);
+			wasm.pointer_up_on(pane, sx, sy);
 		},
 		{ refreshFirst: true }
 	);
 	app.openContextMenu(clientX, clientY);
 }
 
-export function abortRightMarquee(engine: Engine | null, gesture: RightGesture | null) {
+export function abortRightMarquee(
+	engine: Engine | null,
+	pane: number,
+	gesture: RightGesture | null
+) {
 	if (gesture?.kind === 'marquee' && engine) {
 		const { x, y } = gesture;
 		engine.mutate(
 			(wasm) => {
-				wasm.pointer_up(x, y);
+				wasm.pointer_up_on(pane, x, y);
 			},
 			{ refreshFirst: true }
 		);
@@ -82,6 +87,7 @@ export function abortRightMarquee(engine: Engine | null, gesture: RightGesture |
 
 export function maybeBeginRightMarquee(
 	engine: Engine,
+	pane: number,
 	gesture: RightGesture,
 	e: PointerEvent,
 	p: { x: number; y: number },
@@ -94,9 +100,9 @@ export function maybeBeginRightMarquee(
 	if (tool !== 'select') return null;
 	engine.mutate(
 		(wasm) => {
-			wasm.begin_marquee(gesture.startX, gesture.startY, gesture.shift);
+			wasm.begin_marquee_on(pane, gesture.startX, gesture.startY, gesture.shift);
 			wasm.set_move_duplicate(copyMod(e));
-			wasm.pointer_move(p.x, p.y);
+			wasm.pointer_move_on(pane, p.x, p.y);
 		},
 		{ refreshFirst: true }
 	);

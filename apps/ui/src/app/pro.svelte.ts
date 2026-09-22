@@ -9,6 +9,7 @@ import { clearCachedPayload, readCachedPayload, writeCachedPayload } from '../li
 import type { ProHost, ProPack } from '../lib/proHost';
 import { instantiateOverlay, instantiateProApp, revokeProBlobUrls } from '../lib/proInstantiate';
 import { fetchAndDecryptModule } from '../lib/proModule';
+import { ensureLegacyPaneApi } from '../lib/wasmCompat';
 import type { AppSession } from './appSession.svelte';
 
 function commandOn(raw: string): boolean {
@@ -30,6 +31,7 @@ export class ProSession {
 	private pack: ProPack | null = null;
 	private unsubRefresh: (() => void) | null = null;
 	private pendingCircuit = false;
+	private embeddedPro = false;
 
 	constructor(private readonly app: AppSession) {}
 
@@ -74,7 +76,8 @@ export class ProSession {
 	load = async () => {
 		const caps = this.app.engine?.capabilities() ?? { pro: false, commands: [] };
 		this.wasmPro = caps.pro;
-		const { register } = await import('virtual:fidorust-pro');
+		const { embeddedPro, register } = await import('virtual:fidorust-pro');
+		this.embeddedPro = embeddedPro;
 		const pack = await register();
 		if (pack) {
 			this.adoptPack(pack);
@@ -162,7 +165,14 @@ export class ProSession {
 	};
 
 	ensureModule = async (): Promise<boolean> => {
-		if (this.wasmPro && this.mountOverlay) return true;
+		this.wasmPro = this.app.engine?.capabilities().pro ?? false;
+		if (this.wasmPro) return true;
+		// Linked Pro crate (FIDORUST_PRO=1): never replace the live wasm with a packed blob.
+		// The published module can lag this UI and drop dual-pane methods.
+		if (this.embeddedPro) {
+			console.error('FidoRust Pro wasm is not linked; rebuild with FIDORUST_PRO=1');
+			return false;
+		}
 		if (this.loading) return false;
 		this.loading = true;
 		const wasPro = this.wasmPro;
@@ -174,9 +184,11 @@ export class ProSession {
 				payload = await fetchAndDecryptModule(license);
 				await writeCachedPayload(payload);
 			}
-			const wasmApp = await instantiateProApp(
-				payload.files['fidorust_wasm.js'],
-				payload.files['fidorust_wasm_bg.wasm']
+			const wasmApp = ensureLegacyPaneApi(
+				await instantiateProApp(
+					payload.files['fidorust_wasm.js'],
+					payload.files['fidorust_wasm_bg.wasm']
+				)
 			);
 			await this.app.adoptEngine(wasmApp);
 			const pack = await instantiateOverlay(payload.files['overlay.js']);

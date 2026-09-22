@@ -682,8 +682,8 @@ fn plus_terminal_component() -> Editor {
     let src =
         "[FIDOCAD]\nLI 320 60 315 60 1\nPP 320 60 318 61 318 59 1\nTY 323 62 4 2 180 1 1 * +\n";
     let doc = parse_document(src).unwrap();
-    for p in doc.primitives {
-        ed.doc_mut().insert(p);
+    for p in &doc.primitives {
+        ed.doc_mut().insert(p.clone());
     }
     ed.set_selected(vec![0, 1, 2]);
     ed.create_component_from_selection(PROJECT_STEM, "Plus")
@@ -733,4 +733,156 @@ fn rotating_a_component_twice_matches_rotating_its_parts_twice() {
         dump_doc_primitives(&as_component),
         dump_doc_primitives(&as_parts)
     );
+}
+
+fn component_name(p: &Primitive) -> &str {
+    match p {
+        Primitive::Component(c) => c.name.as_str(),
+        _ => panic!("expected component"),
+    }
+}
+
+#[test]
+fn import_fcd_appends_sheets_and_uniquifies_names() {
+    let mut dest = Editor::new(builtin_libraries());
+    dest.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(1, 0),
+        LayerId(0),
+    ));
+    assert_eq!(dest.sheet_names(), vec!["Foglio 1".to_string()]);
+
+    let incoming =
+        "[FIDOCAD]\n[FIDOSHEET Foglio 1]\nLI 10 10 20 20\n[FIDOSHEET Schema]\nLI 30 30 40 40\n";
+    let first = dest.import_fcd_sheets(incoming).unwrap();
+    assert_eq!(first, 1);
+    assert_eq!(
+        dest.sheet_names(),
+        vec![
+            "Foglio 1".to_string(),
+            "Foglio 1 2".to_string(),
+            "Schema".to_string()
+        ]
+    );
+    assert_eq!(dest.doc().sheets[0].primitives.len(), 1);
+    assert_eq!(dest.doc().sheets[1].primitives.len(), 1);
+    assert_eq!(dest.doc().sheets[2].primitives.len(), 1);
+    assert_eq!(dest.doc().view_index(), 1);
+}
+
+#[test]
+fn import_fcd_remaps_conflicting_project_components() {
+    let mut dest = Editor::new(builtin_libraries());
+    dest.doc_mut().insert(Primitive::line(
+        Point::new(5, 5),
+        Point::new(15, 5),
+        LayerId(0),
+    ));
+    dest.set_selected(vec![0]);
+    dest.create_component_from_selection(PROJECT_STEM, "Box")
+        .unwrap();
+    assert_eq!(component_name(&dest.doc().primitives[0]), "project.C01");
+
+    let incoming = "\
+[FIDOCAD]\n\
+[FIDOSHEET Import]\n\
+MC 0 0 0 0 project.C01\n\
+[FIDOLIB project]\n\
+[C01 Nested]\n\
+LI 0 0 1 1\n\
+[C02 Wrapper]\n\
+MC 0 0 0 0 project.C01\n";
+
+    dest.import_fcd_sheets(incoming).unwrap();
+    assert_eq!(dest.sheet_count(), 2);
+    assert_eq!(dest.sheet_names()[1], "Import");
+    assert_eq!(
+        component_name(&dest.doc().sheets[0].primitives[0]),
+        "project.C01",
+        "existing instances must keep the original key"
+    );
+    assert_eq!(
+        component_name(&dest.doc().sheets[1].primitives[0]),
+        "project.C03",
+        "incoming C01 should skip dest C01 and incoming C02"
+    );
+
+    let project = dest.libs().project().unwrap();
+    assert_eq!(project.components.len(), 3);
+    assert_eq!(project.components[0].key, "C01");
+    assert_eq!(project.components[0].name, "Box");
+    assert_eq!(project.components[1].key, "C03");
+    assert_eq!(project.components[1].name, "Nested");
+    assert_eq!(project.components[2].key, "C02");
+    assert_eq!(project.components[2].name, "Wrapper");
+    assert_eq!(
+        component_name(&project.components[2].primitives[0]),
+        "project.C03"
+    );
+}
+
+#[test]
+fn import_fcd_uniquifies_component_display_names() {
+    let mut dest = Editor::new(builtin_libraries());
+    dest.doc_mut().insert(Primitive::line(
+        Point::new(5, 5),
+        Point::new(15, 5),
+        LayerId(0),
+    ));
+    dest.set_selected(vec![0]);
+    dest.create_component_from_selection(PROJECT_STEM, "Relay")
+        .unwrap();
+
+    let incoming = "\
+[FIDOCAD]\n\
+[FIDOSHEET Extra]\n\
+LI 1 1 2 2\n\
+[FIDOLIB project]\n\
+[C99 Relay]\n\
+LI 0 0 3 3\n";
+    dest.import_fcd_sheets(incoming).unwrap();
+    let project = dest.libs().project().unwrap();
+    assert_eq!(project.find("C01").unwrap().name, "Relay");
+    assert_eq!(project.find("C99").unwrap().name, "Relay 2");
+}
+
+#[test]
+fn import_fcd_undo_restores_sheets_and_library() {
+    let mut dest = Editor::new(builtin_libraries());
+    dest.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(4, 0),
+        LayerId(0),
+    ));
+    dest.import_fcd_sheets(
+        "[FIDOCAD]\n[FIDOSHEET Extra]\nLI 9 9 8 8\n[FIDOLIB project]\n[C01 Imp]\nLI 0 0 1 1\n",
+    )
+    .unwrap();
+    assert_eq!(dest.sheet_count(), 2);
+    assert_eq!(dest.libs().project().unwrap().components.len(), 1);
+    dest.undo();
+    assert_eq!(dest.sheet_count(), 1);
+    assert!(dest.libs().project().unwrap().components.is_empty());
+    assert_eq!(dest.sheet_names()[0], "Foglio 1");
+}
+
+#[test]
+fn import_fcd_refuses_while_editing_component() {
+    let mut dest = Editor::new(builtin_libraries());
+    dest.doc_mut().insert(Primitive::line(
+        Point::new(5, 5),
+        Point::new(15, 5),
+        LayerId(0),
+    ));
+    dest.set_selected(vec![0]);
+    let key = dest
+        .create_component_from_selection(PROJECT_STEM, "Edit me")
+        .unwrap()
+        .1;
+    assert!(dest.enter_component_edit(PROJECT_STEM, &key));
+    let err = dest
+        .import_fcd_sheets("[FIDOCAD]\nLI 0 0 1 1\n")
+        .unwrap_err();
+    assert_eq!(err.to_string(), "cannot import while editing a component");
+    assert_eq!(dest.sheet_count(), 1);
 }

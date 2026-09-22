@@ -2,8 +2,8 @@
 
 use super::Editor;
 use crate::library::{
-    drawing_uses_user_library_components, explode_library_instances, primitives_use_nonzero_layers,
-    Library, LibraryKind, PROJECT_STEM,
+    document_uses_user_library_components, explode_library_instances,
+    primitives_use_nonzero_layers, Library, LibraryKind, PROJECT_STEM,
 };
 
 impl Editor {
@@ -21,7 +21,7 @@ impl Editor {
     }
 
     pub fn create_user_library(&mut self, title: &str) -> String {
-        self.push_undo();
+        self.push_project_undo();
         let title = self.libs.unique_library_title(title.trim());
         let stem = self.libs.unique_stem(&title);
         self.libs.add(Library::empty_user(&stem, title));
@@ -30,7 +30,7 @@ impl Editor {
     }
 
     pub fn import_library(&mut self, lib: Library) -> String {
-        self.push_undo();
+        self.push_project_undo();
         let stem = self.libs.add_user_library(lib);
         self.bump_libs_rev();
         stem
@@ -48,7 +48,7 @@ impl Editor {
         if lib.name == title {
             return None;
         }
-        self.push_undo();
+        self.push_project_undo();
         if let Some(lib) = self.libs.library_mut(stem) {
             lib.name = title.to_string();
         }
@@ -70,8 +70,10 @@ impl Editor {
         {
             self.cancel_component_edit();
         }
-        self.push_undo();
-        explode_library_instances(&mut self.doc.primitives, &mut self.libs, PROJECT_STEM);
+        self.push_project_undo();
+        self.doc.for_each_primitives_mut(|prims| {
+            explode_library_instances(prims, &mut self.libs, PROJECT_STEM);
+        });
         if let Some(project) = self.libs.project_mut() {
             project.components.clear();
         }
@@ -97,8 +99,10 @@ impl Editor {
         {
             self.cancel_component_edit();
         }
-        self.push_undo();
-        explode_library_instances(&mut self.doc.primitives, &mut self.libs, stem);
+        self.push_project_undo();
+        self.doc.for_each_primitives_mut(|prims| {
+            explode_library_instances(prims, &mut self.libs, stem);
+        });
         if let Some(pending) = &self.pending_component {
             let prefix = format!("{stem}.");
             if pending.len() > prefix.len() && pending[..prefix.len()].eq_ignore_ascii_case(&prefix)
@@ -113,7 +117,7 @@ impl Editor {
     }
 
     pub fn uses_user_library_components(&self) -> bool {
-        drawing_uses_user_library_components(&self.persistent_doc().primitives, &self.libs)
+        document_uses_user_library_components(self.persistent_doc(), &self.libs)
     }
 
     pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {
@@ -141,11 +145,22 @@ impl Editor {
     }
 
     pub fn unresolved_component_count(&self) -> usize {
-        crate::library::unresolved_component_count(&self.doc.primitives, &self.libs)
+        self.doc
+            .sheets
+            .iter()
+            .map(|s| crate::library::unresolved_component_count(&s.primitives, &self.libs))
+            .sum()
     }
 
     pub fn unresolved_components(&self) -> Vec<(String, usize)> {
-        crate::library::unresolved_components(&self.doc.primitives, &self.libs)
+        let mut out = Vec::new();
+        for sheet in &self.doc.sheets {
+            out.extend(crate::library::unresolved_components(
+                &sheet.primitives,
+                &self.libs,
+            ));
+        }
+        out
     }
 
     pub fn set_project_library(&mut self, lib: Option<Library>) {

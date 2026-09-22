@@ -10,11 +10,13 @@ pub use expand::{
 };
 pub use rewrite::{
     explode_library_instances, explode_named, explode_named_everywhere, rewrite_component_names,
-    rewrite_component_names_in_libs, rewrite_library_stem, translate_primitives,
+    rewrite_component_names_in_libs, rewrite_component_names_map, rewrite_library_stem,
+    translate_primitives,
 };
 pub use save::{
-    drawing_uses_user_library_components, explode_user_components_for_save,
-    fold_user_components_into_project,
+    document_uses_user_library_components, drawing_uses_user_library_components,
+    explode_user_components_for_save, explode_user_components_in_document,
+    fold_user_components_in_document, fold_user_components_into_project,
 };
 
 use crate::primitive::Primitive;

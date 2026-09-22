@@ -53,18 +53,39 @@ export function confirmDiscard(s: AppSession, action: () => void) {
 		return;
 	}
 	s.pendingDiscard = action;
+	s.pendingInclude = null;
 	s.dialogs.open({ kind: 'discard' });
+}
+
+export function confirmOpenFcd(s: AppSession, open: () => void, include: () => void) {
+	if (!isDirty(s)) {
+		open();
+		return;
+	}
+	s.pendingDiscard = open;
+	s.pendingInclude = include;
+	s.dialogs.open({ kind: 'openFcd' });
 }
 
 export function acceptDiscard(s: AppSession) {
 	const action = s.pendingDiscard;
 	s.pendingDiscard = null;
+	s.pendingInclude = null;
 	s.dialogs.close();
 	action?.();
 }
 
+export function acceptIncludeFcd(s: AppSession) {
+	const include = s.pendingInclude;
+	s.pendingDiscard = null;
+	s.pendingInclude = null;
+	s.dialogs.close();
+	include?.();
+}
+
 export function cancelDiscard(s: AppSession) {
 	s.pendingDiscard = null;
+	s.pendingInclude = null;
 	s.dialogs.close();
 }
 
@@ -113,8 +134,38 @@ export function loadText(s: AppSession, text: string, name: string) {
 	applyLoaded(s, (app) => app.load_fcd(text), name);
 }
 
+export function includeFcdBytes(s: AppSession, bytes: Uint8Array) {
+	if (!s.engine) return;
+	try {
+		s.engine.mutate((app) => {
+			app.import_fcd_bytes(bytes);
+		});
+		s.error = '';
+		warnUnresolvedComponents(s);
+	} catch (err) {
+		s.error = String(err);
+	}
+}
+
+export function includeFcdText(s: AppSession, text: string) {
+	if (!s.engine) return;
+	try {
+		s.engine.mutate((app) => {
+			app.import_fcd(text);
+		});
+		s.error = '';
+		warnUnresolvedComponents(s);
+	} catch (err) {
+		s.error = String(err);
+	}
+}
+
 export function openExample(s: AppSession, ex: Example) {
-	confirmDiscard(s, () => loadText(s, ex.fcd, ex.file));
+	confirmOpenFcd(
+		s,
+		() => loadText(s, ex.fcd, ex.file),
+		() => includeFcdText(s, ex.fcd)
+	);
 }
 
 export function openFile(s: AppSession) {
@@ -127,11 +178,19 @@ export async function onPickedFile(s: AppSession, e: Event) {
 	input.value = '';
 	if (!file) return;
 	const bytes = new Uint8Array(await file.arrayBuffer());
-	confirmDiscard(s, () => loadBytes(s, bytes, file.name));
+	confirmOpenFcd(
+		s,
+		() => loadBytes(s, bytes, file.name),
+		() => includeFcdBytes(s, bytes)
+	);
 }
 
 export function openRecent(s: AppSession, entry: RecentEntry) {
-	confirmDiscard(s, () => loadText(s, entry.fcd, entry.name));
+	confirmOpenFcd(
+		s,
+		() => loadText(s, entry.fcd, entry.name),
+		() => includeFcdText(s, entry.fcd)
+	);
 }
 
 export function requestNewDoc(s: AppSession) {
@@ -230,9 +289,16 @@ export function applyOpenedFiles(
 		importFcls();
 	};
 
+	const includeFcd = () => {
+		const first = fcds[0];
+		if (!first) return;
+		includeFcdBytes(s, first.data);
+		importFcls();
+	};
+
 	if (fcds.length > 0) {
 		if (opts?.replaceSession) openFcd();
-		else confirmDiscard(s, openFcd);
+		else confirmOpenFcd(s, openFcd, includeFcd);
 		return true;
 	}
 

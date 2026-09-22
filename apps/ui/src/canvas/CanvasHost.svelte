@@ -20,6 +20,8 @@
 		type RightGesture
 	} from './canvasPointers';
 
+	let { pane = 0 }: { pane?: number } = $props();
+
 	const app = getAppSession();
 	let engine = $derived(app.engine);
 
@@ -32,15 +34,17 @@
 	let rightGesture: RightGesture | null = null;
 	let skipNextContextMenu = false;
 
+	const isActive = $derived((app.status.active_pane ?? 0) === pane);
+
 	const canvasCursor = $derived(
 		panning
 			? 'grabbing'
 			: space || app.status.tool === 'pan'
 				? 'grab'
-				: app.status.duplicate_drag
+				: app.status.duplicate_drag && isActive
 					? 'copy'
 					: app.status.tool === 'select'
-						? app.status.hover_hit
+						? isActive && app.status.hover_hit
 							? 'pointer'
 							: 'default'
 						: 'crosshair'
@@ -50,6 +54,7 @@
 
 	function onMiddleDown(e: MouseEvent) {
 		if (e.button !== 1) return;
+		if ((app.status.active_pane ?? 0) !== pane) return;
 		if (tryStamp(engine, textEdit)) e.preventDefault();
 	}
 
@@ -62,7 +67,7 @@
 		canvas.style.width = `${r.width}px`;
 		canvas.style.height = `${r.height}px`;
 		engine.query((wasm) => {
-			wasm.resize(canvas!.width, canvas!.height);
+			wasm.resize_pane(pane, canvas!.width, canvas!.height);
 			wasm.render();
 		});
 	}
@@ -77,7 +82,7 @@
 		if (!current || !engine) return;
 		try {
 			const p = JSON.parse(
-				engine.query((wasm) => wasm.world_to_screen_json(current.wx, current.wy))
+				engine.query((wasm) => wasm.world_to_screen_json_on(pane, current.wx, current.wy))
 			) as {
 				x: number;
 				y: number;
@@ -117,11 +122,11 @@
 	function finishRightMarquee(sx: number, sy: number, clientX: number, clientY: number) {
 		if (!engine) return;
 		rightGesture = null;
-		commitRightMarquee(engine, sx, sy, clientX, clientY, app);
+		commitRightMarquee(engine, pane, sx, sy, clientX, clientY, app);
 	}
 
 	function abortRightGesture() {
-		abortRightMarquee(engine, rightGesture);
+		abortRightMarquee(engine, pane, rightGesture);
 		rightGesture = null;
 	}
 
@@ -157,10 +162,10 @@
 		const p = local(e);
 		engine.mutate(
 			(wasm) => {
-				wasm.pointer_down(p.x, p.y, e.shiftKey, space || e.button === 1);
+				wasm.pointer_down_on(pane, p.x, p.y, e.shiftKey, space || e.button === 1);
 				wasm.set_move_duplicate(copyMod(e));
 				if (e.detail >= 2) {
-					wasm.pointer_up(p.x, p.y);
+					wasm.pointer_up_on(pane, p.x, p.y);
 				}
 			},
 			{ refreshFirst: true }
@@ -171,11 +176,11 @@
 		if (!engine || textEdit) return;
 		if (e.button === 1 && (e.buttons & 4) !== 0) {
 			e.preventDefault();
-			tryStamp(engine, textEdit);
+			if ((app.status.active_pane ?? 0) === pane) tryStamp(engine, textEdit);
 		}
 		const p = local(e);
 		if (rightGesture && engine) {
-			const next = maybeBeginRightMarquee(engine, rightGesture, e, p, app.status.tool);
+			const next = maybeBeginRightMarquee(engine, pane, rightGesture, e, p, app.status.tool);
 			if (next) {
 				rightGesture = next;
 				return;
@@ -193,7 +198,7 @@
 		engine.mutate(
 			(wasm) => {
 				wasm.set_move_duplicate(copyMod(e));
-				wasm.pointer_move(p.x, p.y);
+				wasm.pointer_move_on(pane, p.x, p.y);
 			},
 			{ refreshFirst: true }
 		);
@@ -229,7 +234,7 @@
 		engine.mutate(
 			(wasm) => {
 				wasm.set_move_duplicate(copyMod(e));
-				wasm.pointer_up(p.x, p.y);
+				wasm.pointer_up_on(pane, p.x, p.y);
 			},
 			{ refreshFirst: true }
 		);
@@ -240,7 +245,7 @@
 		e.preventDefault();
 		const p = canvasLocal(canvas, e.clientX, e.clientY);
 		engine.query((wasm) => {
-			wasm.wheel(p.x, p.y, e.deltaY);
+			wasm.wheel_on(pane, p.x, p.y, e.deltaY);
 			wasm.render();
 		});
 		syncEditPos();
@@ -252,7 +257,7 @@
 		const p = local(e);
 		let raw = 'null';
 		engine.mutate((wasm) => {
-			raw = wasm.dblclick(p.x, p.y);
+			raw = wasm.dblclick_on(pane, p.x, p.y);
 			openEdit(raw);
 		});
 		if (dblClickOpensProperties(raw)) app.openProperties();
@@ -273,12 +278,12 @@
 		rightGesture = null;
 		if (!engine || textEdit) return;
 		const p = local(e);
-		if (engine.query((wasm) => wasm.pointer_right(p.x, p.y))) {
+		if (engine.query((wasm) => wasm.pointer_right_on(pane, p.x, p.y))) {
 			engine.mutate(() => {});
 			return;
 		}
 		engine.mutate((wasm) => {
-			wasm.prepare_context_menu(p.x, p.y);
+			wasm.prepare_context_menu_on(pane, p.x, p.y);
 		});
 		app.openContextMenu(e.clientX, e.clientY);
 	}
@@ -298,9 +303,10 @@
 
 	const attachCanvas = $derived.by(() => {
 		const eng = engine;
+		const p = pane;
 		return (node: HTMLCanvasElement) => {
 			canvas = node;
-			const cleanup = eng?.attachCanvas(node);
+			const cleanup = eng?.attachPaneCanvas(p, node);
 			untrack(() => resizeCanvas());
 			return () => {
 				cleanup?.();
@@ -317,7 +323,7 @@
 		if (textEdit) return;
 		if (e.code === 'Space') space = true;
 		if (e.key === 'Control' || e.key === 'Meta') syncDuplicate(engine, e);
-		if (e.altKey && e.key === 'Enter' && engine) {
+		if (e.altKey && e.key === 'Enter' && engine && (app.status.active_pane ?? 0) === pane) {
 			e.preventDefault();
 			engine.mutate((wasm) => {
 				openEdit(wasm.begin_selected_text_edit());
@@ -334,6 +340,9 @@
 <div class="wrap" {@attach attachWrap}>
 	<canvas
 		{@attach attachCanvas}
+		onpointerenter={() => {
+			if (!textEdit) app.hoverPane(pane);
+		}}
 		onpointerdown={down}
 		onpointermove={move}
 		onpointerup={up}

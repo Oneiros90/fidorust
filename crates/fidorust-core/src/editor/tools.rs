@@ -90,6 +90,8 @@ pub enum EditorError {
     Parse(#[from] crate::fcd::ParseError),
     #[error("invalid property patch: {0}")]
     InvalidPatch(String),
+    #[error("cannot import while editing a component")]
+    EditingComponent,
 }
 
 #[derive(Clone, Debug)]

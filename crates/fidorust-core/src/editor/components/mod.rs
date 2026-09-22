@@ -3,7 +3,7 @@
 mod crud;
 mod libs;
 
-use super::{history::HistorySnapshot, Drag, Editor, Tool};
+use super::{history::HistoryOp, Drag, Editor, PaneState, Tool};
 use crate::geom::{Point, Transform};
 use crate::library::Library;
 use crate::primitive::{ComponentRef, Primitive};
@@ -16,8 +16,9 @@ pub(super) struct ComponentEditSession {
     pub saved_selected: Vec<usize>,
     pub saved_zoom: f32,
     pub saved_pan: (f32, f32),
-    pub saved_undo: Vec<HistorySnapshot>,
-    pub saved_redo: Vec<HistorySnapshot>,
+    pub saved_panes: [PaneState; 2],
+    pub saved_undo: Vec<HistoryOp>,
+    pub saved_redo: Vec<HistoryOp>,
     pub saved_tool: Tool,
     pub saved_pending: Option<String>,
     pub saved_layer: crate::layers::LayerId,
@@ -29,12 +30,18 @@ pub(super) struct ComponentEditSession {
 impl Editor {
     pub fn paste_primitives(&mut self, text: &str) -> Result<(), crate::parse::ParseError> {
         let incoming = crate::parse::parse_document(text)?;
-        if incoming.primitives.is_empty() {
+        let mut prims = incoming
+            .sheets
+            .into_iter()
+            .next()
+            .map(|s| s.primitives)
+            .unwrap_or_default();
+        if prims.is_empty() {
             return Ok(());
         }
         self.push_undo();
         self.selected.clear();
-        for mut p in incoming.primitives {
+        for mut p in prims.drain(..) {
             p.set_layer(self.doc.layers.clamp_id(p.layer()));
             let i = self.doc.insert(p);
             self.selected.push(i);
@@ -245,7 +252,15 @@ impl Editor {
             return false;
         };
         let primitives = def.primitives.clone();
+        let def_name = def.name.clone();
         self.cancel_draft();
+        self.store_active_pane();
+        let mut work = self.doc.clone();
+        let mut sheet = work.sheet(work.view_index()).cloned().unwrap_or_default();
+        sheet.primitives = primitives.clone();
+        sheet.name = def_name;
+        work.sheets = vec![sheet];
+        work.set_view_index(0);
         let session = ComponentEditSession {
             stem: stem.to_string(),
             key: key.to_string(),
@@ -253,6 +268,7 @@ impl Editor {
             saved_selected: self.selected.clone(),
             saved_zoom: self.zoom,
             saved_pan: self.pan,
+            saved_panes: self.panes.clone(),
             saved_undo: std::mem::take(&mut self.undo),
             saved_redo: std::mem::take(&mut self.redo),
             saved_tool: self.tool,
@@ -264,15 +280,18 @@ impl Editor {
                 .cloned()
                 .unwrap_or_else(Library::empty_project),
             saved_user: self.libs.user_libraries_cloned(),
-            original_primitives: primitives.clone(),
+            original_primitives: primitives,
         };
-        self.doc.primitives = primitives;
+        self.doc = work;
         self.selected.clear();
         self.pending_component = None;
         self.tool = Tool::Select;
         self.drag = None;
         self.draft = None;
         self.drag_checkpoint = None;
+        self.split = false;
+        self.active_pane = 0;
+        self.panes = [PaneState::new(), PaneState::new()];
         self.component_edit = Some(session);
         self.fit_view(800.0, 600.0);
         true
@@ -288,7 +307,7 @@ impl Editor {
         let stem = session.stem.clone();
         let key = session.key.clone();
         self.restore_from_component_edit(session);
-        self.push_undo();
+        self.push_project_undo();
         self.doc.layers = layers;
         self.layer = layer;
         self.clamp_current_layer();
@@ -314,9 +333,9 @@ impl Editor {
 
     fn restore_from_component_edit(&mut self, session: ComponentEditSession) {
         self.doc = session.saved_doc;
-        self.selected = session.saved_selected;
-        self.zoom = session.saved_zoom;
-        self.pan = session.saved_pan;
+        self.panes = session.saved_panes;
+        self.split = false;
+        self.active_pane = 0;
         self.undo = session.saved_undo;
         self.redo = session.saved_redo;
         self.tool = session.saved_tool;
@@ -326,6 +345,12 @@ impl Editor {
         self.draft = None;
         self.drag_checkpoint = None;
         self.clamp_current_layer();
+        self.restore_active_pane();
+        let _ = (
+            session.saved_selected,
+            session.saved_zoom,
+            session.saved_pan,
+        );
     }
 
     pub fn editing_component(&self) -> Option<(&str, &str)> {

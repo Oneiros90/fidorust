@@ -1550,3 +1550,95 @@ fn ruler_survives_tool_switch_and_clears_on_load() {
     ed.load_text("[FIDOCAD]\n").unwrap();
     assert!(ed.ruler_segments().is_empty());
 }
+
+#[test]
+fn legacy_file_is_single_sheet_without_fidosheet() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nPS 10 10 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.sheets.len(), 1);
+    assert_eq!(doc.sheets[0].name, "Foglio 1");
+    assert_eq!(doc.primitives.len(), 1);
+    let out = serialize_document(&doc, None);
+    assert!(!out.contains("FIDOSHEET"), "{out}");
+    assert!(out.contains("PS 10 10 5 5 1 1 1 25 0"));
+}
+
+#[test]
+fn fidosheet_headers_roundtrip() {
+    let src = "[FIDOCAD Amp]\nLD 0 0 0 1 Schema\n[FIDOSHEET Foglio 1]\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n[FIDOSHEET Schema]\nPS 10 8 4 2 0 0 1 25 0\nLI 20 20 30 30\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.sheets.len(), 2);
+    assert_eq!(doc.sheets[0].name, "Foglio 1");
+    assert_eq!(doc.sheets[1].name, "Schema");
+    assert_eq!(doc.sheets[0].primitives.len(), 1);
+    assert_eq!(doc.sheets[1].primitives.len(), 1);
+    assert_eq!(doc.sheets[0].grid, 5);
+    assert_eq!(doc.sheets[1].grid, 10);
+    assert_eq!(doc.hide_component_origin, true);
+    assert_eq!(doc.stroke_hundredths, 25);
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("[FIDOSHEET Foglio 1]"), "{out}");
+    assert!(out.contains("[FIDOSHEET Schema]"), "{out}");
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.sheets.len(), doc2.sheets.len());
+    assert_eq!(doc.sheets[1].name, doc2.sheets[1].name);
+    assert_eq!(doc.sheets[1].grid, doc2.sheets[1].grid);
+}
+
+#[test]
+fn sheet_undo_does_not_revert_other_sheet() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\n[FIDOSHEET A]\nLI 0 0 1 1\n[FIDOSHEET B]\nLI 2 2 3 3\n")
+        .unwrap();
+    assert_eq!(ed.sheet_count(), 2);
+    ed.set_pane_sheet(0, 0);
+    ed.select_all();
+    ed.delete_selected();
+    assert!(ed.doc().sheets[0].primitives.is_empty());
+    assert_eq!(ed.doc().sheets[1].primitives.len(), 1);
+    ed.undo();
+    assert_eq!(ed.doc().sheets[0].primitives.len(), 1);
+    assert_eq!(ed.doc().sheets[1].primitives.len(), 1);
+}
+
+#[test]
+fn sheet_add_dup_rename_reorder_and_unique_names() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_locale("en");
+    assert_eq!(ed.sheet_names()[0], "Sheet 1");
+    let second = ed.add_sheet();
+    assert_eq!(ed.sheet_names()[second], "Sheet 2");
+    assert!(!ed.rename_sheet(second, "Sheet 1"));
+    assert!(ed.rename_sheet(second, "PCB"));
+    let copy = ed.duplicate_sheet(0).unwrap();
+    assert!(ed.sheet_names()[copy].contains("copy"));
+    assert_eq!(ed.sheet_count(), 3);
+    assert!(ed.reorder_sheets(2, 0));
+    assert!(ed.sheet_names()[0].contains("copy"));
+    assert!(ed.delete_sheet(0));
+    assert_eq!(ed.sheet_count(), 2);
+    assert!(ed.delete_sheet(0));
+    assert_eq!(ed.sheet_count(), 1);
+    assert!(!ed.delete_sheet(0));
+}
+
+#[test]
+fn both_panes_can_show_the_same_sheet() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\n[FIDOSHEET A]\nLI 0 0 1 1\n[FIDOSHEET B]\nLI 2 2 3 3\n")
+        .unwrap();
+    ed.set_split(true);
+    ed.set_pane_sheet(0, 0);
+    ed.set_pane_sheet(1, 0);
+    assert_eq!(ed.pane_sheet_index(0), 0);
+    assert_eq!(ed.pane_sheet_index(1), 0);
+    ed.set_active_pane(0);
+    ed.select_all();
+    assert_eq!(ed.selected().len(), 1);
+    ed.set_active_pane(1);
+    assert!(ed.selected().is_empty());
+    ed.select_all();
+    assert_eq!(ed.selected().len(), 1);
+    ed.set_active_pane(0);
+    assert_eq!(ed.selected().len(), 1);
+}

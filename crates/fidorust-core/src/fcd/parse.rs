@@ -3,7 +3,7 @@
 use crate::consts::{
     GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
 };
-use crate::document::{Document, ProjectSettings};
+use crate::document::{sanitize_sheet_name, Document, ProjectSettings, Sheet, DEFAULT_SHEET_NAME};
 use crate::geom::Point;
 use crate::layers::{standard_layer_name, LayerId, LayerInfo, LayerSet};
 use crate::library::{
@@ -134,22 +134,63 @@ fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>, project: Option
     } else {
         doc.layers = LayerSet::default();
         doc.inferred_layers = true;
-        let mut max = doc
-            .primitives
-            .iter()
-            .map(|p| p.layer().index())
-            .max()
-            .unwrap_or(0);
+        let mut max = 0usize;
+        for sheet in &doc.sheets {
+            max = max.max(
+                sheet
+                    .primitives
+                    .iter()
+                    .map(|p| p.layer().index())
+                    .max()
+                    .unwrap_or(0),
+            );
+        }
         if let Some(lib) = project {
             let mut libs = LibrarySet::new();
             libs.add(lib.clone());
-            max = max.max(max_used_layer_index(&doc.primitives, &libs));
+            for sheet in &doc.sheets {
+                max = max.max(max_used_layer_index(&sheet.primitives, &libs));
+            }
         }
         doc.layers.ensure_len(max + 1);
     }
-    for p in &mut doc.primitives {
-        p.set_layer(doc.layers.clamp_id(p.layer()));
+    let layers = doc.layers.clone();
+    doc.for_each_primitives_mut(|prims| {
+        for p in prims {
+            p.set_layer(layers.clamp_id(p.layer()));
+        }
+    });
+}
+
+fn default_next_sheet_name(doc: &Document) -> String {
+    for n in 1..10_000 {
+        let name = format!("Foglio {n}");
+        if !doc.sheet_name_taken(&name, None) {
+            return name;
+        }
     }
+    DEFAULT_SHEET_NAME.into()
+}
+
+/// `[FIDOSHEET <name>]` — sheet delimiter. Name may be empty.
+pub fn parse_fidosheet_header(line: &str) -> Option<String> {
+    let t = line.trim();
+    if !t.starts_with('[') || !t.ends_with(']') {
+        return None;
+    }
+    let inner = t[1..t.len() - 1].trim();
+    let kw = "FIDOSHEET";
+    if inner.len() < kw.len() || !inner[..kw.len()].eq_ignore_ascii_case(kw) {
+        return None;
+    }
+    if inner.len() == kw.len() {
+        return Some(String::new());
+    }
+    let rest = &inner[kw.len()..];
+    if !rest.bytes().next().is_some_and(|b| b.is_ascii_whitespace()) {
+        return None;
+    }
+    Some(sanitize_sheet_name(rest.trim()))
 }
 
 /// `MC x y rot mir name [layer]` — a trailing integer assigns the instance to a
@@ -456,9 +497,42 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
     };
     let mut warnings = 0u32;
     let mut defined = Vec::new();
+    let mut current = 0usize;
+    let mut headered = vec![false];
+    let mut take_project_ps = true;
     for raw in body.lines() {
         let line = raw.trim();
         if line.is_empty() {
+            continue;
+        }
+        if let Some(name) = parse_fidosheet_header(line) {
+            let empty = doc.sheets[current].primitives.is_empty();
+            if empty && !headered[current] {
+                let wanted = if name.is_empty() {
+                    DEFAULT_SHEET_NAME.to_string()
+                } else {
+                    name
+                };
+                let resolved = if doc.sheet_name_taken(&wanted, Some(current)) {
+                    doc.unique_sheet_name(&wanted)
+                } else {
+                    wanted
+                };
+                doc.sheets[current].name = resolved;
+                headered[current] = true;
+            } else {
+                let wanted = if name.is_empty() {
+                    default_next_sheet_name(&doc)
+                } else {
+                    name
+                };
+                let resolved = doc.unique_sheet_name(&wanted);
+                let mut sheet = Sheet::default();
+                sheet.name = resolved;
+                doc.sheets.push(sheet);
+                headered.push(true);
+                current = doc.sheets.len() - 1;
+            }
             continue;
         }
         if is_section_header(line) {
@@ -472,11 +546,12 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
             continue;
         }
         if let Some(settings) = parse_ps_line(line) {
-            doc.apply_project_settings(settings);
+            doc.apply_ps_to_sheet(current, settings, take_project_ps);
+            take_project_ps = false;
             continue;
         }
         match parse_primitive_line(line) {
-            Some(p) => doc.primitives.push(p),
+            Some(p) => doc.sheets[current].primitives.push(p),
             None => {
                 if !line.starts_with('[') && !line.starts_with('{') {
                     warnings += 1;

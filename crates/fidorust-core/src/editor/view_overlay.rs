@@ -68,4 +68,32 @@ mod tests {
         assert!(ed.view_overlay().is_some());
         assert_eq!(ed.view_overlay().unwrap().ink, Some([0, 0, 0, 255]));
     }
+
+    #[test]
+    fn overlay_is_independent_per_pane() {
+        let mut ed = Editor::new(LibrarySet::new());
+        ed.set_split(true);
+        ed.set_view_overlay_for_pane(
+            0,
+            Some(ViewOverlay {
+                ink: Some([1, 0, 0, 255]),
+                ..Default::default()
+            }),
+        );
+        ed.set_view_overlay_for_pane(
+            1,
+            Some(ViewOverlay {
+                ink: Some([0, 1, 0, 255]),
+                ..Default::default()
+            }),
+        );
+        ed.set_active_pane(0);
+        assert_eq!(ed.view_overlay().unwrap().ink, Some([1, 0, 0, 255]));
+        ed.set_active_pane(1);
+        assert_eq!(ed.view_overlay().unwrap().ink, Some([0, 1, 0, 255]));
+        assert_eq!(
+            ed.view_overlay_for_pane(0).unwrap().ink,
+            Some([1, 0, 0, 255])
+        );
+    }
 }

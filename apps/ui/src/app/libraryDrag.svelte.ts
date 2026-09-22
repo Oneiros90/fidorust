@@ -3,7 +3,23 @@ import { canvasLocal, cssPerLu } from '../lib/canvasCoords';
 import { DRAG_THRESHOLD_PX } from '../lib/constants';
 import { parseComponentCursor } from '../lib/libraryDrag';
 import type { ComponentCursor } from './engineTypes';
+import type { Engine } from './engine.svelte';
 import type { AppSession } from './appSession.svelte';
+
+function canvasHit(
+	engine: Engine,
+	clientX: number,
+	clientY: number
+): { pane: number; x: number; y: number } | null {
+	const n = engine.status.split ? 2 : 1;
+	for (let pane = 0; pane < n; pane++) {
+		const canvas = engine.canvases[pane];
+		if (!canvas) continue;
+		const loc = canvasLocal(canvas, clientX, clientY);
+		if (loc.inside) return { pane, x: loc.x, y: loc.y };
+	}
+	return null;
+}
 
 export class LibraryDragSession {
 	constructor(private s: AppSession) {}
@@ -39,22 +55,19 @@ export class LibraryDragSession {
 					app.set_pending_follow(true);
 				});
 			}
-			const canvas = s.engine.canvas;
-			if (canvas) {
-				const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
-				if (loc.inside) {
-					s.engine.query((app) => {
-						app.pointer_move(loc.x, loc.y);
-						app.render();
-					});
-					s.libGhost = null;
-					return;
-				}
+			const hit = canvasHit(s.engine, ev.clientX, ev.clientY);
+			if (hit) {
 				s.engine.query((app) => {
-					app.clear_hover();
+					app.pointer_move_on(hit.pane, hit.x, hit.y);
 					app.render();
 				});
+				s.libGhost = null;
+				return;
 			}
+			s.engine.query((app) => {
+				app.clear_hover();
+				app.render();
+			});
 			const cur = getCursor(s, name);
 			if (!cur) {
 				s.libGhost = null;
@@ -74,12 +87,11 @@ export class LibraryDragSession {
 			const wasActive = active;
 			finish();
 			if (!wasActive || !s.engine) return;
-			const canvas = s.engine.canvas;
-			if (!canvas) return;
-			const loc = canvasLocal(canvas, ev.clientX, ev.clientY);
-			if (loc.inside) {
+			const hit = canvasHit(s.engine, ev.clientX, ev.clientY);
+			if (hit) {
 				s.engine.mutate((app) => {
-					app.place_component_at(name, loc.x, loc.y);
+					app.hover_pane(hit.pane);
+					app.place_component_at(name, hit.x, hit.y);
 				});
 				s.libraryFocus = null;
 			} else {

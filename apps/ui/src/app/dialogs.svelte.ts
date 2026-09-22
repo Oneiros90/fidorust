@@ -9,9 +9,12 @@ export type DialogState =
 	| { kind: 'about' }
 	| { kind: 'technologies' }
 	| { kind: 'projectSettings' }
+	| { kind: 'sheetSettings' }
+	| { kind: 'deleteSheet'; index: number }
 	| { kind: 'properties'; fields: PropFormField[] }
 	| { kind: 'error'; message: string }
 	| { kind: 'discard' }
+	| { kind: 'openFcd' }
 	| { kind: 'shareLink'; url: string }
 	| { kind: 'shareFcd'; text: string }
 	| { kind: 'export'; format: ExportFormat }

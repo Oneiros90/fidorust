@@ -115,9 +115,9 @@ function fidorustPro(): Plugin {
 		load(id) {
 			if (id !== '\0virtual:fidorust-pro') return;
 			if (!proEnabled) {
-				return 'export async function register() {\n\treturn null;\n}\n';
+				return 'export async function register() {\n\treturn null;\n}\nexport const embeddedPro = false;\n';
 			}
-			return `export { register } from ${JSON.stringify(registerPath)};\n`;
+			return `export { register } from ${JSON.stringify(registerPath)};\nexport const embeddedPro = true;\n`;
 		}
 	};
 }

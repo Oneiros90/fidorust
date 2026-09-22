@@ -198,12 +198,41 @@ FidoRust always writes `PS` when you save. Clipboard fragments and library defin
 
 ---
 
+## Sheets (`FIDOSHEET`)
+
+A project can contain more than one drawing sheet. Layers and the project library are shared; each sheet has its own primitives and its own grid/snap (`PS` grid/snap fields). Hide-origin, stroke, and default fill are project-wide: they are written into every `PS` line and read from the first `PS` in the file.
+
+```text
+[FIDOSHEET <name>]
+```
+
+The name is the tab label (`Foglio 1`, `Schema`, …). `]` is not allowed in the name.
+
+A file with **no** `FIDOSHEET` header is a single sheet named `Foglio 1` (legacy). FidoRust writes `FIDOSHEET` only when there are two or more sheets.
+
+```text
+[FIDOCAD Dual rail]
+LD 0 0 0 1 Schema
+[FIDOSHEET Foglio 1]
+PS 5 5 5 5 1 1 1 25 0
+LI 20 40 180 40
+[FIDOSHEET PCB]
+PS 10 10 5 5 1 1 1 25 0
+PL 20 40 80 40 5
+[FIDOLIB project]
+```
+
+Programs that do not know `FIDOSHEET` skip the header line (it starts with `[`) and will merge extra-sheet primitives into one drawing.
+
+---
+
 ## Practical takeaways
 
 1. **Sharing schematics** still works as copy-and-paste of FidoCAD text.
 2. **Objects keep their layer numbers** in every `.fcd` file.
 3. **Names, colours (including RGBA), and visibility** travel with the drawing as `LD` lines under the header.
-4. **Grid, snap, and drawing defaults** travel as a `PS` line under the layer table.
+4. **Grid and snap** are per sheet; **hide-origin, stroke, and fill** are project-wide. Both travel in `PS` lines.
 5. **A file without `LD`** opens with the four classic layers (plus extras if needed).
 6. **A file without `PS`** opens with the usual grid/snap defaults.
-7. FidoRust always writes `LD` and `PS` when you save, so the next person sees the same layer table and project settings.
+7. **A file without `FIDOSHEET`** is one sheet. Two or more sheets are written as `[FIDOSHEET name]` blocks after the layer table.
+8. FidoRust always writes `LD` and `PS` when you save, so the next person sees the same layer table and settings.
