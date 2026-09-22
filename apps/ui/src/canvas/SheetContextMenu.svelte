@@ -11,10 +11,6 @@
 
 <MenuItem label={app.t.renameSheet} onclick={() => app.beginRenameSheet(pane, index)} />
 <MenuItem label={app.t.duplicateSheet} onclick={() => app.duplicateSheet(pane, index)} />
-<MenuItem
-	label={app.t.deleteSheet}
-	disabled={last}
-	onclick={() => app.requestDeleteSheet(index)}
-/>
+<MenuItem label={app.t.deleteSheet} disabled={last} onclick={() => app.requestDeleteSheet(index)} />
 <MenuSeparator />
 <MenuItem label={app.t.sheetSettings} onclick={() => app.openSheetSettings(pane, index)} />

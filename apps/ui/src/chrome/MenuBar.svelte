@@ -94,7 +94,9 @@
 		font: 600 12px/1 var(--font, system-ui);
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 4px 12px rgba(12, 40, 80, 0.28);
+		box-shadow:
+			0 1px 0 rgba(255, 255, 255, 0.12) inset,
+			0 4px 12px rgba(12, 40, 80, 0.28);
 		cursor: pointer;
 	}
 	.circuit-btn :global(svg) {
@@ -112,7 +114,9 @@
 	.circuit-btn.active {
 		border-color: #f03a3a;
 		background: linear-gradient(180deg, #c42828 0%, #8e1c1c 100%);
-		box-shadow: 0 1px 0 rgba(255, 255, 255, 0.16) inset, 0 0 0 1px rgba(240, 58, 58, 0.35);
+		box-shadow:
+			0 1px 0 rgba(255, 255, 255, 0.16) inset,
+			0 0 0 1px rgba(240, 58, 58, 0.35);
 	}
 	.circuit-btn:disabled {
 		opacity: 0.65;

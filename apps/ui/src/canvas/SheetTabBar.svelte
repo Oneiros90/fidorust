@@ -14,9 +14,7 @@
 
 	const sheets = $derived(app.status.sheets ?? []);
 	const activeIndex = $derived(app.status.pane_sheets?.[pane] ?? 0);
-	const editing = $derived(
-		app.editingSheetName?.pane === pane ? app.editingSheetName.index : null
-	);
+	const editing = $derived(app.editingSheetName?.pane === pane ? app.editingSheetName.index : null);
 
 	function commitRename(i: number, name: string) {
 		if (skipRenameCommit) {
