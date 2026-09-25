@@ -6,7 +6,7 @@ use fidorust_core::{
     Rect, Text, Tool, DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
-use fidorust_gpu::{tessellate_primitives, Rgb};
+use fidorust_gpu::{tessellate_primitives, Rgb, Scene};
 
 use common::{tessellate_editor, tessellate_export};
 
@@ -745,7 +745,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
 }
 
 #[test]
-fn overlay_foreground_is_drawn_after_markers() {
+fn overlay_markers_are_drawn_after_foreground() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut()
         .primitives
@@ -767,10 +767,45 @@ fn overlay_foreground_is_drawn_after_markers() {
         strokes: vec![],
     }));
     let scene = tessellate_editor(&ed);
-    assert!(scene.circles.len() >= 3);
+    assert!(scene.circles.len() >= 2);
     let last = scene.circles.last().unwrap();
-    assert!((last.rx - 1.0).abs() < 1e-5);
-    let marker = &scene.circles[scene.circles.len() - 2];
-    assert!((marker.rx - 3.0).abs() < 1e-5);
-    assert!((marker.g - 1.0).abs() < 1e-5);
+    assert!((last.rx - 3.0).abs() < 1e-5);
+    assert!((last.g - 1.0).abs() < 1e-5);
+    let sa = &scene.circles[scene.circles.len() - 2];
+    assert!((sa.rx - 1.0).abs() < 1e-5);
+}
+
+#[test]
+fn overlay_foreground_is_drawn_after_later_layers() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(20, 0),
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().primitives.push(Primitive::Rect(Rect {
+        a: Point::new(-5, -5),
+        b: Point::new(25, 5),
+        layer: LayerId(1),
+        filled: true,
+    }));
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        ink: None,
+        tints: vec![fidorust_core::OverlayTint {
+            ids: vec![0],
+            color: [255, 0, 0, 255],
+        }],
+        markers: vec![],
+        foreground_ids: vec![0],
+        canvas: None,
+        strokes: vec![],
+    }));
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.lines.len(), 1);
+    assert!((scene.lines[0].r - 1.0).abs() < 1e-5);
+    let last_layer = scene.layer_line_end.len().saturating_sub(1);
+    let overlay_lines = Scene::layer_items(&scene.layer_line_end, &scene.lines, last_layer);
+    assert_eq!(overlay_lines.len(), 1);
+    let first_lines = Scene::layer_items(&scene.layer_line_end, &scene.lines, 0);
+    assert!(first_lines.is_empty());
 }

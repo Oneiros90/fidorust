@@ -1,5 +1,7 @@
 //! Tessellate flattened primitives into GPU-friendly batches (world LU coordinates).
 
+use std::collections::HashSet;
+
 use fidorust_core::consts::{AABB_CULL_EXPAND, VIEW_CULL_MARGIN};
 use fidorust_core::geom::{bezier_point, Point};
 use fidorust_core::layers::{LayerId, LayerSet};
@@ -394,21 +396,25 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
     let layers = input.layers;
     let preview = Rgb::preview(input.theme).rgba(1.0);
     let overlay = input.view;
+    let in_view = |q: &Primitive| {
+        view.as_ref()
+            .map(|v| q.aabb().expand(AABB_CULL_EXPAND).intersects(v))
+            .unwrap_or(true)
+    };
+    let foreground: HashSet<usize> = overlay
+        .map(|v| v.foreground_ids.iter().copied().collect())
+        .unwrap_or_default();
     let expanded: Vec<(Option<usize>, bool, bool, Primitive)> = input
         .primitives
         .iter()
         .enumerate()
-        .filter(|(i, _)| input.editing_text != Some(*i))
+        .filter(|(i, _)| input.editing_text != Some(*i) && !foreground.contains(i))
         .flat_map(|(i, p)| {
             let sel = input.selected.contains(&i);
             let hov = !sel && input.hover == Some(i);
             fidorust_core::library::expand_primitive(p, input.libs)
                 .into_iter()
-                .filter(|q| {
-                    view.as_ref()
-                        .map(|v| q.aabb().expand(AABB_CULL_EXPAND).intersects(v))
-                        .unwrap_or(true)
-                })
+                .filter(|q| in_view(q))
                 .map(move |q| (Some(i), sel, hov, q))
         })
         .collect();
@@ -451,18 +457,6 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         scene.mark_layer_end();
     }
     if let Some(overlay) = overlay {
-        for m in &overlay.markers {
-            let rgb = Rgb::from_rgba_u8(m.color);
-            let r = if m.screen {
-                m.radius / input.zoom.max(0.01)
-            } else {
-                m.radius
-            };
-            scene.push_circle(m.pos.x as f32, m.pos.y as f32, r, r, 0.0, 0.0, rgb, false);
-        }
-        for s in &overlay.strokes {
-            scene.push_line(s.a, s.b, input.stroke_w, Rgb::from_rgba_u8(s.color), false);
-        }
         for &i in &overlay.foreground_ids {
             let Some(p) = input.primitives.get(i) else {
                 continue;
@@ -473,6 +467,9 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
             let sel = input.selected.contains(&i);
             let hov = !sel && input.hover == Some(i);
             for q in fidorust_core::library::expand_primitive(p, input.libs) {
+                if !in_view(&q) {
+                    continue;
+                }
                 add_prim(
                     &mut scene,
                     &q,
@@ -485,6 +482,18 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                     Some(i),
                 );
             }
+        }
+        for s in &overlay.strokes {
+            scene.push_line(s.a, s.b, input.stroke_w, Rgb::from_rgba_u8(s.color), false);
+        }
+        for m in &overlay.markers {
+            let rgb = Rgb::from_rgba_u8(m.color);
+            let r = if m.screen {
+                m.radius / input.zoom.max(0.01)
+            } else {
+                m.radius
+            };
+            scene.push_circle(m.pos.x as f32, m.pos.y as f32, r, r, 0.0, 0.0, rgb, false);
         }
         if !overlay.markers.is_empty()
             || !overlay.foreground_ids.is_empty()
