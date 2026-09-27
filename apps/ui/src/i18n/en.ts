@@ -171,8 +171,7 @@ export const en = {
 	saveKeepLocal: 'Keep local components',
 	saveKeepLocalHint: 'Leave them as local references. They will not be written into the file.',
 	saveFoldProject: 'Save into the project',
-	saveFoldProjectHint:
-		'Copy them into the project library and point the drawing at those copies.',
+	saveFoldProjectHint: 'Copy them into the project library and point the drawing at those copies.',
 	saveExplodeLocal: 'Split them',
 	saveExplodeLocalHint: 'Write the expanded primitives instead of component references.',
 	editingComponent: 'Editing component',
