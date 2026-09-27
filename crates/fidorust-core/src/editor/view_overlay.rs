@@ -33,6 +33,9 @@ pub struct OverlayStroke {
     pub a: Point,
     pub b: Point,
     pub color: [u8; 4],
+    /// `None` draws a schematic line (document stroke). `Some(w)` draws a PCB
+    /// track of width `w` LU, matching the underlying primitive.
+    pub width: Option<i32>,
 }
 
 /// Non-document colour and marker override applied at tessellation time.

@@ -809,3 +809,31 @@ fn overlay_foreground_is_drawn_after_later_layers() {
     let first_lines = Scene::layer_items(&scene.layer_line_end, &scene.lines, 0);
     assert!(first_lines.is_empty());
 }
+
+#[test]
+fn overlay_pcb_stroke_uses_track_width_not_line() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        strokes: vec![
+            fidorust_core::OverlayStroke {
+                a: Point::new(0, 0),
+                b: Point::new(20, 0),
+                color: [255, 255, 0, 255],
+                width: Some(8),
+            },
+            fidorust_core::OverlayStroke {
+                a: Point::new(0, 10),
+                b: Point::new(20, 10),
+                color: [255, 255, 0, 255],
+                width: None,
+            },
+        ],
+        ..Default::default()
+    }));
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.lines.len(), 1, "schematic overlay stays a line");
+    assert!(
+        !scene.fills.is_empty(),
+        "pcb overlay must be filled like a track"
+    );
+}

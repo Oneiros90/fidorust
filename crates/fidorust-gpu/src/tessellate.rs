@@ -484,7 +484,12 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
             }
         }
         for s in &overlay.strokes {
-            scene.push_line(s.a, s.b, input.stroke_w, Rgb::from_rgba_u8(s.color), false);
+            let rgb = Rgb::from_rgba_u8(s.color);
+            if let Some(w) = s.width {
+                add_pcb_track(&mut scene, s.a, s.b, w, rgb, false);
+            } else {
+                scene.push_line(s.a, s.b, input.stroke_w, rgb, false);
+            }
         }
         for m in &overlay.markers {
             let rgb = Rgb::from_rgba_u8(m.color);
