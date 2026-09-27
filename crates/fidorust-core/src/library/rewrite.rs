@@ -40,6 +40,20 @@ pub fn rewrite_component_names_in_libs(libs: &mut LibrarySet, from: &str, to: &s
     }
 }
 
+pub fn rewrite_component_names_in_libs_map(
+    libs: &mut LibrarySet,
+    map: &std::collections::HashMap<String, String>,
+) {
+    if map.is_empty() {
+        return;
+    }
+    for lib in &mut libs.libraries {
+        for def in &mut lib.components {
+            rewrite_component_names_map(&mut def.primitives, map);
+        }
+    }
+}
+
 pub(crate) fn rewrite_component_names_in_lib(lib: &mut Library, old_stem: &str, new_stem: &str) {
     let keys: Vec<String> = lib.components.iter().map(|c| c.key.clone()).collect();
     for key in keys {

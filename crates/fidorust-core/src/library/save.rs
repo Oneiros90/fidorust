@@ -1,7 +1,9 @@
 //! Save policies: fold user libraries into the project, or explode them.
 
+use std::collections::HashMap;
+
 use super::expand::expand_primitive;
-use super::rewrite::{rewrite_component_names, rewrite_component_names_in_libs};
+use super::rewrite::{rewrite_component_names_in_libs_map, rewrite_component_names_map};
 use super::{component_full_name, ComponentDef, LibraryKind, LibrarySet, PROJECT_STEM};
 use crate::document::Document;
 use crate::primitive::{ComponentRef, Primitive};
@@ -31,25 +33,55 @@ pub fn drawing_uses_user_library_components(prims: &[Primitive], libs: &LibraryS
     false
 }
 
-fn collect_used_user_defs(
-    prims: &[Primitive],
-    libs: &LibrarySet,
-    out: &mut Vec<(String, ComponentDef)>,
-) {
+struct UsedUserDef {
+    stem: String,
+    def: ComponentDef,
+    spellings: Vec<String>,
+}
+
+fn push_spelling(spellings: &mut Vec<String>, name: &str) {
+    let name = name.trim();
+    if name.is_empty() {
+        return;
+    }
+    if spellings.iter().any(|s| s.eq_ignore_ascii_case(name)) {
+        return;
+    }
+    spellings.push(name.to_string());
+}
+
+fn collect_used_user_defs(prims: &[Primitive], libs: &LibrarySet, out: &mut Vec<UsedUserDef>) {
     for p in prims {
         let Primitive::Component(c) = p else {
             continue;
         };
-        let Some((lib, def)) = libs.lookup(&c.name) else {
+        let Some((lib, def)) = libs.lookup_raw(&c.name) else {
             continue;
         };
         if lib.kind == LibraryKind::Local {
-            let already = out
-                .iter()
-                .any(|(stem, d)| stem.eq_ignore_ascii_case(&lib.file_stem) && d.key == def.key);
-            if !already {
-                out.push((lib.file_stem.clone(), def.clone()));
-                collect_used_user_defs(&def.primitives, libs, out);
+            let spellings_from = |lib: &super::Library, def: &ComponentDef, name: &str| {
+                let mut spellings = Vec::new();
+                for prefix in lib.mc_prefixes() {
+                    push_spelling(&mut spellings, &component_full_name(&prefix, &def.key));
+                }
+                push_spelling(&mut spellings, name);
+                spellings
+            };
+            if let Some(existing) = out.iter_mut().find(|u| {
+                u.stem.eq_ignore_ascii_case(&lib.file_stem)
+                    && u.def.key.eq_ignore_ascii_case(&def.key)
+            }) {
+                for spelling in spellings_from(lib, def, &c.name) {
+                    push_spelling(&mut existing.spellings, &spelling);
+                }
+            } else {
+                let nested = def.primitives.clone();
+                out.push(UsedUserDef {
+                    stem: lib.file_stem.clone(),
+                    def: def.clone(),
+                    spellings: spellings_from(lib, def, &c.name),
+                });
+                collect_used_user_defs(&nested, libs, out);
             }
         } else if lib.kind == LibraryKind::Project {
             collect_used_user_defs(&def.primitives, libs, out);
@@ -57,44 +89,72 @@ fn collect_used_user_defs(
     }
 }
 
-/// Copy used user-library defs into the project library (clone). Rewrites MC names.
-pub fn fold_user_components_into_project(doc_prims: &mut [Primitive], libs: &mut LibrarySet) {
-    libs.ensure_user_libraries();
+fn collect_groups(groups: &[&[Primitive]], libs: &LibrarySet) -> Vec<UsedUserDef> {
     let mut used = Vec::new();
-    collect_used_user_defs(doc_prims, libs, &mut used);
+    for group in groups {
+        collect_used_user_defs(group, libs, &mut used);
+    }
     if let Some(project) = libs.project() {
         for def in &project.components {
             collect_used_user_defs(&def.primitives, libs, &mut used);
         }
     }
-    let mut mapping: Vec<(String, String)> = Vec::new();
-    for (stem, def) in used {
-        let old_full = component_full_name(&stem, &def.key);
+    used
+}
+
+fn install_folded_copies(libs: &mut LibrarySet, used: Vec<UsedUserDef>) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for item in used {
         let dest_key = {
-            let project = match libs.project_mut() {
-                Some(p) => p,
-                None => continue,
+            let Some(project) = libs.project_mut() else {
+                continue;
             };
-            if project.find(&def.key).is_none() {
-                def.key.clone()
+            if let Some(existing) = project
+                .find(&item.def.key)
+                .filter(|existing| same_saved_component(existing, &item.def))
+            {
+                existing.key.clone()
+            } else if project.find(&item.def.key).is_none() {
+                let key = item.def.key.clone();
+                let mut moved = item.def.clone();
+                moved.key = key.clone();
+                project.components.push(moved);
+                key
             } else {
-                project.next_key()
+                let key = project.next_key();
+                let mut moved = item.def.clone();
+                moved.key = key.clone();
+                project.components.push(moved);
+                key
             }
         };
         let new_full = component_full_name(PROJECT_STEM, &dest_key);
-        if let Some(project) = libs.project_mut() {
-            let mut moved = def;
-            moved.key = dest_key;
-            project.components.push(moved);
-        }
-        if old_full != new_full {
-            mapping.push((old_full, new_full));
+        let new_key = new_full.to_ascii_lowercase();
+        for spelling in &item.spellings {
+            let from = spelling.to_ascii_lowercase();
+            if from != new_key {
+                map.entry(from).or_insert_with(|| new_full.clone());
+            }
         }
     }
-    for (from, to) in mapping {
-        rewrite_component_names(doc_prims, &from, &to);
-        rewrite_component_names_in_libs(libs, &from, &to);
+    map
+}
+
+fn fold_groups(groups: &mut [&mut [Primitive]], libs: &mut LibrarySet) {
+    libs.ensure_user_libraries();
+    let owned: Vec<Vec<Primitive>> = groups.iter().map(|g| g.to_vec()).collect();
+    let slices: Vec<&[Primitive]> = owned.iter().map(|g| g.as_slice()).collect();
+    let used = collect_groups(&slices, libs);
+    let map = install_folded_copies(libs, used);
+    for group in groups.iter_mut() {
+        rewrite_component_names_map(group, &map);
     }
+    rewrite_component_names_in_libs_map(libs, &map);
+}
+
+/// Copy used user-library defs into the project library (clone). Rewrites MC names.
+pub fn fold_user_components_into_project(doc_prims: &mut [Primitive], libs: &mut LibrarySet) {
+    fold_groups(&mut [doc_prims], libs);
 }
 
 fn explode_local_refs(prims: &mut Vec<Primitive>, libs: &LibrarySet) {
@@ -134,45 +194,49 @@ pub fn document_uses_user_library_components(doc: &Document, libs: &LibrarySet) 
 
 pub fn fold_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) {
     libs.ensure_user_libraries();
-    let mut used = Vec::new();
-    for sheet in &doc.sheets {
-        collect_used_user_defs(&sheet.primitives, libs, &mut used);
+    let owned: Vec<Vec<Primitive>> = doc.sheets.iter().map(|s| s.primitives.clone()).collect();
+    let slices: Vec<&[Primitive]> = owned.iter().map(|p| p.as_slice()).collect();
+    let used = collect_groups(&slices, libs);
+    let map = install_folded_copies(libs, used);
+    for sheet in &mut doc.sheets {
+        rewrite_component_names_map(&mut sheet.primitives, &map);
     }
-    if let Some(project) = libs.project() {
-        for def in &project.components {
-            collect_used_user_defs(&def.primitives, libs, &mut used);
+    rewrite_component_names_in_libs_map(libs, &map);
+}
+
+/// True when `a` and `b` are the same saved component (key, name, and body).
+/// Nested `MC` names compare by macro code, so `Lib.C01` and `project.C01` match.
+pub(super) fn same_saved_component(a: &ComponentDef, b: &ComponentDef) -> bool {
+    a.key.eq_ignore_ascii_case(&b.key)
+        && a.name == b.name
+        && primitives_match(&a.primitives, &b.primitives)
+}
+
+fn primitives_match(a: &[Primitive], b: &[Primitive]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(p, q)| primitive_match(p, q))
+}
+
+fn primitive_match(a: &Primitive, b: &Primitive) -> bool {
+    match (a, b) {
+        (Primitive::Component(left), Primitive::Component(right)) => {
+            component_refs_match(left, right)
         }
+        _ => a == b,
     }
-    let mut mapping: Vec<(String, String)> = Vec::new();
-    for (stem, def) in used {
-        let old_full = component_full_name(&stem, &def.key);
-        let dest_key = {
-            let project = match libs.project_mut() {
-                Some(p) => p,
-                None => continue,
-            };
-            if project.find(&def.key).is_none() {
-                def.key.clone()
-            } else {
-                project.next_key()
-            }
-        };
-        let new_full = component_full_name(PROJECT_STEM, &dest_key);
-        if let Some(project) = libs.project_mut() {
-            let mut moved = def;
-            moved.key = dest_key;
-            project.components.push(moved);
-        }
-        if old_full != new_full {
-            mapping.push((old_full, new_full));
-        }
-    }
-    for (from, to) in &mapping {
-        for sheet in &mut doc.sheets {
-            rewrite_component_names(&mut sheet.primitives, from, to);
-        }
-        rewrite_component_names_in_libs(libs, from, to);
-    }
+}
+
+fn component_refs_match(a: &ComponentRef, b: &ComponentRef) -> bool {
+    a.pos == b.pos
+        && a.rotations == b.rotations
+        && a.mirrored == b.mirrored
+        && a.layer == b.layer
+        && a.use_component_layers == b.use_component_layers
+        && a.standard == b.standard
+        && macro_code(&a.name).eq_ignore_ascii_case(macro_code(&b.name))
+}
+
+fn macro_code(name: &str) -> &str {
+    name.rsplit_once('.').map(|(_, key)| key).unwrap_or(name)
 }
 
 pub fn explode_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) {

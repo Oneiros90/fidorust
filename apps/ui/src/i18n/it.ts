@@ -172,7 +172,8 @@ export const it: typeof en = {
 	saveKeepLocal: 'Mantieni i componenti locali',
 	saveKeepLocalHint: 'Restano riferimenti locali. Non verranno scritti nel file.',
 	saveFoldProject: 'Salva nel progetto',
-	saveFoldProjectHint: 'Vengono copiati nella libreria di progetto solo per questo salvataggio.',
+	saveFoldProjectHint:
+		'Vengono copiati nella libreria di progetto e il disegno passa a quelle copie.',
 	saveExplodeLocal: 'Splittali',
 	saveExplodeLocalHint: 'Nel file vengono scritte le primitive espanse al posto dei riferimenti.',
 	editingComponent: 'Modifica componente',

@@ -6,6 +6,7 @@ use fidorust_core::serialize::{
     serialize_document, serialize_document_with_policy, serialize_library, serialize_primitive,
     SaveLibraryPolicy,
 };
+use fidorust_core::{ComponentDef, ComponentRef, Library, LibrarySet};
 use fidorust_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
 #[test]
@@ -885,4 +886,166 @@ fn import_fcd_refuses_while_editing_component() {
         .unwrap_err();
     assert_eq!(err.to_string(), "cannot import while editing a component");
     assert_eq!(dest.sheet_count(), 1);
+}
+
+#[test]
+fn fold_sticks_and_reopen_does_not_use_user_library() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(5, 5),
+        Point::new(15, 5),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![0]);
+    let stem = ed.create_user_library("Mine");
+    ed.create_component_from_selection(&stem, "Box").unwrap();
+    assert!(ed.uses_user_library_components());
+    ed.apply_save_library_policy(SaveLibraryPolicy::FoldIntoProject);
+    assert!(!ed.uses_user_library_components());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    assert_eq!(ed.libs().project().unwrap().components.len(), 1);
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
+    assert!(text.contains("project.C01"), "{text}");
+    assert!(!text.contains(&format!("{stem}.C01")), "{text}");
+
+    let user = ed.libs().library(&stem).unwrap().clone();
+    let mut reopened = Editor::new(builtin_libraries());
+    reopened.import_library(user);
+    reopened.load_text(&text).unwrap();
+    assert!(
+        !reopened.uses_user_library_components(),
+        "project copy must win over the still-loaded user library"
+    );
+    match &reopened.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+}
+
+#[test]
+fn fold_rewrites_filename_alias_onto_project_library() {
+    let mut ed = Editor::new(builtin_libraries());
+    let mut lib = parse_library(SOLID_STATE_FCL).unwrap();
+    lib.add_filename_alias("ihjh.fcl");
+    ed.import_library(lib);
+    ed.doc_mut().insert(Primitive::Component(ComponentRef {
+        pos: Point::new(10, 10),
+        rotations: 0,
+        mirrored: false,
+        name: "ihjh.CS11".into(),
+        standard: false,
+        layer: LayerId(0),
+        use_component_layers: true,
+    }));
+    assert!(ed.uses_user_library_components());
+    ed.apply_save_library_policy(SaveLibraryPolicy::FoldIntoProject);
+    assert!(!ed.uses_user_library_components());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.CS11"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
+    assert!(text.contains("project.CS11"), "{text}");
+    assert!(!text.contains("ihjh.CS11"), "{text}");
+}
+
+#[test]
+fn lookup_prefers_project_library_when_prefix_matches_both() {
+    let body_user = vec![Primitive::line(
+        Point::new(0, 0),
+        Point::new(1, 0),
+        LayerId(0),
+    )];
+    let body_project = vec![Primitive::line(
+        Point::new(0, 0),
+        Point::new(9, 0),
+        LayerId(0),
+    )];
+    let mut libs = LibrarySet::new();
+    let mut user = Library::empty_user("Mine", "project");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "From user".into(),
+        category: String::new(),
+        primitives: body_user,
+    });
+    libs.add(user);
+    let mut project = Library::empty_project();
+    project.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "From project".into(),
+        category: String::new(),
+        primitives: body_project,
+    });
+    libs.add(project);
+
+    let (lib, def) = libs.lookup("project.C01").expect("resolved");
+    assert_eq!(lib.kind, LibraryKind::Project);
+    assert_eq!(def.name, "From project");
+}
+
+#[test]
+fn lookup_prefers_equivalent_project_copy_over_user_library() {
+    let body = vec![Primitive::line(
+        Point::new(0, 0),
+        Point::new(4, 0),
+        LayerId(0),
+    )];
+    let mut libs = LibrarySet::new();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: body.clone(),
+    });
+    libs.add(user);
+    let mut project = Library::empty_project();
+    project.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: body,
+    });
+    libs.add(project);
+
+    let (lib, def) = libs.lookup("Mine.C01").expect("resolved");
+    assert_eq!(lib.kind, LibraryKind::Project);
+    assert_eq!(def.key, "C01");
+}
+
+#[test]
+fn lookup_keeps_user_library_when_project_component_differs() {
+    let mut libs = LibrarySet::new();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(0, 0),
+            Point::new(4, 0),
+            LayerId(0),
+        )],
+    });
+    libs.add(user);
+    let mut project = Library::empty_project();
+    project.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(0, 0),
+            Point::new(40, 0),
+            LayerId(0),
+        )],
+    });
+    libs.add(project);
+
+    let (lib, def) = libs.lookup("Mine.C01").expect("resolved");
+    assert_eq!(lib.kind, LibraryKind::Local);
+    assert_eq!(def.primitives.len(), 1);
 }

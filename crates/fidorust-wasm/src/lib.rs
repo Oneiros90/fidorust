@@ -161,6 +161,12 @@ impl App {
         )
     }
 
+    /// Fold or explode user-library components in the open document.
+    pub fn apply_save_library_policy(&mut self, policy: &str) {
+        let policy = SaveLibraryPolicy::from_str(policy).unwrap_or_default();
+        self.editor.apply_save_library_policy(policy);
+    }
+
     #[wasm_bindgen]
     pub fn uses_user_library_components(&self) -> bool {
         self.editor.uses_user_library_components()

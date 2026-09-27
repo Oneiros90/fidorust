@@ -3,8 +3,10 @@
 use super::Editor;
 use crate::library::{
     document_uses_user_library_components, explode_library_instances,
+    explode_user_components_in_document, fold_user_components_in_document,
     primitives_use_nonzero_layers, Library, LibraryKind, PROJECT_STEM,
 };
+use crate::SaveLibraryPolicy;
 
 impl Editor {
     pub fn load_user_libraries(&mut self, libs: Vec<Library>) {
@@ -118,6 +120,33 @@ impl Editor {
 
     pub fn uses_user_library_components(&self) -> bool {
         document_uses_user_library_components(self.persistent_doc(), &self.libs)
+    }
+
+    /// Make fold/explode stick in the open document, not only in one serialized copy.
+    pub fn apply_save_library_policy(&mut self, policy: SaveLibraryPolicy) {
+        if matches!(policy, SaveLibraryPolicy::Keep) {
+            return;
+        }
+        if !document_uses_user_library_components(self.persistent_doc(), &self.libs) {
+            return;
+        }
+        self.push_project_undo();
+        let mut doc = self.persistent_doc().clone();
+        match policy {
+            SaveLibraryPolicy::FoldIntoProject => {
+                fold_user_components_in_document(&mut doc, &mut self.libs);
+            }
+            SaveLibraryPolicy::ExplodeUser => {
+                explode_user_components_in_document(&mut doc, &mut self.libs);
+            }
+            SaveLibraryPolicy::Keep => {}
+        }
+        if let Some(session) = &mut self.component_edit {
+            session.saved_doc = doc;
+        } else {
+            self.doc = doc;
+        }
+        self.bump_libs_rev();
     }
 
     pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {

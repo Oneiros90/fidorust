@@ -560,9 +560,12 @@ export class AppSession {
 		if (d?.kind !== 'saveLocalComponents') return;
 		const purpose = d.purpose;
 		this.dialogs.close();
-		if (purpose === 'save') files.finishSaveFcd(this, policy);
-		else if (purpose === 'shareFcd') share.openShareFcdWithPolicy(this, policy);
-		else void share.openShareLinkWithPolicy(this, policy);
+		if (policy !== 'keep') {
+			this.engine?.mutate((app) => app.apply_save_library_policy(policy));
+		}
+		if (purpose === 'save') files.finishSaveFcd(this, 'keep');
+		else if (purpose === 'shareFcd') share.openShareFcdWithPolicy(this, 'keep');
+		else void share.openShareLinkWithPolicy(this, 'keep');
 	};
 
 	cancelSaveLocalComponents = () => {

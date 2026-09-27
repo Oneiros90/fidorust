@@ -208,6 +208,20 @@ impl Library {
             .filter(|s| !s.is_empty())
     }
 
+    /// MC prefixes this library answers to (stem, title, filename aliases).
+    pub fn mc_prefixes(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for prefix in self.prefix_candidates() {
+            if !out
+                .iter()
+                .any(|existing: &String| existing.eq_ignore_ascii_case(prefix))
+            {
+                out.push(prefix.to_string());
+            }
+        }
+        out
+    }
+
     fn matches_mc_prefix_exact(&self, prefix: &str) -> bool {
         self.prefix_candidates()
             .any(|s| s.eq_ignore_ascii_case(prefix))
@@ -390,45 +404,136 @@ impl LibrarySet {
     }
 
     pub fn lookup(&self, mc_name: &str) -> Option<(&Library, &ComponentDef)> {
+        self.lookup_inner(mc_name, true)
+    }
+
+    /// Resolve `mc_name` without substituting an equivalent project-library copy.
+    /// Prefix ties still prefer the project library.
+    pub(super) fn lookup_raw(&self, mc_name: &str) -> Option<(&Library, &ComponentDef)> {
+        self.lookup_inner(mc_name, false)
+    }
+
+    fn lookup_inner(
+        &self,
+        mc_name: &str,
+        prefer_equivalent_project: bool,
+    ) -> Option<(&Library, &ComponentDef)> {
         let name = mc_name.trim_start_matches('~');
         if let Some((lib_stem, key)) = name.split_once('.') {
-            return self.lookup_prefixed(lib_stem, key);
+            return self.lookup_prefixed(lib_stem, key, prefer_equivalent_project);
         }
-        for lib in &self.libraries {
-            if lib.file_stem == "stdlib" {
-                if let Some(m) = lib.find(name) {
-                    return Some((lib, m));
-                }
-            }
+        if let Some(idx) = self.unprefixed_index("stdlib", name) {
+            return self.def_at(idx, name);
         }
-        for lib in &self.libraries {
-            if let Some(m) = lib.find(name) {
-                return Some((lib, m));
-            }
+        if let Some(idx) = self
+            .libraries
+            .iter()
+            .position(|lib| lib.kind == LibraryKind::Project && lib.find(name).is_some())
+        {
+            return self.def_at(idx, name);
+        }
+        let idx = self.libraries.iter().position(|lib| {
+            lib.kind != LibraryKind::Project
+                && lib.file_stem != "stdlib"
+                && lib.find(name).is_some()
+        })?;
+        let idx = self.maybe_equivalent_project(idx, name, prefer_equivalent_project);
+        self.def_at(idx, name)
+    }
+
+    fn lookup_prefixed(
+        &self,
+        lib_stem: &str,
+        key: &str,
+        prefer_equivalent_project: bool,
+    ) -> Option<(&Library, &ComponentDef)> {
+        if let Some(idx) = self.prefixed_index(lib_stem, key, true, true) {
+            return self.def_at(idx, key);
+        }
+        if let Some(idx) = self.prefixed_index(lib_stem, key, true, false) {
+            let idx = self.maybe_equivalent_project(idx, key, prefer_equivalent_project);
+            return self.def_at(idx, key);
+        }
+        if let Some(idx) = self.prefixed_index(lib_stem, key, false, true) {
+            return self.def_at(idx, key);
+        }
+        if let Some(idx) = self.prefixed_index(lib_stem, key, false, false) {
+            let idx = self.maybe_equivalent_project(idx, key, prefer_equivalent_project);
+            return self.def_at(idx, key);
         }
         None
     }
 
-    fn lookup_prefixed<'a>(
-        &'a self,
+    fn unprefixed_index(&self, stem: &str, key: &str) -> Option<usize> {
+        self.libraries
+            .iter()
+            .position(|lib| lib.file_stem == stem && lib.find(key).is_some())
+    }
+
+    /// `exact` selects prefix equality vs alphanumeric normalization.
+    /// `project_only` keeps libraries whose kind is [`LibraryKind::Project`].
+    fn prefixed_index(
+        &self,
         lib_stem: &str,
         key: &str,
-    ) -> Option<(&'a Library, &'a ComponentDef)> {
-        for lib in &self.libraries {
-            if lib.matches_mc_prefix_exact(lib_stem) {
-                if let Some(m) = lib.find(key) {
-                    return Some((lib, m));
-                }
+        exact: bool,
+        project_only: bool,
+    ) -> Option<usize> {
+        self.libraries.iter().position(|lib| {
+            if project_only && lib.kind != LibraryKind::Project {
+                return false;
             }
+            let matches = if exact {
+                lib.matches_mc_prefix_exact(lib_stem)
+            } else {
+                lib.matches_mc_prefix_normalized(lib_stem)
+            };
+            matches && lib.find(key).is_some()
+        })
+    }
+
+    fn maybe_equivalent_project(&self, idx: usize, key: &str, prefer: bool) -> usize {
+        if !prefer {
+            return idx;
         }
-        for lib in &self.libraries {
-            if lib.matches_mc_prefix_normalized(lib_stem) {
-                if let Some(m) = lib.find(key) {
-                    return Some((lib, m));
-                }
-            }
+        self.equivalent_project_index(idx, key).unwrap_or(idx)
+    }
+
+    /// When `idx` is a non-project hit, return the project library if it stores the same component.
+    fn equivalent_project_index(&self, idx: usize, key: &str) -> Option<usize> {
+        if self.libraries.get(idx)?.kind == LibraryKind::Project {
+            return None;
         }
-        None
+        let project_idx = self
+            .libraries
+            .iter()
+            .position(|lib| lib.kind == LibraryKind::Project)?;
+        if project_idx == idx {
+            return None;
+        }
+        let (left, right) = if idx < project_idx {
+            (idx, project_idx)
+        } else {
+            (project_idx, idx)
+        };
+        let (head, tail) = self.libraries.split_at(right);
+        let left_def = head.get(left)?.find(key)?;
+        let right_def = tail.first()?.find(key)?;
+        let (user_def, project_def) = if idx < project_idx {
+            (left_def, right_def)
+        } else {
+            (right_def, left_def)
+        };
+        if save::same_saved_component(user_def, project_def) {
+            Some(project_idx)
+        } else {
+            None
+        }
+    }
+
+    fn def_at(&self, idx: usize, key: &str) -> Option<(&Library, &ComponentDef)> {
+        let lib = self.libraries.get(idx)?;
+        Some((lib, lib.find(key)?))
     }
 
     pub fn is_standard(&self, mc_name: &str) -> bool {
