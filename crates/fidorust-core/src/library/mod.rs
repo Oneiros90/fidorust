@@ -13,10 +13,12 @@ pub use rewrite::{
     rewrite_component_names_in_libs, rewrite_component_names_map, rewrite_library_stem,
     translate_primitives,
 };
+pub(crate) use save::has_equivalent_user_refs_to_rewrite;
 pub use save::{
     document_uses_user_library_components, drawing_uses_user_library_components,
     explode_user_components_for_save, explode_user_components_in_document,
     fold_user_components_in_document, fold_user_components_into_project,
+    rewrite_equivalent_user_refs_to_project,
 };
 
 use crate::primitive::Primitive;

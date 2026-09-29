@@ -213,6 +213,7 @@ export function saveFile(s: AppSession) {
 		s.dialogs.open({ kind: 'saveLocalComponents', purpose: 'save' });
 		return;
 	}
+	s.engine.mutate((app) => app.canonicalize_project_component_refs());
 	finishSaveFcd(s, 'keep');
 }
 

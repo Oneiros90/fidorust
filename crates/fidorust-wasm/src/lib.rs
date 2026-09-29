@@ -167,6 +167,11 @@ impl App {
         self.editor.apply_save_library_policy(policy);
     }
 
+    /// Point equivalent user-library refs at the project copy before a portable save.
+    pub fn canonicalize_project_component_refs(&mut self) {
+        self.editor.canonicalize_project_component_refs();
+    }
+
     #[wasm_bindgen]
     pub fn uses_user_library_components(&self) -> bool {
         self.editor.uses_user_library_components()

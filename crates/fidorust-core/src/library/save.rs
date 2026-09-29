@@ -204,6 +204,65 @@ pub fn fold_user_components_in_document(doc: &mut Document, libs: &mut LibrarySe
     rewrite_component_names_in_libs_map(libs, &map);
 }
 
+/// Point drawing and project-library refs at `project.KEY` when lookup already
+/// uses an equivalent project copy. Makes a skipped save-prompt actually portable.
+pub fn rewrite_equivalent_user_refs_to_project(doc: &mut Document, libs: &mut LibrarySet) -> bool {
+    let map = equivalent_user_to_project_map(doc, libs);
+    if map.is_empty() {
+        return false;
+    }
+    for sheet in &mut doc.sheets {
+        rewrite_component_names_map(&mut sheet.primitives, &map);
+    }
+    if let Some(project) = libs.project_mut() {
+        for def in &mut project.components {
+            rewrite_component_names_map(&mut def.primitives, &map);
+        }
+    }
+    true
+}
+
+pub(crate) fn has_equivalent_user_refs_to_rewrite(doc: &Document, libs: &LibrarySet) -> bool {
+    !equivalent_user_to_project_map(doc, libs).is_empty()
+}
+
+fn equivalent_user_to_project_map(doc: &Document, libs: &LibrarySet) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    let mut consider = |prims: &[Primitive]| {
+        for p in prims {
+            let Primitive::Component(c) = p else {
+                continue;
+            };
+            let Some(to) = canonical_project_mc_name(&c.name, libs) else {
+                continue;
+            };
+            map.entry(c.name.to_ascii_lowercase()).or_insert(to);
+        }
+    };
+    for sheet in &doc.sheets {
+        consider(&sheet.primitives);
+    }
+    if let Some(project) = libs.project() {
+        for def in &project.components {
+            consider(&def.primitives);
+        }
+    }
+    map
+}
+
+fn canonical_project_mc_name(mc_name: &str, libs: &LibrarySet) -> Option<String> {
+    let (lib, def) = libs.lookup(mc_name)?;
+    if lib.kind != LibraryKind::Project {
+        return None;
+    }
+    let canonical = component_full_name(PROJECT_STEM, &def.key);
+    if mc_name.eq_ignore_ascii_case(&canonical) {
+        None
+    } else {
+        Some(canonical)
+    }
+}
+
 /// True when `a` and `b` are the same saved component (key, name, and body).
 /// Nested `MC` names compare by macro code, so `Lib.C01` and `project.C01` match.
 pub(super) fn same_saved_component(a: &ComponentDef, b: &ComponentDef) -> bool {

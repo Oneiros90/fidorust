@@ -8,6 +8,7 @@ export async function openShareLink(s: AppSession) {
 		s.dialogs.open({ kind: 'saveLocalComponents', purpose: 'shareLink' });
 		return;
 	}
+	s.engine.mutate((app) => app.canonicalize_project_component_refs());
 	await openShareLinkWithPolicy(s, 'keep');
 }
 
@@ -33,6 +34,7 @@ export function openShareFcd(s: AppSession) {
 		s.dialogs.open({ kind: 'saveLocalComponents', purpose: 'shareFcd' });
 		return;
 	}
+	s.engine.mutate((app) => app.canonicalize_project_component_refs());
 	openShareFcdWithPolicy(s, 'keep');
 }
 

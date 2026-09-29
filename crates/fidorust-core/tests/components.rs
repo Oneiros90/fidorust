@@ -1049,3 +1049,51 @@ fn lookup_keeps_user_library_when_project_component_differs() {
     assert_eq!(lib.kind, LibraryKind::Local);
     assert_eq!(def.primitives.len(), 1);
 }
+
+#[test]
+fn skipped_save_prompt_rewrites_user_names_onto_project() {
+    let mut ed = Editor::new(builtin_libraries());
+    let stem = ed.import_library(parse_library(SOLID_STATE_FCL).unwrap());
+    let def = ed
+        .libs()
+        .library(&stem)
+        .unwrap()
+        .find("CS11")
+        .unwrap()
+        .clone();
+    let mut project = ed.libs().project().cloned().unwrap();
+    project.components.push(def);
+    ed.set_project_library(Some(project));
+    ed.doc_mut().insert(Primitive::Component(ComponentRef {
+        pos: Point::new(10, 10),
+        rotations: 0,
+        mirrored: false,
+        name: "Componenti stato solido.CS11".into(),
+        standard: false,
+        layer: LayerId(0),
+        use_component_layers: true,
+    }));
+    assert!(
+        !ed.uses_user_library_components(),
+        "equivalent project copy must suppress the save prompt"
+    );
+    let before = serialize_document(ed.doc(), Some(ed.libs()));
+    assert!(
+        before.contains("Componenti stato solido.CS11"),
+        "keep-serialize still writes the user prefix: {before}"
+    );
+
+    assert!(ed.canonicalize_project_component_refs());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.CS11"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    let text = serialize_document(ed.doc(), Some(ed.libs()));
+    assert!(text.contains("project.CS11"), "{text}");
+    assert!(!text.contains("Componenti stato solido.CS11"), "{text}");
+
+    let mut bare = Editor::new(builtin_libraries());
+    bare.load_text(&text).unwrap();
+    assert_eq!(bare.unresolved_component_count(), 0);
+    assert!(!bare.canonicalize_project_component_refs());
+}
