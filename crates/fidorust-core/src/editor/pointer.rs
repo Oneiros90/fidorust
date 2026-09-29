@@ -131,6 +131,7 @@ impl Editor {
                             last: pt,
                             duplicate: false,
                         });
+                        crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragBegin);
                     }
                 } else {
                     self.begin_marquee(screen, shift);
@@ -231,6 +232,9 @@ impl Editor {
                     if let Some(Drag::Move { last, .. }) = &mut self.drag {
                         *last = pt;
                     }
+                    if !duplicate {
+                        crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragChange);
+                    }
                 }
             }
             Some(Drag::Handle { index, handle }) => {
@@ -268,6 +272,7 @@ impl Editor {
         if matches!(&self.drag, Some(Drag::Marquee { .. })) {
             self.apply_marquee_hits();
         }
+        let was_move_drag = matches!(&self.drag, Some(Drag::Move { .. }));
         match self.drag.take() {
             Some(Drag::Marquee { .. }) => {
                 self.drag_checkpoint = None;
@@ -286,6 +291,9 @@ impl Editor {
                 }
             }
             _ => {}
+        }
+        if was_move_drag {
+            crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragEnd);
         }
         self.commit_drag_checkpoint();
         if let Some(d) = self.draft.take() {

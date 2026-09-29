@@ -104,6 +104,7 @@ impl Editor {
         if let Some(Drag::Move { duplicate, .. }) = &mut self.drag {
             *duplicate = on;
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragChange);
     }
 
     pub fn duplicate_selection(&mut self) {
