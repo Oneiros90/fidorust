@@ -91,7 +91,7 @@
 				class={[
 					field.id === 'text' || field.id === 'useComponentLayers' ? 'full' : '',
 					field.id === 'useComponentLayers' && 'check',
-					field.kind.kind === 'layer' && (field.readOnly || useComponentLayersOn) && 'off'
+					field.kind.kind === 'layer' && useComponentLayersOn && 'off'
 				]}
 				title={field.id === 'useComponentLayers' ? t.propUseComponentLayersTooltip : undefined}
 			>
@@ -150,7 +150,7 @@
 					</select>
 				{:else if field.kind.kind === 'layer'}
 					<select
-						disabled={field.readOnly || useComponentLayersOn}
+						disabled={useComponentLayersOn}
 						value={getValue(field.id)}
 						onchange={(e) => setValue(field.id, 'layer', e.currentTarget.value)}
 					>
