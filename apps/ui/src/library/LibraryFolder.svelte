@@ -47,6 +47,13 @@
 			(app.libraryFocus?.stem === stem && app.libraryFocus?.key === key)
 		);
 	}
+
+	function setGroupOpen(id: 'project' | 'user' | 'builtin', e: Event) {
+		app.expandedLibGroups = {
+			...app.expandedLibGroups,
+			[id]: (e.currentTarget as HTMLDetailsElement).open
+		};
+	}
 </script>
 
 {#snippet writableItems(lib: LibraryEntry)}
@@ -116,36 +123,46 @@
 {/snippet}
 
 <div class="folders">
-	<section class="group">
-		<div class="group-head">
-			<h2
-				class="group-title"
-				title={app.t.projectLibraryHint}
-				oncontextmenu={(e) => onFolderContextMenu(e, 'project')}
-			>
-				{app.t.projectLibrary}
-			</h2>
+	<details
+		class="group"
+		open={app.expandedLibGroups.project}
+		ontoggle={(e) => setGroupOpen('project', e)}
+	>
+		<summary
+			class="group-head"
+			title={app.t.projectLibraryHint}
+			oncontextmenu={(e) => onFolderContextMenu(e, 'project')}
+		>
+			<h2 class="group-title">{app.t.projectLibrary}</h2>
 			<span class="group-actions">
-				{@render exportBtn('project', false)}
-				{@render deleteBtn('project', false)}
+				{@render exportBtn('project', true)}
+				{@render deleteBtn('project', true)}
 			</span>
-		</div>
+		</summary>
 		<div class="group-body">
 			{#if project}
 				{@render writableItems(project)}
 			{/if}
 		</div>
-	</section>
-	<section class="group">
-		<div class="group-head">
-			<h2 class="group-title" title={app.t.userLibrariesHint}>{app.t.userLibraries}</h2>
+	</details>
+	<details
+		class="group"
+		open={app.expandedLibGroups.user}
+		ontoggle={(e) => setGroupOpen('user', e)}
+	>
+		<summary class="group-head" title={app.t.userLibrariesHint}>
+			<h2 class="group-title">{app.t.userLibraries}</h2>
 			<span class="group-actions">
 				<button
 					type="button"
 					class="icon"
 					title={app.t.createLibrary}
 					aria-label={app.t.createLibrary}
-					onclick={app.createUserLibrary}
+					onmousedown={stopToggle}
+					onclick={(e) => {
+						stopToggle(e);
+						app.createUserLibrary();
+					}}
 				>
 					<svg viewBox="0 0 16 16" aria-hidden="true">
 						<path
@@ -163,7 +180,11 @@
 					class="icon"
 					title={app.t.importLibrary}
 					aria-label={app.t.importLibrary}
-					onclick={app.importLibrary}
+					onmousedown={stopToggle}
+					onclick={(e) => {
+						stopToggle(e);
+						app.importLibrary();
+					}}
 				>
 					<svg viewBox="0 0 16 16" aria-hidden="true">
 						<path
@@ -177,7 +198,7 @@
 					</svg>
 				</button>
 			</span>
-		</div>
+		</summary>
 		<div class="group-body">
 			{#each user as lib (lib.stem)}
 				<details
@@ -226,11 +247,15 @@
 				</details>
 			{/each}
 		</div>
-	</section>
-	<section class="group">
-		<h2 class="group-title standalone" title={app.t.builtinLibrariesHint}>
-			{app.t.builtinLibraries}
-		</h2>
+	</details>
+	<details
+		class="group"
+		open={app.expandedLibGroups.builtin}
+		ontoggle={(e) => setGroupOpen('builtin', e)}
+	>
+		<summary class="group-head" title={app.t.builtinLibrariesHint}>
+			<h2 class="group-title">{app.t.builtinLibraries}</h2>
+		</summary>
 		<div class="group-body">
 			{#each builtin as lib (lib.stem)}
 				<details class="node">
@@ -261,7 +286,7 @@
 				</details>
 			{/each}
 		</div>
-	</section>
+	</details>
 </div>
 
 <style>
@@ -275,10 +300,38 @@
 	.group-head {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 6px;
 		margin: 0 6px 8px;
 		padding: 0 0 6px;
 		border-bottom: 1px solid var(--border);
+		cursor: pointer;
+		list-style: none;
+	}
+	.group:not(:open) > .group-head {
+		margin-bottom: 0;
+	}
+	.group-head::-webkit-details-marker {
+		display: none;
+	}
+	.group-head::marker {
+		content: none;
+	}
+	.group-head::before {
+		content: '';
+		width: 0;
+		height: 0;
+		border-style: solid;
+		border-width: 4px 0 4px 6px;
+		border-color: transparent transparent transparent var(--fg-muted);
+		flex-shrink: 0;
+		transform: rotate(0deg);
+		transition: transform 0.12s ease;
+	}
+	.group:open > .group-head::before {
+		transform: rotate(90deg);
+	}
+	.group-head:hover::before {
+		border-color: transparent transparent transparent var(--fg);
 	}
 	.group-title {
 		margin: 0;
@@ -291,12 +344,6 @@
 		color: var(--fg);
 		min-width: 0;
 		flex: 1;
-	}
-	.group-title.standalone {
-		margin: 0 6px 8px;
-		padding: 0 0 6px;
-		border-bottom: 1px solid var(--border);
-		flex: none;
 	}
 	.group-actions {
 		display: flex;
@@ -348,7 +395,7 @@
 		transform: rotate(0deg);
 		transition: transform 0.12s ease;
 	}
-	.node[open] > .node-label::before {
+	.node:open > .node-label::before {
 		transform: rotate(90deg);
 	}
 	.node-label:hover {

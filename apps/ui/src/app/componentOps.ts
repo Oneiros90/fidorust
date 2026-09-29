@@ -12,7 +12,21 @@ export function revealLibraryItem(s: AppSession, stem: string, key: string) {
 	s.rightCollapsed = false;
 	s.rightTab = 'library';
 	s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
+	expandLibGroup(s, libGroupForStem(s, stem));
 	s.libraryFocus = { stem, key };
+}
+
+function expandLibGroup(s: AppSession, group: 'project' | 'user' | 'builtin') {
+	if (s.expandedLibGroups[group]) return;
+	s.expandedLibGroups = { ...s.expandedLibGroups, [group]: true };
+}
+
+function libGroupForStem(s: AppSession, stem: string): 'project' | 'user' | 'builtin' {
+	if (stem === 'project') return 'project';
+	const kind = s.libs.find((l) => l.stem === stem)?.kind;
+	if (kind === 'builtin') return 'builtin';
+	if (kind === 'project') return 'project';
+	return 'user';
 }
 
 export function createComponentFromSelection(s: AppSession, target: string) {
@@ -136,6 +150,7 @@ export function createUserLibrary(s: AppSession) {
 	if (!stem) return;
 	s.rightTab = 'library';
 	s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
+	expandLibGroup(s, 'user');
 	beginRenameLibrary(s, stem);
 }
 

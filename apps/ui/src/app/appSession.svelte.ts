@@ -164,6 +164,12 @@ export class AppSession {
 	set expandedUserLibs(v) {
 		this.ui.expandedUserLibs = v;
 	}
+	get expandedLibGroups() {
+		return this.ui.expandedLibGroups;
+	}
+	set expandedLibGroups(v) {
+		this.ui.expandedLibGroups = v;
+	}
 	get libraryFocus() {
 		return this.ui.libraryFocus;
 	}

@@ -19,6 +19,11 @@ export class UiState {
 	editingLibraryTitle = $state<string | null>(null);
 	editingLibraryField = $state<{ stem: string; key: string; field: 'name' | 'key' } | null>(null);
 	expandedUserLibs = $state<Record<string, boolean>>({ project: true });
+	expandedLibGroups = $state<{ project: boolean; user: boolean; builtin: boolean }>({
+		project: true,
+		user: true,
+		builtin: true
+	});
 	libraryFocus = $state<{ stem: string; key: string } | null>(null);
 
 	toggleMenu = (id: string) => {

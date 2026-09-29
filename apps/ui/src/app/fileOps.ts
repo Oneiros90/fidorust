@@ -265,6 +265,9 @@ export function importLibraryFiles(s: AppSession, items: { name: string; text: s
 	for (const stem of imported) {
 		s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
 	}
+	if (imported.length > 0) {
+		s.expandedLibGroups = { ...s.expandedLibGroups, user: true };
+	}
 }
 
 export function applyOpenedFiles(
