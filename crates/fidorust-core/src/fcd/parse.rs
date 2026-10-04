@@ -219,8 +219,9 @@ pub fn apply_pd_line(line: &str, defaults: &mut PrimitiveDefaults) -> bool {
     true
 }
 
-/// `CN <component-name>` — MC name (`045`, `project.C01`). Empty / malformed → `None`.
-pub fn parse_cn_line(line: &str) -> Option<String> {
+/// `CN <name>[ | <name>…]` — one electrical node. Names match `MC` (`045`, `project.C01`).
+/// Empty / malformed → `None`.
+pub fn parse_cn_line(line: &str) -> Option<Vec<String>> {
     let line = line.trim();
     if line.len() < 2 || !line[..2].eq_ignore_ascii_case("CN") {
         return None;
@@ -233,7 +234,21 @@ pub fn parse_cn_line(line: &str) -> Option<String> {
     if key.is_empty() {
         return None;
     }
-    Some(key.to_string())
+    let mut names = Vec::new();
+    for part in key.split('|') {
+        let name = part.trim();
+        if name.is_empty() {
+            continue;
+        }
+        if !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
+        }
+    }
+    if names.is_empty() {
+        None
+    } else {
+        Some(names)
+    }
 }
 
 fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>, project: Option<&Library>) {
@@ -660,10 +675,8 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
             defined.push(info);
             continue;
         }
-        if let Some(key) = parse_cn_line(line) {
-            if !doc.common_node_keys.iter().any(|k| k == &key) {
-                doc.common_node_keys.push(key);
-            }
+        if let Some(names) = parse_cn_line(line) {
+            doc.merge_common_node_keys(&names);
             continue;
         }
         if apply_pd_line(line, &mut doc.defaults) {

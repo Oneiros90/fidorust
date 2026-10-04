@@ -18,7 +18,7 @@ pub(super) struct ProjectSnap {
     pub hide_component_origin: bool,
     pub defaults: PrimitiveDefaults,
     pub pcb_mode: bool,
-    pub common_node_keys: Vec<String>,
+    pub common_node_groups: Vec<Vec<String>>,
     pub sheets: Vec<Sheet>,
     pub project: Library,
     pub user: Vec<Library>,
@@ -39,7 +39,7 @@ impl Editor {
             hide_component_origin: self.doc.hide_component_origin,
             defaults: self.doc.defaults.clone(),
             pcb_mode: self.doc.pcb_mode,
-            common_node_keys: self.doc.common_node_keys.clone(),
+            common_node_groups: self.doc.common_node_groups.clone(),
             sheets: self.doc.sheets.clone(),
             project: self
                 .libs
@@ -65,7 +65,7 @@ impl Editor {
                 self.doc.hide_component_origin = snap.hide_component_origin;
                 self.doc.defaults = snap.defaults;
                 self.doc.pcb_mode = snap.pcb_mode;
-                self.doc.common_node_keys = snap.common_node_keys;
+                self.doc.common_node_groups = snap.common_node_groups;
                 self.doc.sheets = snap.sheets;
                 if self.doc.sheets.is_empty() {
                     self.doc.sheets.push(Sheet::default());

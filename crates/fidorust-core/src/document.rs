@@ -311,9 +311,11 @@ pub struct Document {
     pub hide_component_origin: bool,
     #[serde(default)]
     pub defaults: PrimitiveDefaults,
-    /// MC names treated as one electrical node (`CN` lines). Opaque to the free editor.
+    /// Groups of MC names treated as one electrical node (`CN` lines).
+    /// Each inner vec is one node; names on the same `CN` line share it.
+    /// Opaque to the free editor.
     #[serde(default)]
-    pub common_node_keys: Vec<String>,
+    pub common_node_groups: Vec<Vec<String>>,
     pub sheets: Vec<Sheet>,
     pub warnings: u32,
     /// True when the layer table was inferred (no `LD` lines in the file).
@@ -331,7 +333,7 @@ impl PartialEq for Document {
             && self.pcb_mode == other.pcb_mode
             && self.hide_component_origin == other.hide_component_origin
             && self.defaults == other.defaults
-            && self.common_node_keys == other.common_node_keys
+            && self.common_node_groups == other.common_node_groups
             && self.sheets == other.sheets
             && self.warnings == other.warnings
             && self.inferred_layers == other.inferred_layers
@@ -347,7 +349,7 @@ impl Default for Document {
             pcb_mode: false,
             hide_component_origin: s.hide_component_origin,
             defaults: PrimitiveDefaults::default(),
-            common_node_keys: Vec::new(),
+            common_node_groups: Vec::new(),
             sheets: vec![Sheet::default()],
             warnings: 0,
             inferred_layers: false,
@@ -424,6 +426,65 @@ impl Document {
     pub fn apply_drawing_defaults(&mut self, hide_origin: bool, defaults: PrimitiveDefaults) {
         self.hide_component_origin = hide_origin;
         self.defaults = defaults.clamped();
+    }
+
+    /// Index of the group that contains every `keys` name, if they already share one node.
+    pub fn common_node_group_of(&self, keys: &[String]) -> Option<usize> {
+        if keys.is_empty() {
+            return None;
+        }
+        let gi = self
+            .common_node_groups
+            .iter()
+            .position(|g| g.iter().any(|k| k == &keys[0]))?;
+        keys.iter()
+            .all(|k| self.common_node_groups[gi].iter().any(|x| x == k))
+            .then_some(gi)
+    }
+
+    /// Union `names` with any overlapping groups so they become one node.
+    pub fn merge_common_node_keys(&mut self, names: &[String]) {
+        let mut incoming: Vec<String> = Vec::new();
+        for k in names {
+            if !k.is_empty() && !incoming.iter().any(|x| x == k) {
+                incoming.push(k.clone());
+            }
+        }
+        if incoming.is_empty() {
+            return;
+        }
+        let hit: Vec<usize> = self
+            .common_node_groups
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| g.iter().any(|k| incoming.iter().any(|x| x == k)))
+            .map(|(i, _)| i)
+            .collect();
+        if hit.is_empty() {
+            self.common_node_groups.push(incoming);
+            return;
+        }
+        let target = hit[0];
+        for &i in hit.iter().skip(1).rev() {
+            let extra = self.common_node_groups.remove(i);
+            for k in extra {
+                if !self.common_node_groups[target].iter().any(|x| x == &k) {
+                    self.common_node_groups[target].push(k);
+                }
+            }
+        }
+        for k in incoming {
+            if !self.common_node_groups[target].iter().any(|x| x == &k) {
+                self.common_node_groups[target].push(k);
+            }
+        }
+    }
+
+    pub fn remove_common_node_keys(&mut self, names: &[String]) {
+        for g in &mut self.common_node_groups {
+            g.retain(|k| !names.iter().any(|x| x == k));
+        }
+        self.common_node_groups.retain(|g| !g.is_empty());
     }
 
     pub fn apply_ps_to_sheet(

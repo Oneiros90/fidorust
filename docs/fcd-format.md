@@ -172,18 +172,19 @@ Programs that do not know `LD` typically skip the unknown line and still load th
 
 ## Common nodes (`CN`)
 
-Some schematic symbols stand for the same electrical node even when no wire is drawn between them (earth, circuit common, a supply rail). FidoRust stores that as a **project-level list of component names**, not as extra lines on the drawing.
+Some schematic symbols stand for the same electrical node even when no wire is drawn between them (earth, circuit common, a supply rail). FidoRust stores that as a **project-level list of name groups**, not as extra lines on the drawing.
 
 ```text
-CN <component-name>
+CN <component-name>[ | <component-name>…]
 ```
 
-- One `CN` line per name. The name is the same string as on `MC` (`045` for the standard library, `project.C01` otherwise).
+- One `CN` line per node. Names on the same line share that node. Separate lines are separate nodes.
+- The name is the same string as on `MC` (`045` for the standard library, `project.C01` otherwise). Names may contain spaces; `|` separates members of a group.
 - Written immediately under the `LD` table, before sheets and `PS`.
 - Written only when the list is not empty, so older files stay unchanged until you mark a symbol.
 - The list is shared by every sheet.
 
-FidoRust Pro’s circuit view treats every instance of a listed name as one node. The free editor keeps the lines on round-trip and does not interpret them.
+FidoRust Pro’s circuit view treats every instance of every name in a group as one node. The free editor keeps the lines on round-trip and does not interpret them.
 
 Example:
 
@@ -191,13 +192,15 @@ Example:
 [FIDOCAD Dual rail]
 LD 0 0 0 1 Schema
 CN 045
-CN project.MYGND
+CN project.Rif70 | project.Rif601
 PS 5 5 5 5 1 1 1
 MC 40 30 0 0 045
 MC 120 80 0 0 045
+MC 20 40 0 0 project.Rif70
+MC 80 40 0 0 project.Rif601
 ```
 
-Programs that do not know `CN` skip the unknown line and still load the geometry. Saving from those programs drops the list.
+A lone `CN 045` is the old form: every instance of that name is one node. Programs that do not know `CN` skip the unknown line and still load the geometry. Saving from those programs drops the list.
 
 ---
 

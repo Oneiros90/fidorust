@@ -128,39 +128,43 @@ impl Editor {
         keys
     }
 
+    /// Unique selected MC ids for menu copy (`project.Rif70` → `Rif70`).
+    pub fn selected_common_node_names(&self) -> Vec<String> {
+        self.selected_component_keys()
+            .into_iter()
+            .map(|k| short_component_name(&k).to_string())
+            .collect()
+    }
+
+    pub fn selected_component_count(&self) -> usize {
+        self.selected
+            .iter()
+            .filter(|&&i| matches!(self.doc.primitives.get(i), Some(Primitive::Component(_))))
+            .count()
+    }
+
     pub fn can_common_node(&self) -> bool {
         !self.selected_component_keys().is_empty()
     }
 
     pub fn common_node_on(&self) -> bool {
         let keys = self.selected_component_keys();
-        !keys.is_empty()
-            && keys
-                .iter()
-                .all(|k| self.doc.common_node_keys.iter().any(|listed| listed == k))
+        self.doc.common_node_group_of(&keys).is_some()
     }
 
-    /// Toggle selected component types in the project common-node list.
-    /// If every selected key is already listed, remove them; otherwise add the missing ones.
+    /// Toggle selected component types as one common node.
+    /// Already the same group → remove those names; otherwise merge them (and any
+    /// overlapping groups) into one node.
     pub fn toggle_common_nodes_for_selection(&mut self) -> bool {
         let keys = self.selected_component_keys();
         if keys.is_empty() {
             return false;
         }
         self.push_project_undo();
-        let listed = keys
-            .iter()
-            .all(|k| self.doc.common_node_keys.iter().any(|x| x == k));
-        if listed {
-            self.doc
-                .common_node_keys
-                .retain(|k| !keys.iter().any(|x| x == k));
+        if self.doc.common_node_group_of(&keys).is_some() {
+            self.doc.remove_common_node_keys(&keys);
         } else {
-            for k in keys {
-                if !self.doc.common_node_keys.iter().any(|x| x == &k) {
-                    self.doc.common_node_keys.push(k);
-                }
-            }
+            self.doc.merge_common_node_keys(&keys);
         }
         true
     }
@@ -435,4 +439,12 @@ impl Editor {
 
 pub(super) fn is_valid_component_key(key: &str) -> bool {
     !key.is_empty() && !key.contains(['.', '[', ']']) && !key.chars().any(char::is_whitespace)
+}
+
+/// Last segment of an MC name (`project.Rif70` → `Rif70`, `045` → `045`).
+fn short_component_name(name: &str) -> &str {
+    name.rsplit_once('.')
+        .map(|(_, rest)| rest)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(name)
 }

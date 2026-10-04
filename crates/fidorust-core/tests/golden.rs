@@ -989,8 +989,8 @@ fn cn_lines_roundtrip_and_dedup() {
     let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nCN 045\nCN project.MYGND\nCN 045\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
     let doc = parse_document(src).unwrap();
     assert_eq!(
-        doc.common_node_keys,
-        vec!["045".to_string(), "project.MYGND".to_string()]
+        doc.common_node_groups,
+        vec![vec!["045".to_string()], vec!["project.MYGND".to_string()]]
     );
     let out = serialize_document(&doc, None);
     assert!(out.contains("CN 045\r\n"), "{out}");
@@ -999,14 +999,34 @@ fn cn_lines_roundtrip_and_dedup() {
     let ps_at = out.find("PS ").expect("{out}");
     assert!(cn_at < ps_at, "{out}");
     let doc2 = parse_document(&out).unwrap();
-    assert_eq!(doc.common_node_keys, doc2.common_node_keys);
+    assert_eq!(doc.common_node_groups, doc2.common_node_groups);
+}
+
+#[test]
+fn cn_grouped_names_roundtrip() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nCN project.Rif70 | project.Rif601\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(
+        doc.common_node_groups,
+        vec![vec![
+            "project.Rif70".to_string(),
+            "project.Rif601".to_string()
+        ]]
+    );
+    let out = serialize_document(&doc, None);
+    assert!(
+        out.contains("CN project.Rif70 | project.Rif601\r\n"),
+        "{out}"
+    );
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.common_node_groups, doc2.common_node_groups);
 }
 
 #[test]
 fn empty_common_nodes_omit_cn_lines() {
     let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
     let doc = parse_document(src).unwrap();
-    assert!(doc.common_node_keys.is_empty());
+    assert!(doc.common_node_groups.is_empty());
     let out = serialize_document(&doc, None);
     assert!(!out.contains("CN "), "{out}");
 }
@@ -1027,17 +1047,91 @@ fn toggle_common_nodes_adds_and_removes_with_undo() {
     assert!(ed.can_common_node());
     assert!(!ed.common_node_on());
     assert!(ed.toggle_common_nodes_for_selection());
-    assert_eq!(ed.doc().common_node_keys, vec!["045".to_string()]);
+    assert_eq!(ed.doc().common_node_groups, vec![vec!["045".to_string()]]);
     assert!(ed.common_node_on());
     let out = serialize_document(ed.doc(), None);
     assert!(out.contains("CN 045\r\n"), "{out}");
     assert!(ed.toggle_common_nodes_for_selection());
-    assert!(ed.doc().common_node_keys.is_empty());
+    assert!(ed.doc().common_node_groups.is_empty());
     assert!(!ed.common_node_on());
     ed.undo();
-    assert_eq!(ed.doc().common_node_keys, vec!["045".to_string()]);
+    assert_eq!(ed.doc().common_node_groups, vec![vec!["045".to_string()]]);
     ed.undo();
-    assert!(ed.doc().common_node_keys.is_empty());
+    assert!(ed.doc().common_node_groups.is_empty());
+}
+
+fn insert_named_mc(ed: &mut Editor, name: &str, standard: bool) -> usize {
+    ed.doc_mut().insert(Primitive::Component(ComponentRef {
+        pos: Point::new(10, 10),
+        rotations: 0,
+        mirrored: false,
+        name: name.into(),
+        standard,
+        layer: LayerId(0),
+        use_component_layers: true,
+    }))
+}
+
+#[test]
+fn toggle_common_nodes_unites_different_keys() {
+    let mut ed = Editor::new(builtin_libraries());
+    let a = insert_named_mc(&mut ed, "project.Rif70", false);
+    let b = insert_named_mc(&mut ed, "project.Rif601", false);
+    *ed.selected_mut() = vec![a, b];
+    assert!(!ed.common_node_on());
+    assert!(ed.toggle_common_nodes_for_selection());
+    assert_eq!(
+        ed.doc().common_node_groups,
+        vec![vec![
+            "project.Rif70".to_string(),
+            "project.Rif601".to_string()
+        ]]
+    );
+    assert!(ed.common_node_on());
+    let out = serialize_document(ed.doc(), None);
+    assert!(
+        out.contains("CN project.Rif70 | project.Rif601\r\n"),
+        "{out}"
+    );
+    assert!(ed.toggle_common_nodes_for_selection());
+    assert!(ed.doc().common_node_groups.is_empty());
+    assert!(!ed.common_node_on());
+}
+
+#[test]
+fn toggle_common_nodes_merges_into_existing_group() {
+    let mut ed = Editor::new(builtin_libraries());
+    let a = insert_named_mc(&mut ed, "project.Rif70", false);
+    let b = insert_named_mc(&mut ed, "project.Rif601", false);
+    *ed.selected_mut() = vec![a];
+    assert!(ed.toggle_common_nodes_for_selection());
+    *ed.selected_mut() = vec![a, b];
+    assert!(!ed.common_node_on());
+    assert!(ed.toggle_common_nodes_for_selection());
+    assert_eq!(
+        ed.doc().common_node_groups,
+        vec![vec![
+            "project.Rif70".to_string(),
+            "project.Rif601".to_string()
+        ]]
+    );
+    assert!(ed.common_node_on());
+}
+
+#[test]
+fn common_node_menu_names_use_short_id() {
+    let mut ed = Editor::new(builtin_libraries());
+    let a = insert_named_mc(&mut ed, "project.Rif70", false);
+    let b = insert_named_mc(&mut ed, "project.Rif601", false);
+    *ed.selected_mut() = vec![a];
+    assert_eq!(ed.selected_common_node_names(), vec!["Rif70".to_string()]);
+    assert_eq!(ed.selected_component_count(), 1);
+    *ed.selected_mut() = vec![a, b];
+    assert_eq!(
+        ed.selected_common_node_names(),
+        vec!["Rif70".to_string(), "Rif601".to_string()]
+    );
+    assert_eq!(ed.selected_component_count(), 2);
 }
 
 #[test]

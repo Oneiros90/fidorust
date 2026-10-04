@@ -276,12 +276,17 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
     for layer in doc.layers.iter() {
         out.push_str(&serialize_layer(layer));
     }
-    for key in &doc.common_node_keys {
-        if key.is_empty() {
+    for group in &doc.common_node_groups {
+        let names: Vec<&str> = group
+            .iter()
+            .map(String::as_str)
+            .filter(|k| !k.is_empty())
+            .collect();
+        if names.is_empty() {
             continue;
         }
         out.push_str("CN ");
-        out.push_str(key);
+        out.push_str(&names.join(" | "));
         out.push_str("\r\n");
     }
     out.push_str(&serialize_primitive_defaults(&doc.defaults));

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { getAppSession } from '../app/appContext';
+	import { commonNodeActionLabel } from '../i18n';
 	import MenuItem from './MenuItem.svelte';
 	import MenuSeparator from './MenuSeparator.svelte';
 	import MenuSubmenu from './MenuSubmenu.svelte';
@@ -8,6 +9,14 @@
 	const hasSelection = $derived(app.status.selected > 0);
 	const editing = $derived(!!app.status.editing_component);
 	const writableLibs = $derived(app.libs.filter((l) => l.writable));
+	const commonNodeLabel = $derived(
+		commonNodeActionLabel(
+			app.t,
+			app.status.common_node_names,
+			app.status.common_node_count,
+			app.status.common_node_on
+		)
+	);
 </script>
 
 <MenuItem
@@ -71,7 +80,7 @@
 {#if app.pro.licensed || app.pro.wasmPro}
 	<MenuSubmenu label={app.t.circuitMode} pro>
 		<MenuItem
-			label={app.status.common_node_on ? app.t.separateNode : app.t.commonNode}
+			label={commonNodeLabel}
 			title={app.status.common_node_on ? app.t.separateNodeHint : app.t.commonNodeHint}
 			disabled={!app.status.can_common_node}
 			onclick={app.doToggleCommonNode}

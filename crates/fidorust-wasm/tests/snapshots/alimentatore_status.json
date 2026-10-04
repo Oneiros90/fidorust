@@ -6,6 +6,8 @@
   "can_redo": false,
   "can_split_component": false,
   "can_undo": false,
+  "common_node_count": 0,
+  "common_node_names": [],
   "common_node_on": false,
   "defaults": {
     "bezier_stroke_hundredths": 25,
