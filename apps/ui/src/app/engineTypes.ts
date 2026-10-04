@@ -32,6 +32,8 @@ export type Status = {
 	can_create_component: boolean;
 	can_split_component: boolean;
 	can_edit_component: boolean;
+	can_common_node: boolean;
+	common_node_on: boolean;
 	editing_component: string | null;
 	editing_component_name: string | null;
 	editing_component_dirty: boolean;
@@ -127,6 +129,8 @@ export const defaultStatus = (): Status => ({
 	can_create_component: false,
 	can_split_component: false,
 	can_edit_component: false,
+	can_common_node: false,
+	common_node_on: false,
 	editing_component: null,
 	editing_component_name: null,
 	editing_component_dirty: false,

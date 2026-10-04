@@ -122,6 +122,23 @@ pub fn parse_ps_line(line: &str) -> Option<ProjectSettings> {
     Some(s)
 }
 
+/// `CN <component-name>` — MC name (`045`, `project.C01`). Empty / malformed → `None`.
+pub fn parse_cn_line(line: &str) -> Option<String> {
+    let line = line.trim();
+    if line.len() < 2 || !line[..2].eq_ignore_ascii_case("CN") {
+        return None;
+    }
+    let rest = &line[2..];
+    if !rest.is_empty() && !rest.as_bytes()[0].is_ascii_whitespace() {
+        return None;
+    }
+    let key = rest.trim();
+    if key.is_empty() {
+        return None;
+    }
+    Some(key.to_string())
+}
+
 fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>, project: Option<&Library>) {
     if !defined.is_empty() {
         for (i, layer) in defined.iter_mut().enumerate() {
@@ -543,6 +560,12 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
         }
         if let Some(info) = parse_ld_line(line) {
             defined.push(info);
+            continue;
+        }
+        if let Some(key) = parse_cn_line(line) {
+            if !doc.common_node_keys.iter().any(|k| k == &key) {
+                doc.common_node_keys.push(key);
+            }
             continue;
         }
         if let Some(settings) = parse_ps_line(line) {

@@ -36,6 +36,12 @@ export function doSplit(s: AppSession) {
 	});
 }
 
+export function doToggleCommonNode(s: AppSession) {
+	s.engine?.mutate((app) => {
+		(app as { toggle_common_nodes: () => void }).toggle_common_nodes();
+	});
+}
+
 export function doSelectAll(s: AppSession) {
 	s.engine?.mutate((app) => {
 		app.key('a', true);

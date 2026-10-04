@@ -51,6 +51,7 @@ You do not need to memorise these. They are listed so that a pasted block looks 
 | Code | Meaning |
 |------|---------|
 | `LD` | Layer definition (name, colour, visibility) |
+| `CN` | Common-node component name (project table; omitted when empty) |
 | `PS` | Project settings (grid, snap, defaults) |
 | `LI` | Straight line |
 | `RV` / `RP` | Empty / filled rectangle |
@@ -160,9 +161,40 @@ Programs that do not know `LD` typically skip the unknown line and still load th
 
 ---
 
+## Common nodes (`CN`)
+
+Some schematic symbols stand for the same electrical node even when no wire is drawn between them (earth, circuit common, a supply rail). FidoRust stores that as a **project-level list of component names**, not as extra lines on the drawing.
+
+```text
+CN <component-name>
+```
+
+- One `CN` line per name. The name is the same string as on `MC` (`045` for the standard library, `project.C01` otherwise).
+- Written immediately under the `LD` table, before sheets and `PS`.
+- Written only when the list is not empty, so older files stay unchanged until you mark a symbol.
+- The list is shared by every sheet.
+
+FidoRust Pro’s circuit view treats every instance of a listed name as one node. The free editor keeps the lines on round-trip and does not interpret them.
+
+Example:
+
+```text
+[FIDOCAD Dual rail]
+LD 0 0 0 1 Schema
+CN 045
+CN project.MYGND
+PS 5 5 5 5 1 1 1 25 0
+MC 40 30 0 0 045
+MC 120 80 0 0 045
+```
+
+Programs that do not know `CN` skip the unknown line and still load the geometry. Saving from those programs drops the list.
+
+---
+
 ## Project settings (`PS`)
 
-FidoRust writes one `PS` line under the layer table, before any drawing commands.
+FidoRust writes one `PS` line after the layer table (and any `CN` lines), before drawing commands.
 
 ```text
 PS <gridX> <gridY> <snapX> <snapY> <showGrid> <snapEnable> <hideOrigin> <strokeHundredths> <filled>

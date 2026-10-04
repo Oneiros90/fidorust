@@ -243,6 +243,14 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
     for layer in doc.layers.iter() {
         out.push_str(&serialize_layer(layer));
     }
+    for key in &doc.common_node_keys {
+        if key.is_empty() {
+            continue;
+        }
+        out.push_str("CN ");
+        out.push_str(key);
+        out.push_str("\r\n");
+    }
     let multi = doc.sheets.len() > 1;
     for sheet in &doc.sheets {
         if multi {

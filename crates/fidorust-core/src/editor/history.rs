@@ -19,6 +19,7 @@ pub(super) struct ProjectSnap {
     pub stroke_hundredths: i32,
     pub default_filled: bool,
     pub pcb_mode: bool,
+    pub common_node_keys: Vec<String>,
     pub sheets: Vec<Sheet>,
     pub project: Library,
     pub user: Vec<Library>,
@@ -40,6 +41,7 @@ impl Editor {
             stroke_hundredths: self.doc.stroke_hundredths,
             default_filled: self.doc.default_filled,
             pcb_mode: self.doc.pcb_mode,
+            common_node_keys: self.doc.common_node_keys.clone(),
             sheets: self.doc.sheets.clone(),
             project: self
                 .libs
@@ -66,6 +68,7 @@ impl Editor {
                 self.doc.stroke_hundredths = snap.stroke_hundredths;
                 self.doc.default_filled = snap.default_filled;
                 self.doc.pcb_mode = snap.pcb_mode;
+                self.doc.common_node_keys = snap.common_node_keys;
                 self.doc.sheets = snap.sheets;
                 if self.doc.sheets.is_empty() {
                     self.doc.sheets.push(Sheet::default());

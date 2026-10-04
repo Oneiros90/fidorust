@@ -7,6 +7,7 @@
 		disabled = false,
 		checkable = false,
 		active = false,
+		title,
 		closeOnClick = true,
 		onclick
 	}: {
@@ -16,6 +17,7 @@
 		/** Trailing checkmark (language, theme, …). */
 		checkable?: boolean;
 		active?: boolean;
+		title?: string;
 		closeOnClick?: boolean;
 		onclick?: () => void;
 	} = $props();
@@ -31,6 +33,7 @@
 <button
 	type="button"
 	{disabled}
+	{title}
 	onclick={handleClick}
 	role={checkable ? 'menuitemradio' : 'menuitem'}
 	aria-checked={checkable ? active : undefined}

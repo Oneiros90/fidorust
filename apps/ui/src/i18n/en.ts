@@ -140,6 +140,11 @@ export const en = {
 	createFromSelection: 'Create from selection',
 	createInProject: 'In the project',
 	editComponent: 'Edit',
+	commonNode: 'Make all instances a common node',
+	separateNode: 'Make instances independent',
+	commonNodeHint:
+		'In Circuit mode, every copy of this symbol is treated as the same node, even without a wire.',
+	separateNodeHint: 'Copies of this symbol become separate nodes again, as drawn.',
 	editComponentName: 'Edit name',
 	editComponentId: 'Edit ID',
 	moveComponentTo: 'Move to',

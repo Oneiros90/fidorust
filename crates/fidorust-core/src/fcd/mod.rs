@@ -5,9 +5,9 @@ mod serialize;
 mod tokens;
 
 pub use parse::{
-    builtin_libraries, decode_bytes, parse_document, parse_document_with_project_library,
-    parse_fidosheet_header, parse_ld_line, parse_library, parse_library_set, parse_primitive_line,
-    parse_ps_line, ParseError,
+    builtin_libraries, decode_bytes, parse_cn_line, parse_document,
+    parse_document_with_project_library, parse_fidosheet_header, parse_ld_line, parse_library,
+    parse_library_set, parse_primitive_line, parse_ps_line, ParseError,
 };
 pub use serialize::{
     serialize_clipboard, serialize_document, serialize_document_with_policy, serialize_layer,

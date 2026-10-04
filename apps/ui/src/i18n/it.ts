@@ -142,6 +142,11 @@ export const it: typeof en = {
 	createFromSelection: 'Crea da selezione',
 	createInProject: 'Nel progetto',
 	editComponent: 'Modifica',
+	commonNode: 'Rendi comuni tutte le istanze',
+	separateNode: 'Rendi indipendenti le istanze',
+	commonNodeHint:
+		'In modalità Circuito, tutte le copie di questo simbolo si considerano lo stesso nodo, anche senza filo.',
+	separateNodeHint: 'Le copie di questo simbolo tornano nodi distinti, come nello schema.',
 	editComponentName: 'Modifica nome',
 	editComponentId: 'Modifica ID',
 	moveComponentTo: 'Sposta in',

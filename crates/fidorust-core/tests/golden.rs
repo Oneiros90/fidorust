@@ -976,6 +976,62 @@ fn ps_line_roundtrips() {
 }
 
 #[test]
+fn cn_lines_roundtrip_and_dedup() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nCN 045\nCN project.MYGND\nCN 045\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(
+        doc.common_node_keys,
+        vec!["045".to_string(), "project.MYGND".to_string()]
+    );
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("CN 045\r\n"), "{out}");
+    assert!(out.contains("CN project.MYGND\r\n"), "{out}");
+    let cn_at = out.find("CN ").expect("{out}");
+    let ps_at = out.find("PS ").expect("{out}");
+    assert!(cn_at < ps_at, "{out}");
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.common_node_keys, doc2.common_node_keys);
+}
+
+#[test]
+fn empty_common_nodes_omit_cn_lines() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nPS 5 5 5 5 1 1 1 25 0\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert!(doc.common_node_keys.is_empty());
+    let out = serialize_document(&doc, None);
+    assert!(!out.contains("CN "), "{out}");
+}
+
+#[test]
+fn toggle_common_nodes_adds_and_removes_with_undo() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::Component(ComponentRef {
+        pos: Point::new(10, 10),
+        rotations: 0,
+        mirrored: false,
+        name: "045".into(),
+        standard: true,
+        layer: LayerId(0),
+        use_component_layers: true,
+    }));
+    *ed.selected_mut() = vec![0];
+    assert!(ed.can_common_node());
+    assert!(!ed.common_node_on());
+    assert!(ed.toggle_common_nodes_for_selection());
+    assert_eq!(ed.doc().common_node_keys, vec!["045".to_string()]);
+    assert!(ed.common_node_on());
+    let out = serialize_document(ed.doc(), None);
+    assert!(out.contains("CN 045\r\n"), "{out}");
+    assert!(ed.toggle_common_nodes_for_selection());
+    assert!(ed.doc().common_node_keys.is_empty());
+    assert!(!ed.common_node_on());
+    ed.undo();
+    assert_eq!(ed.doc().common_node_keys, vec!["045".to_string()]);
+    ed.undo();
+    assert!(ed.doc().common_node_keys.is_empty());
+}
+
+#[test]
 fn missing_ps_keeps_defaults() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\n").unwrap();
     assert_eq!(

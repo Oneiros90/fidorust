@@ -134,6 +134,7 @@ export class App {
     split_selected_components(): void;
     stamp_drag_copy(): boolean;
     status_json(): string;
+    toggle_common_nodes(): void;
     undo(): void;
     unresolved_components_json(): string;
     user_libraries_blob(): string;
@@ -265,6 +266,7 @@ export interface InitOutput {
     readonly app_split_selected_components: (a: number) => void;
     readonly app_stamp_drag_copy: (a: number) => number;
     readonly app_status_json: (a: number) => [number, number];
+    readonly app_toggle_common_nodes: (a: number) => void;
     readonly app_undo: (a: number) => void;
     readonly app_unresolved_components_json: (a: number) => [number, number];
     readonly app_user_libraries_blob: (a: number) => [number, number];

@@ -143,6 +143,9 @@ pub struct Document {
     pub hide_component_origin: bool,
     pub stroke_hundredths: i32,
     pub default_filled: bool,
+    /// MC names treated as one electrical node (`CN` lines). Opaque to the free editor.
+    #[serde(default)]
+    pub common_node_keys: Vec<String>,
     pub sheets: Vec<Sheet>,
     pub warnings: u32,
     /// True when the layer table was inferred (no `LD` lines in the file).
@@ -161,6 +164,7 @@ impl PartialEq for Document {
             && self.hide_component_origin == other.hide_component_origin
             && self.stroke_hundredths == other.stroke_hundredths
             && self.default_filled == other.default_filled
+            && self.common_node_keys == other.common_node_keys
             && self.sheets == other.sheets
             && self.warnings == other.warnings
             && self.inferred_layers == other.inferred_layers
@@ -177,6 +181,7 @@ impl Default for Document {
             hide_component_origin: s.hide_component_origin,
             stroke_hundredths: s.stroke_hundredths,
             default_filled: s.default_filled,
+            common_node_keys: Vec::new(),
             sheets: vec![Sheet::default()],
             warnings: 0,
             inferred_layers: false,

@@ -1,10 +1,12 @@
 {
   "active_pane": 0,
+  "can_common_node": false,
   "can_create_component": false,
   "can_edit_component": false,
   "can_redo": false,
   "can_split_component": false,
   "can_undo": false,
+  "common_node_on": false,
   "default_filled": false,
   "duplicate_drag": false,
   "editing_component": null,

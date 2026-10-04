@@ -501,6 +501,7 @@ export class AppSession {
 	doRotate = () => edit.doRotate(this);
 	doMirror = () => edit.doMirror(this);
 	doSplit = () => edit.doSplit(this);
+	doToggleCommonNode = () => edit.doToggleCommonNode(this);
 	doSelectAll = () => edit.doSelectAll(this);
 	doInvert = () => edit.doInvert(this);
 	fit = () => edit.fit(this);

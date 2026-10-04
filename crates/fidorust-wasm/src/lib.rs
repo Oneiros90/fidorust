@@ -750,6 +750,11 @@ impl App {
     }
 
     #[wasm_bindgen]
+    pub fn toggle_common_nodes(&mut self) {
+        self.editor.toggle_common_nodes_for_selection();
+    }
+
+    #[wasm_bindgen]
     pub fn component_preview_svg(&self, name: &str) -> String {
         crate::components::component_preview_svg(self, name)
     }

@@ -1,16 +1,19 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { attachAnchoredMenu, type MenuAnchorSide } from './clampMenu';
+	import ProBadge from './ProBadge.svelte';
 
 	let {
 		label,
 		side = 'right',
 		disabled = false,
+		pro = false,
 		children
 	}: {
 		label: string;
 		side?: Exclude<MenuAnchorSide, 'below'>;
 		disabled?: boolean;
+		pro?: boolean;
 		children: Snippet;
 	} = $props();
 
@@ -19,7 +22,11 @@
 
 <div class={['sub', { disabled }]}>
 	<button type="button" class="sub-btn" aria-haspopup="menu" {disabled}>
-		{label}<span class="acc">›</span>
+		<span class="lbl">{label}</span>
+		{#if pro}
+			<ProBadge />
+		{/if}
+		<span class="acc">›</span>
 	</button>
 	{#if !disabled}
 		<div class="flyout" {@attach clampFlyout}>{@render children()}</div>
@@ -33,8 +40,7 @@
 	.sub-btn {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 16px;
+		gap: 8px;
 		width: 100%;
 		text-align: left;
 		border: none;
@@ -44,6 +50,11 @@
 		font: inherit;
 		font-size: 13px;
 		color: inherit;
+	}
+	.lbl {
+		flex: 1;
+		min-width: 0;
+		text-align: left;
 	}
 	.sub:hover:not(.disabled) > .sub-btn,
 	.sub:focus-within:not(.disabled) > .sub-btn {

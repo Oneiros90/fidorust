@@ -115,6 +115,56 @@ impl Editor {
         self.selected_editable_component().is_some()
     }
 
+    fn selected_component_keys(&self) -> Vec<String> {
+        let mut keys = Vec::new();
+        for &i in &self.selected {
+            let Some(Primitive::Component(c)) = self.doc.primitives.get(i) else {
+                continue;
+            };
+            if !keys.iter().any(|k| k == &c.name) {
+                keys.push(c.name.clone());
+            }
+        }
+        keys
+    }
+
+    pub fn can_common_node(&self) -> bool {
+        !self.selected_component_keys().is_empty()
+    }
+
+    pub fn common_node_on(&self) -> bool {
+        let keys = self.selected_component_keys();
+        !keys.is_empty()
+            && keys
+                .iter()
+                .all(|k| self.doc.common_node_keys.iter().any(|listed| listed == k))
+    }
+
+    /// Toggle selected component types in the project common-node list.
+    /// If every selected key is already listed, remove them; otherwise add the missing ones.
+    pub fn toggle_common_nodes_for_selection(&mut self) -> bool {
+        let keys = self.selected_component_keys();
+        if keys.is_empty() {
+            return false;
+        }
+        self.push_project_undo();
+        let listed = keys
+            .iter()
+            .all(|k| self.doc.common_node_keys.iter().any(|x| x == k));
+        if listed {
+            self.doc
+                .common_node_keys
+                .retain(|k| !keys.iter().any(|x| x == k));
+        } else {
+            for k in keys {
+                if !self.doc.common_node_keys.iter().any(|x| x == &k) {
+                    self.doc.common_node_keys.push(k);
+                }
+            }
+        }
+        true
+    }
+
     /// Right-click: rotate while dragging/placing, otherwise the caller shows the context menu.
     pub fn right_click(&mut self, world: Point) -> bool {
         match &self.drag {

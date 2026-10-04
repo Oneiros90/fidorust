@@ -68,6 +68,16 @@
 		onclick={app.editSelectedComponent}
 	/>
 </MenuSubmenu>
+{#if app.pro.licensed || app.pro.wasmPro}
+	<MenuSubmenu label={app.t.circuitMode} pro>
+		<MenuItem
+			label={app.status.common_node_on ? app.t.separateNode : app.t.commonNode}
+			title={app.status.common_node_on ? app.t.separateNodeHint : app.t.commonNodeHint}
+			disabled={!app.status.can_common_node}
+			onclick={app.doToggleCommonNode}
+		/>
+	</MenuSubmenu>
+{/if}
 <MenuSeparator />
 <MenuItem label={app.t.selectAll} onclick={app.doSelectAll} />
 <MenuItem label={app.t.invertSelection} onclick={app.doInvert} />
