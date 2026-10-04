@@ -202,7 +202,15 @@ impl Primitive {
         dispatch_primitive!(self, |p| p.paint_order())
     }
 
-    /// FidoCAD opcode (`PA`, `PL`, `LI`, …) shown in the status bar.
+    /// Last segment of an MC name (`project.Rif70` → `Rif70`, `045` → `045`).
+    pub(crate) fn mc_id(name: &str) -> &str {
+        name.rsplit_once('.')
+            .map(|(_, rest)| rest)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(name)
+    }
+
+    /// FidoCAD opcode (`PA`, `PL`, `LI`, …).
     pub fn opcode(&self) -> &'static str {
         match self {
             Primitive::Line(_) => "LI",
@@ -239,6 +247,14 @@ impl Primitive {
             Primitive::PcbTrack(_) => "PL",
             Primitive::PcbPad(_) => "PA",
             Primitive::Component(_) => "MC",
+        }
+    }
+
+    /// Status-bar label: opcode, plus the MC id for components (`MC 050`).
+    pub fn hover_label(&self) -> String {
+        match self {
+            Primitive::Component(c) => format!("MC {}", Self::mc_id(&c.name)),
+            other => other.opcode().to_string(),
         }
     }
 }

@@ -276,6 +276,11 @@ impl Editor {
         self.hover_index
     }
 
+    pub fn hover_op(&self) -> Option<String> {
+        let i = self.hover_index?;
+        self.doc.primitives.get(i).map(Primitive::hover_label)
+    }
+
     pub fn set_hover(&mut self, hover: Option<Point>) {
         self.hover = hover;
         if hover.is_none() {

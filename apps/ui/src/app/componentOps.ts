@@ -1,4 +1,5 @@
 import { componentFullName } from '../lib/libraryDrag';
+import { categoryForComponent, libraryCatKey } from '../library/libraryList';
 import type { AppSession } from './appSession.svelte';
 
 export function pickComponent(s: AppSession, stem: string, key: string) {
@@ -13,7 +14,19 @@ export function revealLibraryItem(s: AppSession, stem: string, key: string) {
 	s.rightTab = 'library';
 	s.expandedUserLibs = { ...s.expandedUserLibs, [stem]: true };
 	expandLibGroup(s, libGroupForStem(s, stem));
+	const cat = categoryForComponent(s.libs, stem, key);
+	if (cat) {
+		s.expandedLibCats = { ...s.expandedLibCats, [libraryCatKey(stem, cat)]: true };
+	}
 	s.libraryFocus = { stem, key };
+	s.libraryReveal += 1;
+}
+
+export function selectSelectedLibraryComponent(s: AppSession) {
+	const stem = s.status.selected_library_stem;
+	const key = s.status.selected_library_key;
+	if (!stem || !key) return;
+	revealLibraryItem(s, stem, key);
 }
 
 function expandLibGroup(s: AppSession, group: 'project' | 'user' | 'builtin') {

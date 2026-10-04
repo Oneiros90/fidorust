@@ -26,6 +26,8 @@ export class UiState {
 		builtin: true
 	});
 	libraryFocus = $state<{ stem: string; key: string } | null>(null);
+	expandedLibCats = $state<Record<string, boolean>>({});
+	libraryReveal = $state(0);
 
 	toggleMenu = (id: string) => {
 		this.menu = this.menu === id ? null : id;

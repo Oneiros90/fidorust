@@ -71,6 +71,9 @@
   "pcb": false,
   "pending_component": null,
   "selected": 0,
+  "selected_library_key": null,
+  "selected_library_name": null,
+  "selected_library_stem": null,
   "sheets": [
     "Foglio 1"
   ],

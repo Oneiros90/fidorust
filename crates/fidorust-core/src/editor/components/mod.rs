@@ -132,8 +132,30 @@ impl Editor {
     pub fn selected_common_node_names(&self) -> Vec<String> {
         self.selected_component_keys()
             .into_iter()
-            .map(|k| short_component_name(&k).to_string())
+            .map(|k| crate::primitive::Primitive::mc_id(&k).to_string())
             .collect()
+    }
+
+    /// Library definition shared by every selected primitive, if they are all
+    /// instances of the same resolvable component.
+    pub fn selected_library_component(&self) -> Option<(String, String, String)> {
+        if self.selected.is_empty() {
+            return None;
+        }
+        let mut found: Option<(String, String, String)> = None;
+        for &i in &self.selected {
+            let Primitive::Component(c) = self.doc.primitives.get(i)? else {
+                return None;
+            };
+            let (lib, def) = self.libs.lookup(&c.name)?;
+            let id = (lib.file_stem.clone(), def.key.clone(), def.name.clone());
+            match &found {
+                None => found = Some(id),
+                Some(prev) if prev.0 != id.0 || prev.1 != id.1 => return None,
+                Some(_) => {}
+            }
+        }
+        found
     }
 
     pub fn selected_component_count(&self) -> usize {
@@ -441,10 +463,3 @@ pub(super) fn is_valid_component_key(key: &str) -> bool {
     !key.is_empty() && !key.contains(['.', '[', ']']) && !key.chars().any(char::is_whitespace)
 }
 
-/// Last segment of an MC name (`project.Rif70` → `Rif70`, `045` → `045`).
-fn short_component_name(name: &str) -> &str {
-    name.rsplit_once('.')
-        .map(|(_, rest)| rest)
-        .filter(|s| !s.is_empty())
-        .unwrap_or(name)
-}

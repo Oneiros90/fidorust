@@ -61,6 +61,9 @@ export type Status = {
 	can_create_component: boolean;
 	can_split_component: boolean;
 	can_edit_component: boolean;
+	selected_library_stem: string | null;
+	selected_library_key: string | null;
+	selected_library_name: string | null;
 	can_common_node: boolean;
 	common_node_on: boolean;
 	common_node_names: string[];
@@ -168,6 +171,9 @@ export const defaultStatus = (): Status => ({
 	can_create_component: false,
 	can_split_component: false,
 	can_edit_component: false,
+	selected_library_stem: null,
+	selected_library_key: null,
+	selected_library_name: null,
 	can_common_node: false,
 	common_node_on: false,
 	common_node_names: [],

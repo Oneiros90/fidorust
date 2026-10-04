@@ -1,12 +1,14 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { getAppSession } from '../app/appContext';
 	import { componentFullName } from '../lib/libraryDrag';
-	import { searchComponents } from './libraryList';
+	import { libraryItemSelector, searchComponents } from './libraryList';
 	import LibraryItem from './LibraryItem.svelte';
 	import LibraryFolder from './LibraryFolder.svelte';
 
 	const app = getAppSession();
 	let query = $state('');
+	let seenReveal = 0;
 	const searching = $derived(query.trim().length > 0);
 	const hits = $derived(
 		searching ? searchComponents(app.libs, query, (lib) => app.libraryTitle(lib.stem)) : []
@@ -18,6 +20,46 @@
 			(app.libraryFocus?.stem === stem && app.libraryFocus?.key === key)
 		);
 	}
+
+	async function scrollFocusedItem(stem: string, key: string) {
+		const selector = libraryItemSelector(stem, key);
+		const waitFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		const center = (tree: HTMLElement, el: HTMLElement) => {
+			const treeRect = tree.getBoundingClientRect();
+			const elRect = el.getBoundingClientRect();
+			tree.scrollTop += elRect.top + elRect.height / 2 - (treeRect.top + tree.clientHeight / 2);
+		};
+		let item: HTMLElement | null = null;
+		for (let i = 0; i < 4 && !item; i++) {
+			await tick();
+			const tree = document.getElementById('library-tree');
+			item = tree?.querySelector<HTMLElement>(selector) ?? null;
+		}
+		const tree = document.getElementById('library-tree');
+		if (!tree || !item) return;
+		let node: HTMLElement | null = item;
+		while (node && node !== tree) {
+			if (node instanceof HTMLDetailsElement) node.open = true;
+			node = node.parentElement;
+		}
+		await tick();
+		await waitFrame();
+		await waitFrame();
+		const el = tree.querySelector<HTMLElement>(selector);
+		if (!el) return;
+		center(tree, el);
+		await waitFrame();
+		if (el.isConnected) center(tree, el);
+	}
+
+	$effect(() => {
+		const seq = app.libraryReveal;
+		if (seq === 0 || seq === seenReveal) return;
+		seenReveal = seq;
+		query = '';
+		const focus = app.libraryFocus;
+		if (focus) void scrollFocusedItem(focus.stem, focus.key);
+	});
 </script>
 
 <div class="panel">

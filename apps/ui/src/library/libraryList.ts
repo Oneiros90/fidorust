@@ -18,6 +18,27 @@ export function sortComponents<T extends Pick<LibraryComponent, 'key' | 'name'>>
 	);
 }
 
+export function libraryCatKey(stem: string, category: string) {
+	return `${stem}\0${category}`;
+}
+
+export function categoryForComponent(
+	libs: readonly LibraryEntry[],
+	stem: string,
+	key: string
+): string | null {
+	const lib = libs.find((l) => l.stem === stem);
+	if (!lib) return null;
+	for (const cat of lib.categories) {
+		if (cat.components.some((c) => c.key === key)) return cat.name;
+	}
+	return null;
+}
+
+export function libraryItemSelector(stem: string, key: string) {
+	return `[data-lib-stem="${CSS.escape(stem)}"][data-lib-key="${CSS.escape(key)}"]`;
+}
+
 export function flattenLibrary(lib: LibraryEntry): LibraryComponent[] {
 	return sortComponents(lib.categories.flatMap((c) => c.components));
 }

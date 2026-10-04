@@ -1097,3 +1097,25 @@ fn skipped_save_prompt_rewrites_user_names_onto_project() {
     assert_eq!(bare.unresolved_component_count(), 0);
     assert!(!bare.canonicalize_project_component_refs());
 }
+
+#[test]
+fn selected_library_component_resolves_stdlib() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\nMC 50 50 0 0 080\n").unwrap();
+    assert!(ed.selected_library_component().is_none());
+    ed.set_selected(vec![0]);
+    let (stem, key, name) = ed.selected_library_component().expect("resolved");
+    assert_eq!(stem, "stdlib");
+    assert_eq!(key, "080");
+    assert!(name.to_lowercase().contains("resist"), "{name}");
+}
+
+#[test]
+fn selected_library_component_rejects_mixed_selection() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\nMC 50 50 0 0 080\nLI 0 0 10 0 0\n").unwrap();
+    ed.set_selected(vec![0, 1]);
+    assert!(ed.selected_library_component().is_none());
+    ed.set_selected(vec![1]);
+    assert!(ed.selected_library_component().is_none());
+}

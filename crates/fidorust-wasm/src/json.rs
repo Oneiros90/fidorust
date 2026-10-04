@@ -35,10 +35,13 @@ pub struct StatusDto {
     pub pending_component: Option<String>,
     pub duplicate_drag: bool,
     pub hover_hit: bool,
-    pub hover_op: Option<&'static str>,
+    pub hover_op: Option<String>,
     pub can_create_component: bool,
     pub can_split_component: bool,
     pub can_edit_component: bool,
+    pub selected_library_stem: Option<String>,
+    pub selected_library_key: Option<String>,
+    pub selected_library_name: Option<String>,
     pub can_common_node: bool,
     pub common_node_on: bool,
     pub common_node_names: Vec<String>,
@@ -62,6 +65,7 @@ impl StatusDto {
         let editing = ed
             .editing_component()
             .map(|(stem, key)| format!("{stem}.{key}"));
+        let selected_lib = ed.selected_library_component();
         Self {
             tool: ed.tool().id().into(),
             layer: ed.layer().0,
@@ -93,12 +97,13 @@ impl StatusDto {
             },
             duplicate_drag: ed.duplicate_drag(),
             hover_hit: ed.tool() == Tool::Select && ed.hover_hit(),
-            hover_op: ed
-                .hover_index()
-                .and_then(|i| ed.doc().primitives.get(i).map(|p| p.opcode())),
+            hover_op: ed.hover_op(),
             can_create_component: ed.can_create_component(),
             can_split_component: ed.can_split_component(),
             can_edit_component: ed.can_edit_component(),
+            selected_library_stem: selected_lib.as_ref().map(|(stem, _, _)| stem.clone()),
+            selected_library_key: selected_lib.as_ref().map(|(_, key, _)| key.clone()),
+            selected_library_name: selected_lib.as_ref().map(|(_, _, name)| name.clone()),
             can_common_node: ed.can_common_node(),
             common_node_on: ed.common_node_on(),
             common_node_names: ed.selected_common_node_names(),

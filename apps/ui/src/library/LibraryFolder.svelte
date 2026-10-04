@@ -2,7 +2,7 @@
 	import { getAppSession } from '../app/appContext';
 	import type { LibraryEntry } from '../app/engineTypes';
 	import { componentFullName } from '../lib/libraryDrag';
-	import { flattenLibrary, sortComponents } from './libraryList';
+	import { flattenLibrary, libraryCatKey, sortComponents } from './libraryList';
 	import { focusAndSelectDeferred } from '../lib/focus';
 	import LibraryItem from './LibraryItem.svelte';
 
@@ -258,11 +258,31 @@
 		</summary>
 		<div class="group-body">
 			{#each builtin as lib (lib.stem)}
-				<details class="node">
+				<details
+					class="node"
+					open={app.expandedUserLibs[lib.stem] ?? false}
+					ontoggle={(e) => {
+						app.expandedUserLibs = {
+							...app.expandedUserLibs,
+							[lib.stem]: (e.currentTarget as HTMLDetailsElement).open
+						};
+					}}
+				>
 					<summary class="node-label">{lib.title}</summary>
 					<div class="kids">
 						{#each lib.categories as cat (`${lib.stem}:${cat.name}`)}
-							<details class="node">
+							<details
+								class="node"
+								open={app.expandedLibCats[libraryCatKey(lib.stem, cat.name)] ?? false}
+								ontoggle={(e) => {
+									app.expandedLibCats = {
+										...app.expandedLibCats,
+										[libraryCatKey(lib.stem, cat.name)]: (
+											e.currentTarget as HTMLDetailsElement
+										).open
+									};
+								}}
+							>
 								<summary class="node-label">{cat.name}</summary>
 								<div class="kids">
 									{#each sortComponents(cat.components) as item (`${lib.stem}:${item.key}`)}
@@ -272,8 +292,7 @@
 											componentKey={item.key}
 											label={item.name}
 											writable={false}
-											selected={app.status.pending_component ===
-												componentFullName(lib.stem, item.key)}
+											selected={itemSelected(lib.stem, item.key)}
 											theme={app.theme}
 											onPick={app.pickComponent}
 											onArmDrag={app.armLibraryDrag}

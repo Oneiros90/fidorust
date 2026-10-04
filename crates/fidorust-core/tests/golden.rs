@@ -184,6 +184,16 @@ fn mc_layer_zero_token_assigns_layer() {
 }
 
 #[test]
+fn hover_label_includes_component_id() {
+    let p = parse_primitive_line("MC 10 20 0 0 080").unwrap();
+    assert_eq!(p.hover_label(), "MC 080");
+    let p = parse_primitive_line("MC 10 20 0 0 project.C01").unwrap();
+    assert_eq!(p.hover_label(), "MC C01");
+    let p = parse_primitive_line("LI 0 0 10 0 0").unwrap();
+    assert_eq!(p.hover_label(), "LI");
+}
+
+#[test]
 fn mirrored_text_aabb_extends_left_of_origin() {
     let p = parse_primitive_line("TY 1100 265 30 15 0 5 1 * Propic2 compatible PCB").unwrap();
     let bb = p.aabb();

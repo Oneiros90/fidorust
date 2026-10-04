@@ -72,9 +72,22 @@
 		onclick={app.doSplit}
 	/>
 	<MenuItem
-		label={app.t.editComponent}
+		label={
+			app.status.selected_library_name
+				? app.t.editComponent.replace('{name}', app.status.selected_library_name)
+				: app.t.editComponentNone
+		}
 		disabled={!app.status.can_edit_component || editing}
 		onclick={app.editSelectedComponent}
+	/>
+	<MenuItem
+		label={
+			app.status.selected_library_name
+				? app.t.selectInLibrary.replace('{name}', app.status.selected_library_name)
+				: app.t.selectInLibraryNone
+		}
+		disabled={!app.status.selected_library_stem}
+		onclick={app.selectSelectedLibraryComponent}
 	/>
 </MenuSubmenu>
 {#if app.pro.licensed || app.pro.wasmPro}

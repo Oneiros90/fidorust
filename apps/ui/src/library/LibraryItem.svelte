@@ -151,6 +151,8 @@
 	role="button"
 	tabindex="0"
 	aria-pressed={selected}
+	data-lib-stem={stem}
+	data-lib-key={componentKey}
 	title={origin ? `${label} — ${origin}` : label}
 	onclick={pick}
 	ondblclick={onDblClick}

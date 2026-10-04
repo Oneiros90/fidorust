@@ -175,6 +175,18 @@ export class AppSession {
 	set libraryFocus(v) {
 		this.ui.libraryFocus = v;
 	}
+	get expandedLibCats() {
+		return this.ui.expandedLibCats;
+	}
+	set expandedLibCats(v) {
+		this.ui.expandedLibCats = v;
+	}
+	get libraryReveal() {
+		return this.ui.libraryReveal;
+	}
+	set libraryReveal(v) {
+		this.ui.libraryReveal = v;
+	}
 	get error() {
 		const d = this.dialogs.dialog;
 		return d?.kind === 'error' ? d.message : '';
@@ -520,6 +532,8 @@ export class AppSession {
 	pickComponent = (stem: string, key: string) => comps.pickComponent(this, stem, key);
 
 	revealLibraryItem = (stem: string, key: string) => comps.revealLibraryItem(this, stem, key);
+
+	selectSelectedLibraryComponent = () => comps.selectSelectedLibraryComponent(this);
 
 	createComponentFromSelection = (target: string) =>
 		comps.createComponentFromSelection(this, target);
