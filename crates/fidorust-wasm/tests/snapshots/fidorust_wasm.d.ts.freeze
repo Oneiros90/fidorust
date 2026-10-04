@@ -7,8 +7,9 @@ export class App {
     add_layer(): void;
     add_sheet(): number;
     add_sheet_on(pane: number): number;
-    apply_drawing_defaults(hide_origin: boolean, stroke: number, filled: boolean): void;
+    apply_drawing_defaults(json: string): void;
     apply_project_settings(json: string): void;
+    apply_sheet_settings(json: string): void;
     apply_selection_props(patch_json: string): void;
     attach_canvas(canvas: HTMLCanvasElement): void;
     attach_pane_canvas(pane: number, canvas: HTMLCanvasElement): void;
@@ -154,8 +155,9 @@ export interface InitOutput {
     readonly app_add_layer: (a: number) => void;
     readonly app_add_sheet: (a: number) => number;
     readonly app_add_sheet_on: (a: number, b: number) => number;
-    readonly app_apply_drawing_defaults: (a: number, b: number, c: number, d: number) => void;
+    readonly app_apply_drawing_defaults: (a: number, b: number, c: number) => [number, number];
     readonly app_apply_project_settings: (a: number, b: number, c: number) => [number, number];
+    readonly app_apply_sheet_settings: (a: number, b: number, c: number) => [number, number];
     readonly app_apply_selection_props: (a: number, b: number, c: number) => [number, number];
     readonly app_attach_canvas: (a: number, b: any) => [number, number];
     readonly app_attach_pane_canvas: (a: number, b: number, c: any) => [number, number];

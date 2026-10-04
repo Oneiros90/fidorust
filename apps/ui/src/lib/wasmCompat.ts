@@ -24,6 +24,7 @@ export function ensureLegacyPaneApi(app: WasmApp): WasmApp {
 	fill('set_pane_view', (_pane, zoom, panX, panY) => a.set_view(zoom, panX, panY));
 	fill('set_pane_sheet', () => {});
 	fill('set_split', () => {});
+	fill('apply_sheet_settings', (json) => a.apply_project_settings(json));
 	fill('add_sheet_on', () => (typeof a.add_sheet === 'function' ? a.add_sheet() : 0));
 	if (typeof a['toggle_common_nodes'] !== 'function') {
 		a['toggle_common_nodes'] = () => {};

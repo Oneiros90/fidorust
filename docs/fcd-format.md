@@ -52,7 +52,8 @@ You do not need to memorise these. They are listed so that a pasted block looks 
 |------|---------|
 | `LD` | Layer definition (name, colour, visibility) |
 | `CN` | Common-node component name (project table; omitted when empty) |
-| `PS` | Project settings (grid, snap, defaults) |
+| `PS` | Project settings (grid, snap, hide origin) |
+| `PD` | Per-tool drawing defaults (one line per tool) |
 | `LI` | Straight line |
 | `RV` / `RP` | Empty / filled rectangle |
 | `EV` / `EP` | Empty / filled ellipse |
@@ -70,7 +71,15 @@ A small complete example:
 ```text
 [FIDOCAD Simple divider]
 LD 0 0 0 1 Schematic
-PS 5 5 5 5 1 1 1 25 0
+PD LI 25
+PD BE 25
+PD RV 25 0
+PD EV 25 0
+PD PV 25 0
+PD TY 4 3 0 *
+PD PL 4
+PD PA 18 18 8 0
+PS 5 5 5 5 1 1 1
 MC 40 30 0 0 080
 LI 40 30 80 30
 SA 40 30
@@ -183,7 +192,7 @@ Example:
 LD 0 0 0 1 Schema
 CN 045
 CN project.MYGND
-PS 5 5 5 5 1 1 1 25 0
+PS 5 5 5 5 1 1 1
 MC 40 30 0 0 045
 MC 120 80 0 0 045
 ```
@@ -194,21 +203,19 @@ Programs that do not know `CN` skip the unknown line and still load the geometry
 
 ## Project settings (`PS`)
 
-FidoRust writes one `PS` line after the layer table (and any `CN` lines), before drawing commands.
+FidoRust writes one `PS` line per sheet, after the layer table, any `CN` lines, and the `PD` table.
 
 ```text
-PS <gridX> <gridY> <snapX> <snapY> <showGrid> <snapEnable> <hideOrigin> <strokeHundredths> <filled>
+PS <gridX> <gridY> <snapX> <snapY> <showGrid> <snapEnable> <hideOrigin>
 ```
 
 - `gridX`, `gridY`: grid pitch in drawing units, 1–40 (default `5`)
 - `snapX`, `snapY`: snap pitch in drawing units, 1–20 (default `5`)
 - `showGrid`: `1` draw the grid, `0` hide it
 - `snapEnable`: `1` snap coordinates while drawing, `0` free placement
-- `hideOrigin`: `1` hide the red origin handle on components, `0` show it
-- `strokeHundredths`: schematic line thickness in hundredths of a drawing unit (default `25` = 0.25). Applies to lines, curves, and empty shapes in this file; PCB tracks keep their own width.
-- `filled`: `1` new rectangles, ellipses, and polygons are filled, `0` they are outlines
+- `hideOrigin`: `1` hide the red origin handle on components, `0` show it (project-wide; taken from the first `PS`)
 
-Trailing fields may be omitted; missing values keep the defaults above. If the file has more than one `PS` line, the last one wins.
+Trailing fields may be omitted; missing values keep the defaults above. Older files may still have two extra fields (`strokeHundredths`, `filled`); those seed every schematic stroke and every shape fill when the file has no `PD` lines.
 
 Example:
 
@@ -216,13 +223,21 @@ Example:
 [FIDOCAD Dual rail]
 LD 0 0 0 1 Schema
 LD 0 80 200 1 Bottom copper
-PS 10 10 5 5 1 1 1 25 0
+PD LI 25
+PD BE 25
+PD RV 25 0
+PD EV 25 0
+PD PV 25 0
+PD TY 4 3 0 *
+PD PL 4
+PD PA 18 18 8 0
+PS 10 10 5 5 1 1 1
 LI 20 40 180 40 1
 ```
 
 ### Files that have no `PS` line
 
-Older drawings have no project-settings line. FidoRust opens them with the defaults above (grid and snap 5, grid and snap on, origin hidden, hairline stroke, empty shapes). The next save writes a `PS` line.
+Older drawings have no project-settings line. FidoRust opens them with the defaults above (grid and snap 5, grid and snap on, origin hidden). The next save writes `PD` and `PS`.
 
 Programs that do not know `PS` skip the unknown line and still load the geometry.
 
@@ -230,9 +245,36 @@ FidoRust always writes `PS` when you save. Clipboard fragments and library defin
 
 ---
 
+## Drawing defaults (`PD`)
+
+FidoRust writes one `PD` line per drawing tool, after `CN` and before the first sheet. Each type of stroke has its own thickness (hundredths of a drawing unit). Changing a thickness redraws every existing object of that type.
+
+```text
+PD LI <strokeHundredths>
+PD BE <strokeHundredths>
+PD RV <strokeHundredths> <filled>
+PD EV <strokeHundredths> <filled>
+PD PV <strokeHundredths> <filled>
+PD TY <sy> <sx> <style> <font>
+PD PL <width>
+PD PA <dx> <dy> <hole> <style>
+```
+
+- `LI` / `BE`: schematic line and Bézier thickness
+- `RV` / `EV` / `PV`: outline thickness and default fill (`1` filled, `0` outline) for new rectangles, ellipses, and polygons
+- `TY`: default text height, width, style bits, and font (`*` = Courier Prime; spaces in the name are written as `++`)
+- `PL`: default PCB track width
+- `PA`: default pad size, hole, and style (`0` oval, `1` rectangular, `2` rounded)
+
+Trailing fields may be omitted. The same kind repeated: the last line wins. Unknown kinds are skipped. Clipboard fragments and library definitions omit `PD`.
+
+A file without `PD` that still has the old `PS` stroke/fill fields applies those values to every schematic stroke and every shape fill.
+
+---
+
 ## Sheets (`FIDOSHEET`)
 
-A project can contain more than one drawing sheet. Layers and the project library are shared; each sheet has its own primitives and its own grid/snap (`PS` grid/snap fields). Hide-origin, stroke, and default fill are project-wide: they are written into every `PS` line and read from the first `PS` in the file.
+A project can contain more than one drawing sheet. Layers and the project library are shared; each sheet has its own primitives and its own grid/snap (`PS` grid/snap fields). Hide-origin is project-wide (first `PS`). Drawing defaults (`PD`) are project-wide.
 
 ```text
 [FIDOSHEET <name>]
@@ -245,11 +287,19 @@ A file with **no** `FIDOSHEET` header is a single sheet named `Foglio 1` (legacy
 ```text
 [FIDOCAD Dual rail]
 LD 0 0 0 1 Schema
+PD LI 25
+PD BE 25
+PD RV 25 0
+PD EV 25 0
+PD PV 25 0
+PD TY 4 3 0 *
+PD PL 4
+PD PA 18 18 8 0
 [FIDOSHEET Foglio 1]
-PS 5 5 5 5 1 1 1 25 0
+PS 5 5 5 5 1 1 1
 LI 20 40 180 40
 [FIDOSHEET PCB]
-PS 10 10 5 5 1 1 1 25 0
+PS 10 10 5 5 1 1 1
 PL 20 40 80 40 5
 [FIDOLIB project]
 ```
@@ -263,8 +313,9 @@ Programs that do not know `FIDOSHEET` skip the header line (it starts with `[`) 
 1. **Sharing schematics** still works as copy-and-paste of FidoCAD text.
 2. **Objects keep their layer numbers** in every `.fcd` file.
 3. **Names, colours (including RGBA), and visibility** travel with the drawing as `LD` lines under the header.
-4. **Grid and snap** are per sheet; **hide-origin, stroke, and fill** are project-wide. Both travel in `PS` lines.
+4. **Grid and snap** are per sheet (`PS`). **Hide-origin** is project-wide (first `PS`). **Per-tool defaults** travel as `PD` lines.
 5. **A file without `LD`** opens with the four classic layers (plus extras if needed).
 6. **A file without `PS`** opens with the usual grid/snap defaults.
-7. **A file without `FIDOSHEET`** is one sheet. Two or more sheets are written as `[FIDOSHEET name]` blocks after the layer table.
-8. FidoRust always writes `LD` and `PS` when you save, so the next person sees the same layer table and settings.
+7. **A file without `PD`** uses code defaults, or the old `PS` stroke/fill fields when present.
+8. **A file without `FIDOSHEET`** is one sheet. Two or more sheets are written as `[FIDOSHEET name]` blocks after the layer table.
+9. FidoRust always writes `LD`, `PD`, and `PS` when you save.

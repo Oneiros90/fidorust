@@ -1,11 +1,11 @@
 //! Pointer, draft, and marquee interaction.
 
 use super::{Draft, Drag, Editor, Tool};
-use crate::consts::{DEFAULT_TEXT_SX, DEFAULT_TEXT_SY, ZOOM_MAX_WHEEL, ZOOM_TOOL_FACTOR};
+use crate::consts::{ZOOM_MAX_WHEEL, ZOOM_TOOL_FACTOR};
 use crate::geom::Point;
 use crate::hit::{hit_test, marquee_select, HitQuery};
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text, DEFAULT_FONT,
+    Bezier, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
 
 impl Editor {
@@ -19,7 +19,7 @@ impl Editor {
                 x,
                 y,
                 zoom: self.zoom,
-                stroke_w: self.doc.stroke_width() as f64,
+                defaults: &self.doc.defaults,
             },
         )
     }
@@ -148,23 +148,24 @@ impl Editor {
                 self.push_undo();
                 self.doc.insert(Primitive::PcbPad(PcbPad {
                     pos: pt,
-                    dx: self.pad_dx,
-                    dy: self.pad_dy,
-                    hole: self.pad_hole,
-                    style: self.pad_style,
+                    dx: self.doc.defaults.pad.dx,
+                    dy: self.doc.defaults.pad.dy,
+                    hole: self.doc.defaults.pad.hole,
+                    style: self.doc.defaults.pad.style,
                     layer: self.layer,
                 }));
             }
             Tool::Text => {
                 self.push_undo();
+                let text = &self.doc.defaults.text;
                 self.doc.insert(Primitive::Text(Text {
                     pos: pt,
-                    sy: DEFAULT_TEXT_SY,
-                    sx: DEFAULT_TEXT_SX,
+                    sy: text.sy,
+                    sx: text.sx,
                     angle: 0,
-                    style: 0,
+                    style: text.style,
                     layer: self.layer,
-                    font: DEFAULT_FONT.into(),
+                    font: text.font.clone(),
                     text: self.pending_text.clone(),
                     simple: false,
                 }));
@@ -375,19 +376,19 @@ impl Editor {
             Tool::Rect => Primitive::Rect(Rect {
                 a,
                 b,
-                filled: self.doc.default_filled,
+                filled: self.doc.defaults.rect.filled,
                 layer: self.layer,
             }),
             Tool::Ellipse => Primitive::Ellipse(Ellipse {
                 a,
                 b,
-                filled: self.doc.default_filled,
+                filled: self.doc.defaults.ellipse.filled,
                 layer: self.layer,
             }),
             Tool::PcbTrack => Primitive::PcbTrack(PcbTrack {
                 a,
                 b,
-                width: self.track_width,
+                width: self.doc.defaults.track_width,
                 layer: self.layer,
             }),
             _ => return false,
@@ -403,7 +404,7 @@ impl Editor {
                 self.push_undo();
                 self.doc.insert(Primitive::Poly(Poly {
                     pts: d.points,
-                    filled: self.doc.default_filled,
+                    filled: self.doc.defaults.poly.filled,
                     layer: self.layer,
                 }));
             }

@@ -1,6 +1,6 @@
 //! Serialize a document back to FidoCAD 0.96 text (CRLF, omit layer 0 except TY).
 
-use crate::document::{Document, Sheet};
+use crate::document::{Document, PrimitiveDefaults, Sheet};
 use crate::layers::LayerInfo;
 use crate::library::{
     explode_user_components_in_document, fold_user_components_in_document, Library, LibrarySet,
@@ -153,7 +153,7 @@ pub fn serialize_primitive(p: &Primitive) -> String {
 pub fn serialize_project_settings_for(doc: &Document, sheet: &Sheet) -> String {
     let vis = |on: bool| if on { 1 } else { 0 };
     format!(
-        "PS {} {} {} {} {} {} {} {} {}\r\n",
+        "PS {} {} {} {} {} {} {}\r\n",
         sheet.grid,
         sheet.grid_y,
         sheet.snap,
@@ -161,9 +161,42 @@ pub fn serialize_project_settings_for(doc: &Document, sheet: &Sheet) -> String {
         vis(sheet.show_grid),
         vis(sheet.snap_enable),
         vis(doc.hide_component_origin),
-        doc.stroke_hundredths,
-        vis(doc.default_filled),
     )
+}
+
+pub fn serialize_primitive_defaults(defaults: &PrimitiveDefaults) -> String {
+    let vis = |on: bool| if on { 1 } else { 0 };
+    let mut out = String::new();
+    out.push_str(&format!("PD LI {}\r\n", defaults.line_stroke_hundredths));
+    out.push_str(&format!("PD BE {}\r\n", defaults.bezier_stroke_hundredths));
+    out.push_str(&format!(
+        "PD RV {} {}\r\n",
+        defaults.rect.stroke_hundredths,
+        vis(defaults.rect.filled)
+    ));
+    out.push_str(&format!(
+        "PD EV {} {}\r\n",
+        defaults.ellipse.stroke_hundredths,
+        vis(defaults.ellipse.filled)
+    ));
+    out.push_str(&format!(
+        "PD PV {} {}\r\n",
+        defaults.poly.stroke_hundredths,
+        vis(defaults.poly.filled)
+    ));
+    out.push_str(&format!(
+        "PD TY {} {} {} {}\r\n",
+        defaults.text.sy,
+        defaults.text.sx,
+        defaults.text.style,
+        font_token(&defaults.text.font)
+    ));
+    out.push_str(&format!("PD PL {}\r\n", defaults.track_width));
+    out.push_str(&format!(
+        "PD PA {} {} {} {}\r\n",
+        defaults.pad.dx, defaults.pad.dy, defaults.pad.hole, defaults.pad.style as i32
+    ));
+    out
 }
 
 pub fn serialize_project_settings(doc: &Document) -> String {
@@ -251,6 +284,7 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
         out.push_str(key);
         out.push_str("\r\n");
     }
+    out.push_str(&serialize_primitive_defaults(&doc.defaults));
     let multi = doc.sheets.len() > 1;
     for sheet in &doc.sheets {
         if multi {

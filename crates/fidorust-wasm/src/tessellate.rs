@@ -22,6 +22,7 @@ pub fn tessellate_input_pane<'a>(
         hover: ed.pane_hover_index(pane),
         editing_text: if active { ed.editing_text() } else { None },
         hide_component_origin: ed.hide_component_origin(),
+        defaults: &ed.doc().defaults,
         stroke_w: ed.doc().stroke_width(),
         zoom: ed.pane_zoom(pane),
         pan: ed.pane_pan(pane),

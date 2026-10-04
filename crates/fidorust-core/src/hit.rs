@@ -1,6 +1,7 @@
 //! Hit-testing against flattened primitives.
 
 use crate::consts::{HANDLE_RADIUS_PX, HIT_TOLERANCE_PX};
+use crate::document::PrimitiveDefaults;
 use crate::geom::{Aabb, Point};
 use crate::layers::LayerSet;
 use crate::library::LibrarySet;
@@ -90,12 +91,12 @@ fn hit_prim(
     }
 }
 
-/// World-space pick: unrounded LU, view zoom, and stroke width in LU.
-pub struct HitQuery {
+/// World-space pick: unrounded LU, view zoom, and per-type stroke defaults.
+pub struct HitQuery<'a> {
     pub x: f64,
     pub y: f64,
     pub zoom: f32,
-    pub stroke_w: f64,
+    pub defaults: &'a PrimitiveDefaults,
 }
 
 /// Pick the top-most primitive under `(x, y)` (world LU, unrounded).
@@ -110,13 +111,13 @@ pub fn hit_test(
     libs: &LibrarySet,
     layers: &LayerSet,
     selected: &[usize],
-    q: HitQuery,
+    q: HitQuery<'_>,
 ) -> Option<Hit> {
     let HitQuery {
         x,
         y,
         zoom,
-        stroke_w,
+        defaults,
     } = q;
     let tol = HIT_TOLERANCE_PX / zoom.max(0.1) as f64;
     let tol2 = tol * tol;
@@ -142,7 +143,7 @@ pub fn hit_test(
             if let Some(h) = hit_prim(q, x, y, tol2, handle_r2, test_handles) {
                 let is_handle = expanded.len() == 1 && h != usize::MAX;
                 let handle = if is_handle { Some(h) } else { None };
-                let ink = q.opaque_at_xy(x, y, stroke_w);
+                let ink = q.opaque_at_xy(x, y, defaults.stroke_width_for(q) as f64);
                 let opaque = is_handle || (layers.color(q.layer())[3] == 255 && ink);
                 consider(
                     &mut best,
@@ -187,6 +188,7 @@ pub fn hit_test_pt(
     pt: Point,
     zoom: f32,
 ) -> Option<Hit> {
+    let defaults = PrimitiveDefaults::default();
     hit_test(
         prims,
         libs,
@@ -196,7 +198,7 @@ pub fn hit_test_pt(
             x: pt.x as f64,
             y: pt.y as f64,
             zoom,
-            stroke_w: crate::consts::DEFAULT_STROKE_HUNDREDTHS as f64 / 100.0,
+            defaults: &defaults,
         },
     )
 }

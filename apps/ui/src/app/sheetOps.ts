@@ -109,17 +109,14 @@ export function openSheetContextMenu(
 
 export function applySheetSettings(s: AppSession, v: SheetSettingsValues) {
 	s.engine?.mutate((app) => {
-		app.apply_project_settings(
+		app.apply_sheet_settings(
 			JSON.stringify({
 				grid: v.gridX,
 				grid_y: v.gridY,
 				snap: v.snapX,
 				snap_y: v.snapY,
 				show_grid: v.showGrid,
-				snap_enable: v.snapEnable,
-				hide_component_origin: s.status.hide_component_origin,
-				stroke_hundredths: s.status.stroke_hundredths,
-				default_filled: s.status.default_filled
+				snap_enable: v.snapEnable
 			})
 		);
 	});
@@ -128,7 +125,12 @@ export function applySheetSettings(s: AppSession, v: SheetSettingsValues) {
 
 export function applyDrawingDefaults(s: AppSession, v: DrawingDefaultsValues) {
 	s.engine?.mutate((app) => {
-		app.apply_drawing_defaults(v.hideComponentOrigin, v.strokeHundredths, v.defaultFilled);
+		app.apply_drawing_defaults(
+			JSON.stringify({
+				hide_component_origin: v.hideComponentOrigin,
+				defaults: v.defaults
+			})
+		);
 	});
 	s.dialogs.close();
 }

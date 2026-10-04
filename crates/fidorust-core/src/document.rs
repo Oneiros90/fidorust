@@ -3,13 +3,14 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::consts::{
-    DEFAULT_STROKE_HUNDREDTHS, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, STROKE_HUNDREDTHS_MAX,
-    STROKE_HUNDREDTHS_MIN,
+    DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_STROKE_HUNDREDTHS, DEFAULT_TEXT_SX,
+    DEFAULT_TEXT_SY, DEFAULT_TRACK_WIDTH, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN,
+    STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
 };
 use crate::geom::Aabb;
 use crate::layers::LayerSet;
 use crate::library::LibrarySet;
-use crate::primitive::Primitive;
+use crate::primitive::{PadStyle, Primitive, DEFAULT_FONT};
 use serde::{Deserialize, Serialize};
 
 /// Default name of the first sheet (Italian). English UI uses [`default_sheet_name`].
@@ -36,6 +37,7 @@ pub fn sheet_copy_name(locale: &str, base: &str) -> String {
 
 /// Project settings stored in the `.fcd` as a `PS` line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ProjectSettings {
     pub grid: i32,
     pub grid_y: i32,
@@ -83,6 +85,172 @@ impl ProjectSettings {
 
     pub fn stroke_width(self) -> f32 {
         self.stroke_hundredths as f32 / 100.0
+    }
+}
+
+fn clamp_stroke(v: i32) -> i32 {
+    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX)
+}
+
+/// Per-type drawing defaults stored as `PD` lines.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ShapeDefaults {
+    pub stroke_hundredths: i32,
+    pub filled: bool,
+}
+
+impl Default for ShapeDefaults {
+    fn default() -> Self {
+        Self {
+            stroke_hundredths: DEFAULT_STROKE_HUNDREDTHS,
+            filled: false,
+        }
+    }
+}
+
+impl ShapeDefaults {
+    pub fn clamped(self) -> Self {
+        Self {
+            stroke_hundredths: clamp_stroke(self.stroke_hundredths),
+            filled: self.filled,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TextDefaults {
+    pub sy: i32,
+    pub sx: i32,
+    pub style: u32,
+    pub font: String,
+}
+
+impl Default for TextDefaults {
+    fn default() -> Self {
+        Self {
+            sy: DEFAULT_TEXT_SY,
+            sx: DEFAULT_TEXT_SX,
+            style: 0,
+            font: DEFAULT_FONT.into(),
+        }
+    }
+}
+
+impl TextDefaults {
+    pub fn clamped(self) -> Self {
+        Self {
+            sy: self.sy.clamp(1, 100),
+            sx: self.sx.clamp(1, 100),
+            style: self.style,
+            font: if self.font.trim().is_empty() {
+                DEFAULT_FONT.into()
+            } else {
+                self.font
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PadDefaults {
+    pub dx: i32,
+    pub dy: i32,
+    pub hole: i32,
+    pub style: PadStyle,
+}
+
+impl Default for PadDefaults {
+    fn default() -> Self {
+        Self {
+            dx: DEFAULT_PAD_DX,
+            dy: DEFAULT_PAD_DY,
+            hole: DEFAULT_PAD_HOLE,
+            style: PadStyle::Oval,
+        }
+    }
+}
+
+impl PadDefaults {
+    pub fn clamped(self) -> Self {
+        Self {
+            dx: self.dx.max(1),
+            dy: self.dy.max(1),
+            hole: self.hole.max(0),
+            style: self.style,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PrimitiveDefaults {
+    pub line_stroke_hundredths: i32,
+    pub bezier_stroke_hundredths: i32,
+    pub rect: ShapeDefaults,
+    pub ellipse: ShapeDefaults,
+    pub poly: ShapeDefaults,
+    pub text: TextDefaults,
+    pub track_width: i32,
+    pub pad: PadDefaults,
+}
+
+impl Default for PrimitiveDefaults {
+    fn default() -> Self {
+        Self {
+            line_stroke_hundredths: DEFAULT_STROKE_HUNDREDTHS,
+            bezier_stroke_hundredths: DEFAULT_STROKE_HUNDREDTHS,
+            rect: ShapeDefaults::default(),
+            ellipse: ShapeDefaults::default(),
+            poly: ShapeDefaults::default(),
+            text: TextDefaults::default(),
+            track_width: DEFAULT_TRACK_WIDTH,
+            pad: PadDefaults::default(),
+        }
+    }
+}
+
+impl PrimitiveDefaults {
+    pub fn clamped(self) -> Self {
+        Self {
+            line_stroke_hundredths: clamp_stroke(self.line_stroke_hundredths),
+            bezier_stroke_hundredths: clamp_stroke(self.bezier_stroke_hundredths),
+            rect: self.rect.clamped(),
+            ellipse: self.ellipse.clamped(),
+            poly: self.poly.clamped(),
+            text: self.text.clamped(),
+            track_width: self.track_width.max(1),
+            pad: self.pad.clamped(),
+        }
+    }
+
+    pub fn seed_from_legacy_ps(&mut self, stroke: i32, filled: bool) {
+        let stroke = clamp_stroke(stroke);
+        self.line_stroke_hundredths = stroke;
+        self.bezier_stroke_hundredths = stroke;
+        self.rect.stroke_hundredths = stroke;
+        self.rect.filled = filled;
+        self.ellipse.stroke_hundredths = stroke;
+        self.ellipse.filled = filled;
+        self.poly.stroke_hundredths = stroke;
+        self.poly.filled = filled;
+    }
+
+    pub fn stroke_hundredths_for(&self, p: &Primitive) -> i32 {
+        match p {
+            Primitive::Line(_) => self.line_stroke_hundredths,
+            Primitive::Bezier(_) => self.bezier_stroke_hundredths,
+            Primitive::Rect(_) => self.rect.stroke_hundredths,
+            Primitive::Ellipse(_) => self.ellipse.stroke_hundredths,
+            Primitive::Poly(_) => self.poly.stroke_hundredths,
+            _ => self.line_stroke_hundredths,
+        }
+    }
+
+    pub fn stroke_width_for(&self, p: &Primitive) -> f32 {
+        self.stroke_hundredths_for(p) as f32 / 100.0
+    }
+
+    pub fn stroke_width_lu(&self, hundredths: i32) -> f32 {
+        hundredths as f32 / 100.0
     }
 }
 
@@ -141,8 +309,8 @@ pub struct Document {
     pub layers: LayerSet,
     pub pcb_mode: bool,
     pub hide_component_origin: bool,
-    pub stroke_hundredths: i32,
-    pub default_filled: bool,
+    #[serde(default)]
+    pub defaults: PrimitiveDefaults,
     /// MC names treated as one electrical node (`CN` lines). Opaque to the free editor.
     #[serde(default)]
     pub common_node_keys: Vec<String>,
@@ -162,8 +330,7 @@ impl PartialEq for Document {
             && self.layers == other.layers
             && self.pcb_mode == other.pcb_mode
             && self.hide_component_origin == other.hide_component_origin
-            && self.stroke_hundredths == other.stroke_hundredths
-            && self.default_filled == other.default_filled
+            && self.defaults == other.defaults
             && self.common_node_keys == other.common_node_keys
             && self.sheets == other.sheets
             && self.warnings == other.warnings
@@ -179,8 +346,7 @@ impl Default for Document {
             layers: LayerSet::default(),
             pcb_mode: false,
             hide_component_origin: s.hide_component_origin,
-            stroke_hundredths: s.stroke_hundredths,
-            default_filled: s.default_filled,
+            defaults: PrimitiveDefaults::default(),
             common_node_keys: Vec::new(),
             sheets: vec![Sheet::default()],
             warnings: 0,
@@ -236,46 +402,57 @@ impl Document {
             show_grid: sheet.show_grid,
             snap_enable: sheet.snap_enable,
             hide_component_origin: self.hide_component_origin,
-            stroke_hundredths: self.stroke_hundredths,
-            default_filled: self.default_filled,
+            stroke_hundredths: self.defaults.line_stroke_hundredths,
+            default_filled: self.defaults.rect.filled,
         }
     }
 
-    /// Apply a `PS` line: grid/snap onto the view sheet; origin/stroke/fill onto the project.
+    /// Grid/snap of the view sheet only.
+    pub fn apply_sheet_settings(&mut self, s: ProjectSettings) {
+        self.apply_grid_snap(s.clamped());
+    }
+
+    /// Apply a `PS` line: grid/snap onto the view sheet; origin + legacy stroke/fill onto the project.
     pub fn apply_project_settings(&mut self, s: ProjectSettings) {
         let s = s.clamped();
         self.hide_component_origin = s.hide_component_origin;
-        self.stroke_hundredths = s.stroke_hundredths;
-        self.default_filled = s.default_filled;
+        self.defaults
+            .seed_from_legacy_ps(s.stroke_hundredths, s.default_filled);
         self.apply_grid_snap(s);
     }
 
-    /// Project-only fields (hide origin, stroke, fill) shared by every sheet.
-    pub fn apply_drawing_defaults(&mut self, s: ProjectSettings) {
-        let s = s.clamped();
-        self.hide_component_origin = s.hide_component_origin;
-        self.stroke_hundredths = s.stroke_hundredths;
-        self.default_filled = s.default_filled;
+    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, defaults: PrimitiveDefaults) {
+        self.hide_component_origin = hide_origin;
+        self.defaults = defaults.clamped();
     }
 
-    pub fn apply_ps_to_sheet(&mut self, index: usize, s: ProjectSettings, take_project: bool) {
+    pub fn apply_ps_to_sheet(
+        &mut self,
+        index: usize,
+        s: ProjectSettings,
+        take_project: bool,
+        seed_defaults: bool,
+    ) {
         let s = s.clamped();
         if let Some(sheet) = self.sheets.get_mut(index) {
             sheet.apply_grid_snap(s);
         }
         if take_project {
             self.hide_component_origin = s.hide_component_origin;
-            self.stroke_hundredths = s.stroke_hundredths;
-            self.default_filled = s.default_filled;
+            if seed_defaults {
+                self.defaults
+                    .seed_from_legacy_ps(s.stroke_hundredths, s.default_filled);
+            }
         }
     }
 
     pub fn stroke_width(&self) -> f32 {
-        ProjectSettings {
-            stroke_hundredths: self.stroke_hundredths,
-            ..ProjectSettings::default()
-        }
-        .stroke_width()
+        self.defaults
+            .stroke_width_lu(self.defaults.line_stroke_hundredths)
+    }
+
+    pub fn stroke_width_for(&self, p: &Primitive) -> f32 {
+        self.defaults.stroke_width_for(p)
     }
 
     pub fn aabb(&self, libs: &LibrarySet) -> Aabb {

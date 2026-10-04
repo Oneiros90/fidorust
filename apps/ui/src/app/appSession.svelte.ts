@@ -46,8 +46,7 @@ export type SheetSettingsValues = {
 
 export type DrawingDefaultsValues = {
 	hideComponentOrigin: boolean;
-	strokeHundredths: number;
-	defaultFilled: boolean;
+	defaults: import('./engineTypes').PrimitiveDefaults;
 };
 
 export class AppSession {
@@ -420,7 +419,8 @@ export class AppSession {
 
 	openAbout = () => this.dialogs.open({ kind: 'about' });
 	openTechnologies = () => this.dialogs.open({ kind: 'technologies' });
-	openProjectSettings = () => this.dialogs.open({ kind: 'projectSettings' });
+	openProjectSettings = (section?: import('./projectSettings').ProjectSettingsSection) =>
+		this.dialogs.open({ kind: 'projectSettings', section });
 
 	hoverPane = (pane: number) => sheets.hoverPane(this, pane);
 	toggleSplit = () => sheets.toggleSplit(this);
@@ -436,6 +436,10 @@ export class AppSession {
 	openSheetSettings = (pane: number, index: number) => sheets.openSheetSettings(this, pane, index);
 	openSheetContextMenu = (x: number, y: number, pane: number, index: number) =>
 		sheets.openSheetContextMenu(this, x, y, pane, index);
+	openToolContextMenu = (x: number, y: number, toolId: string) => {
+		this.closeMenu();
+		this.ui.ctxMenu = { kind: 'tool', x, y, toolId };
+	};
 	applySheetSettings = (v: SheetSettingsValues) => sheets.applySheetSettings(this, v);
 	applyDrawingDefaults = (v: DrawingDefaultsValues) => sheets.applyDrawingDefaults(this, v);
 

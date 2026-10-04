@@ -7,7 +7,35 @@
   "can_split_component": false,
   "can_undo": false,
   "common_node_on": false,
-  "default_filled": false,
+  "defaults": {
+    "bezier_stroke_hundredths": 25,
+    "ellipse": {
+      "filled": false,
+      "stroke_hundredths": 25
+    },
+    "line_stroke_hundredths": 25,
+    "pad": {
+      "dx": 18,
+      "dy": 18,
+      "hole": 8,
+      "style": "Oval"
+    },
+    "poly": {
+      "filled": false,
+      "stroke_hundredths": 25
+    },
+    "rect": {
+      "filled": false,
+      "stroke_hundredths": 25
+    },
+    "text": {
+      "font": "Courier Prime",
+      "style": 0,
+      "sx": 3,
+      "sy": 4
+    },
+    "track_width": 4
+  },
   "duplicate_drag": false,
   "editing_component": null,
   "editing_component_dirty": false,
@@ -49,7 +77,6 @@
   "snap_enable": true,
   "snap_y": 5,
   "split": false,
-  "stroke_hundredths": 25,
   "title": "Alimentatore per CB",
   "tool": "select",
   "x": 0,

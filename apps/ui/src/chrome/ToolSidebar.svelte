@@ -18,6 +18,11 @@
 				aria-label={app.t[key]}
 				aria-pressed={app.status.tool === id}
 				onclick={() => app.tool(id)}
+				oncontextmenu={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					app.openToolContextMenu(e.clientX, e.clientY, id);
+				}}
 			>
 				<ToolIcon name={id} />
 			</button>

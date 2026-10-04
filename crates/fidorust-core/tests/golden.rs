@@ -2,9 +2,9 @@ use fidorust_core::parse::{builtin_libraries, parse_document, parse_primitive_li
 use fidorust_core::primitive::STYLE_MIRRORED;
 use fidorust_core::serialize::{serialize_document, serialize_primitive};
 use fidorust_core::{
-    ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PcbPad,
-    PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform, COMPONENT_ORIGIN,
-    DEFAULT_FONT,
+    ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PadStyle,
+    PcbPad, PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform,
+    COMPONENT_ORIGIN, DEFAULT_FONT,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -921,7 +921,10 @@ fn serialize_writes_ld_and_roundtrips() {
     let src = "[FIDOCAD Title]\nLD 1 2 3 0 Hidden sheet\nLD 0 80 200 1 Rame\nLI 1 2 3 4 1\n";
     let doc = parse_document(src).unwrap();
     let out = serialize_document(&doc, None);
-    assert!(out.starts_with("[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\nPS 5 5 5 5 1 1 1 25 0\r\n"));
+    assert!(out.starts_with(
+        "[FIDOCAD Title]\r\nLD 1 2 3 0 Hidden sheet\r\nLD 0 80 200 1 Rame\r\nPD LI 25\r\n"
+    ));
+    assert!(out.contains("PS 5 5 5 5 1 1 1\r\n"));
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc.layers.len(), doc2.layers.len());
     assert_eq!(
@@ -953,7 +956,8 @@ fn new_document_has_four_fallback_layers() {
     let s = serialize_document(&d, None);
     assert!(s.contains("LD 0 0 0 1 Schematic"));
     assert!(s.contains("LD 0 0 192 1 PCB copper side"));
-    assert!(s.contains("PS 5 5 5 5 1 1 1 25 0"));
+    assert!(s.contains("PS 5 5 5 5 1 1 1\r\n"));
+    assert!(s.contains("PD LI 25\r\n"));
 }
 
 #[test]
@@ -967,12 +971,17 @@ fn ps_line_roundtrips() {
     assert!(!doc.show_grid);
     assert!(!doc.snap_enable);
     assert!(!doc.hide_component_origin);
-    assert_eq!(doc.stroke_hundredths, 50);
-    assert!(doc.default_filled);
+    assert_eq!(doc.defaults.line_stroke_hundredths, 50);
+    assert!(doc.defaults.rect.filled);
+    assert_eq!(doc.defaults.bezier_stroke_hundredths, 50);
+    assert!(doc.defaults.ellipse.filled);
     let out = serialize_document(&doc, None);
-    assert!(out.contains("PS 10 8 4 2 0 0 0 50 1"));
+    assert!(out.contains("PS 10 8 4 2 0 0 0\r\n"));
+    assert!(out.contains("PD LI 50\r\n"));
+    assert!(out.contains("PD RV 50 1\r\n"));
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc.project_settings(), doc2.project_settings());
+    assert_eq!(doc.defaults, doc2.defaults);
 }
 
 #[test]
@@ -1032,6 +1041,53 @@ fn toggle_common_nodes_adds_and_removes_with_undo() {
 }
 
 #[test]
+fn pd_lines_roundtrip_per_tool() {
+    let src = "[FIDOCAD]\nLD 0 0 0 1 Schema\nPD LI 40\nPD BE 80\nPD RV 10 1\nPD EV 20 0\nPD PV 30 1\nPD TY 6 5 3 Custom++Font\nPD PL 7\nPD PA 12 14 4 1\nPS 5 5 5 5 1 1 1\nLI 0 0 10 10\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.defaults.line_stroke_hundredths, 40);
+    assert_eq!(doc.defaults.bezier_stroke_hundredths, 80);
+    assert_eq!(doc.defaults.rect.stroke_hundredths, 10);
+    assert!(doc.defaults.rect.filled);
+    assert_eq!(doc.defaults.ellipse.stroke_hundredths, 20);
+    assert!(!doc.defaults.ellipse.filled);
+    assert_eq!(doc.defaults.poly.stroke_hundredths, 30);
+    assert!(doc.defaults.poly.filled);
+    assert_eq!(doc.defaults.text.sy, 6);
+    assert_eq!(doc.defaults.text.sx, 5);
+    assert_eq!(doc.defaults.text.style, 3);
+    assert_eq!(doc.defaults.text.font, "Custom Font");
+    assert_eq!(doc.defaults.track_width, 7);
+    assert_eq!(doc.defaults.pad.dx, 12);
+    assert_eq!(doc.defaults.pad.dy, 14);
+    assert_eq!(doc.defaults.pad.hole, 4);
+    assert_eq!(doc.defaults.pad.style, PadStyle::Rectangular);
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("PD LI 40\r\n"));
+    assert!(out.contains("PD BE 80\r\n"));
+    assert!(out.contains("PD RV 10 1\r\n"));
+    assert!(out.contains("PD EV 20 0\r\n"));
+    assert!(out.contains("PD PV 30 1\r\n"));
+    assert!(out.contains("PD TY 6 5 3 Custom++Font\r\n"));
+    assert!(out.contains("PD PL 7\r\n"));
+    assert!(out.contains("PD PA 12 14 4 1\r\n"));
+    assert!(out.contains("PS 5 5 5 5 1 1 1\r\n"));
+    assert!(!out.contains("PS 5 5 5 5 1 1 1 25"));
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.defaults, doc2.defaults);
+}
+
+#[test]
+fn pd_overrides_legacy_ps_stroke_and_fill() {
+    let src = "[FIDOCAD]\nPD LI 90\nPD RV 15 0\nPS 5 5 5 5 1 1 1 25 1\nLI 0 0 1 1\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.defaults.line_stroke_hundredths, 90);
+    assert_eq!(doc.defaults.rect.stroke_hundredths, 15);
+    assert!(!doc.defaults.rect.filled);
+    assert_eq!(doc.defaults.bezier_stroke_hundredths, 25);
+    assert!(!doc.defaults.ellipse.filled);
+}
+
+#[test]
 fn missing_ps_keeps_defaults() {
     let doc = parse_document("[FIDOCAD]\nLI 0 0 10 10\n").unwrap();
     assert_eq!(
@@ -1048,8 +1104,8 @@ fn ps_trailing_fields_optional_and_last_wins() {
     assert_eq!(doc.grid_y, 8);
     assert_eq!(doc.snap, 5);
     assert!(doc.show_grid);
-    assert_eq!(doc.stroke_hundredths, 25);
-    assert!(!doc.default_filled);
+    assert_eq!(doc.defaults.line_stroke_hundredths, 25);
+    assert!(!doc.defaults.rect.filled);
 }
 
 #[test]
@@ -1250,8 +1306,8 @@ fn apply_props_and_grid_are_undoable() {
     ed.apply_project_settings(custom);
     assert!(ed.can_undo());
     assert_eq!(ed.doc().grid, 12);
-    assert_eq!(ed.doc().stroke_hundredths, 80);
-    assert!(ed.doc().default_filled);
+    assert_eq!(ed.doc().defaults.line_stroke_hundredths, 80);
+    assert!(ed.doc().defaults.rect.filled);
     assert!(!ed.doc().show_grid);
     ed.apply_project_settings(custom);
     ed.undo();
@@ -1579,7 +1635,7 @@ fn ruler_drag_is_not_serialized() {
     );
     assert!(ed.doc().primitives.is_empty());
     let fcd = serialize_document(ed.doc(), None);
-    assert!(!fcd.contains("LI "), "{fcd}");
+    assert!(!fcd.contains("\nLI ") && !fcd.contains("\r\nLI "), "{fcd}");
 }
 
 #[test]
@@ -1652,7 +1708,8 @@ fn legacy_file_is_single_sheet_without_fidosheet() {
     assert_eq!(doc.primitives.len(), 1);
     let out = serialize_document(&doc, None);
     assert!(!out.contains("FIDOSHEET"), "{out}");
-    assert!(out.contains("PS 10 10 5 5 1 1 1 25 0"));
+    assert!(out.contains("PS 10 10 5 5 1 1 1\r\n"));
+    assert!(out.contains("PD LI 25\r\n"));
 }
 
 #[test]
@@ -1667,7 +1724,7 @@ fn fidosheet_headers_roundtrip() {
     assert_eq!(doc.sheets[0].grid, 5);
     assert_eq!(doc.sheets[1].grid, 10);
     assert_eq!(doc.hide_component_origin, true);
-    assert_eq!(doc.stroke_hundredths, 25);
+    assert_eq!(doc.defaults.line_stroke_hundredths, 25);
     let out = serialize_document(&doc, None);
     assert!(out.contains("[FIDOSHEET Foglio 1]"), "{out}");
     assert!(out.contains("[FIDOSHEET Schema]"), "{out}");

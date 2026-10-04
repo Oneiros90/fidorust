@@ -26,6 +26,8 @@
 	import EditMenu from '../menus/EditMenu.svelte';
 	import LayerContextMenu from '../layers/LayerContextMenu.svelte';
 	import SheetContextMenu from '../canvas/SheetContextMenu.svelte';
+	import ToolContextMenu from './ToolContextMenu.svelte';
+	import { defaultPrimitiveDefaults } from '../app/projectSettings';
 	import Scrim from './Scrim.svelte';
 
 	const app = getAppSession();
@@ -69,6 +71,8 @@
 			<SheetContextMenu pane={app.ctxMenu.pane} index={app.ctxMenu.index} />
 		{:else if app.ctxMenu.kind === 'library'}
 			<LibraryContextMenu stem={app.ctxMenu.stem} />
+		{:else if app.ctxMenu.kind === 'tool'}
+			<ToolContextMenu toolId={app.ctxMenu.toolId} />
 		{:else}
 			<LibraryItemContextMenu stem={app.ctxMenu.stem} componentKey={app.ctxMenu.key} />
 		{/if}
@@ -94,10 +98,10 @@
 {:else if dialog?.kind === 'projectSettings'}
 	<ProjectSettingsDialog
 		t={app.t}
+		initialSection={dialog.section}
 		values={{
 			hideComponentOrigin: app.status.hide_component_origin,
-			strokeHundredths: app.status.stroke_hundredths,
-			defaultFilled: app.status.default_filled
+			defaults: app.status.defaults ?? defaultPrimitiveDefaults()
 		}}
 		onApply={app.applyDrawingDefaults}
 		onCancel={() => app.dialogs.close()}

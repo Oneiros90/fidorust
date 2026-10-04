@@ -3,7 +3,9 @@
 use crate::consts::{
     GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
 };
-use crate::document::{sanitize_sheet_name, Document, ProjectSettings, Sheet, DEFAULT_SHEET_NAME};
+use crate::document::{
+    sanitize_sheet_name, Document, PrimitiveDefaults, ProjectSettings, Sheet, DEFAULT_SHEET_NAME,
+};
 use crate::geom::Point;
 use crate::layers::{standard_layer_name, LayerId, LayerInfo, LayerSet};
 use crate::library::{
@@ -120,6 +122,101 @@ pub fn parse_ps_line(line: &str) -> Option<ProjectSettings> {
         s.default_filled = v != 0;
     }
     Some(s)
+}
+
+/// `PD <kind> <params…>` — one project default line per drawing tool.
+///
+/// Unknown kinds are consumed and ignored. Returns `true` when the line is a `PD` opcode.
+pub fn apply_pd_line(line: &str, defaults: &mut PrimitiveDefaults) -> bool {
+    let line = line.trim();
+    if line.len() < 2 || !line[..2].eq_ignore_ascii_case("PD") {
+        return false;
+    }
+    let rest = &line[2..];
+    if !rest.is_empty() && !rest.as_bytes()[0].is_ascii_whitespace() {
+        return false;
+    }
+    let t = TokenCursor::new(rest);
+    let Some(kind) = t.get(0) else {
+        return true;
+    };
+    match kind.to_ascii_uppercase().as_str() {
+        "LI" => {
+            if let Some(v) = t.i32(1) {
+                defaults.line_stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+        }
+        "BE" => {
+            if let Some(v) = t.i32(1) {
+                defaults.bezier_stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+        }
+        "RV" => {
+            if let Some(v) = t.i32(1) {
+                defaults.rect.stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.rect.filled = v != 0;
+            }
+        }
+        "EV" => {
+            if let Some(v) = t.i32(1) {
+                defaults.ellipse.stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.ellipse.filled = v != 0;
+            }
+        }
+        "PV" => {
+            if let Some(v) = t.i32(1) {
+                defaults.poly.stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.poly.filled = v != 0;
+            }
+        }
+        "TY" => {
+            if let Some(v) = t.i32(1) {
+                defaults.text.sy = v.clamp(1, 100);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.text.sx = v.clamp(1, 100);
+            }
+            if let Some(v) = t.i32(3) {
+                defaults.text.style = v.clamp(0, i32::MAX) as u32;
+            }
+            let font = t.rest_string(4);
+            if !font.is_empty() {
+                defaults.text.font = font_from_token(&font);
+            }
+        }
+        "PL" => {
+            if let Some(v) = t.i32(1) {
+                defaults.track_width = v.max(1);
+            }
+        }
+        "PA" => {
+            if let Some(v) = t.i32(1) {
+                defaults.pad.dx = v.max(1);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.pad.dy = v.max(1);
+            }
+            if let Some(v) = t.i32(3) {
+                defaults.pad.hole = v.max(0);
+            }
+            if let Some(v) = t.i32(4) {
+                defaults.pad.style = PadStyle::from_i32(v);
+            }
+        }
+        _ => {}
+    }
+    true
 }
 
 /// `CN <component-name>` — MC name (`045`, `project.C01`). Empty / malformed → `None`.
@@ -517,6 +614,7 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
     let mut current = 0usize;
     let mut headered = vec![false];
     let mut take_project_ps = true;
+    let mut saw_pd = false;
     for raw in body.lines() {
         let line = raw.trim();
         if line.is_empty() {
@@ -568,8 +666,12 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
             }
             continue;
         }
+        if apply_pd_line(line, &mut doc.defaults) {
+            saw_pd = true;
+            continue;
+        }
         if let Some(settings) = parse_ps_line(line) {
-            doc.apply_ps_to_sheet(current, settings, take_project_ps);
+            doc.apply_ps_to_sheet(current, settings, take_project_ps, !saw_pd);
             take_project_ps = false;
             continue;
         }

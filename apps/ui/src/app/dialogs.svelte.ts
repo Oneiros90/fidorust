@@ -8,7 +8,7 @@ export type DialogState =
 	| { kind: 'saveLocalComponents'; purpose: 'save' | 'shareFcd' | 'shareLink' }
 	| { kind: 'about' }
 	| { kind: 'technologies' }
-	| { kind: 'projectSettings' }
+	| { kind: 'projectSettings'; section?: import('./projectSettings').ProjectSettingsSection }
 	| { kind: 'sheetSettings' }
 	| { kind: 'deleteSheet'; index: number }
 	| { kind: 'properties'; fields: PropFormField[] }

@@ -421,9 +421,23 @@ impl App {
     }
 
     #[wasm_bindgen]
-    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, stroke: i32, filled: bool) {
+    pub fn apply_drawing_defaults(&mut self, json: &str) -> Result<(), JsValue> {
+        #[derive(serde::Deserialize)]
+        struct DrawingDefaultsIn {
+            hide_component_origin: bool,
+            defaults: fidorust_core::PrimitiveDefaults,
+        }
+        let s: DrawingDefaultsIn = serde_json::from_str(json).map_err(to_js)?;
         self.editor
-            .apply_drawing_defaults(hide_origin, stroke, filled);
+            .apply_drawing_defaults(s.hide_component_origin, s.defaults);
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn apply_sheet_settings(&mut self, json: &str) -> Result<(), JsValue> {
+        let s: fidorust_core::ProjectSettings = serde_json::from_str(json).map_err(to_js)?;
+        self.editor.apply_sheet_settings(s);
+        Ok(())
     }
 
     #[wasm_bindgen]

@@ -261,7 +261,7 @@ fn export_svg_includes_ellipses_and_smart_holes() {
         &ed.doc().layers,
         ed.libs(),
         4.0,
-        ed.doc().stroke_width(),
+        &ed.doc().defaults,
     );
     assert!(svg.contains("<ellipse"), "round figures must be exported");
     assert!(
@@ -329,7 +329,7 @@ fn export_svg_keeps_beziers_and_text_native() {
         &ed.doc().layers,
         ed.libs(),
         2.0,
-        ed.doc().stroke_width(),
+        &ed.doc().defaults,
     );
     assert!(svg.contains("<path d=\"M "), "beziers must be cubic paths");
     assert!(svg.contains(" C "), "beziers must keep control points");

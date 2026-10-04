@@ -14,15 +14,12 @@ mod view_overlay;
 pub use tools::{DblClickAction, EditorError, TextEditSession, Tool};
 pub use view_overlay::{CanvasPalette, OverlayMarker, OverlayStroke, OverlayTint, ViewOverlay};
 
-use crate::consts::{
-    DEFAULT_PAD_DX, DEFAULT_PAD_DY, DEFAULT_PAD_HOLE, DEFAULT_TRACK_WIDTH, FIT_MARGIN, GRID_MAX,
-    GRID_MIN, SNAP_MAX, SNAP_MIN,
-};
-use crate::document::{Document, ProjectSettings};
+use crate::consts::{FIT_MARGIN, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN};
+use crate::document::{Document, PrimitiveDefaults, ProjectSettings};
 use crate::geom::Point;
 use crate::layers::LayerId;
 use crate::library::LibrarySet;
-use crate::primitive::{PadStyle, Primitive};
+use crate::primitive::Primitive;
 use crate::properties::{apply_selection_props, selection_props_form, PropPatch};
 
 use components::ComponentEditSession;
@@ -82,11 +79,6 @@ pub struct Editor {
     selected: Vec<usize>,
     zoom: f32,
     pan: (f32, f32),
-    track_width: i32,
-    pad_dx: i32,
-    pad_dy: i32,
-    pad_hole: i32,
-    pad_style: PadStyle,
     pending_component: Option<String>,
     pending_rotations: u8,
     /// Ghost-at-cursor and RMB rotate only while a library drag is in progress.
@@ -132,11 +124,6 @@ impl Editor {
             selected: Vec::new(),
             zoom: 4.0,
             pan: (FIT_MARGIN, FIT_MARGIN),
-            track_width: DEFAULT_TRACK_WIDTH,
-            pad_dx: DEFAULT_PAD_DX,
-            pad_dy: DEFAULT_PAD_DY,
-            pad_hole: DEFAULT_PAD_HOLE,
-            pad_style: PadStyle::Oval,
             pending_component: None,
             pending_rotations: 0,
             pending_follow: false,
@@ -173,11 +160,16 @@ impl Editor {
     }
 
     pub fn set_filled(&mut self, on: bool) {
-        if self.doc.default_filled == on {
+        if self.doc.defaults.rect.filled == on
+            && self.doc.defaults.ellipse.filled == on
+            && self.doc.defaults.poly.filled == on
+        {
             return;
         }
         self.push_project_undo();
-        self.doc.default_filled = on;
+        self.doc.defaults.rect.filled = on;
+        self.doc.defaults.ellipse.filled = on;
+        self.doc.defaults.poly.filled = on;
     }
 
     pub fn set_layer(&mut self, n: u8) {
@@ -248,7 +240,28 @@ impl Editor {
     }
 
     pub fn filled(&self) -> bool {
-        self.doc.default_filled
+        self.filled_for_tool(self.draft.as_ref().map(|d| d.tool).unwrap_or(self.tool))
+    }
+
+    pub fn filled_for_tool(&self, tool: Tool) -> bool {
+        match tool {
+            Tool::Rect => self.doc.defaults.rect.filled,
+            Tool::Ellipse => self.doc.defaults.ellipse.filled,
+            Tool::Poly => self.doc.defaults.poly.filled,
+            _ => self.doc.defaults.rect.filled,
+        }
+    }
+
+    pub fn stroke_width_for_tool(&self, tool: Tool) -> f32 {
+        let h = match tool {
+            Tool::Line => self.doc.defaults.line_stroke_hundredths,
+            Tool::Bezier => self.doc.defaults.bezier_stroke_hundredths,
+            Tool::Rect => self.doc.defaults.rect.stroke_hundredths,
+            Tool::Ellipse => self.doc.defaults.ellipse.stroke_hundredths,
+            Tool::Poly => self.doc.defaults.poly.stroke_hundredths,
+            _ => self.doc.defaults.line_stroke_hundredths,
+        };
+        h as f32 / 100.0
     }
 
     pub fn hover(&self) -> Option<Point> {
@@ -313,8 +326,8 @@ impl Editor {
             return;
         }
         let project_changed = self.doc.hide_component_origin != s.hide_component_origin
-            || self.doc.stroke_hundredths != s.stroke_hundredths
-            || self.doc.default_filled != s.default_filled;
+            || self.doc.defaults.line_stroke_hundredths != s.stroke_hundredths
+            || self.doc.defaults.rect.filled != s.default_filled;
         if project_changed {
             self.push_project_undo();
         } else {
@@ -323,20 +336,29 @@ impl Editor {
         self.doc.apply_project_settings(s);
     }
 
-    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, stroke: i32, filled: bool) {
-        if self.doc.hide_component_origin == hide_origin
-            && self.doc.stroke_hundredths == stroke
-            && self.doc.default_filled == filled
+    pub fn apply_sheet_settings(&mut self, s: ProjectSettings) {
+        let s = s.clamped();
+        let sheet = self.doc();
+        if sheet.grid == s.grid
+            && sheet.grid_y == s.grid_y
+            && sheet.snap == s.snap
+            && sheet.snap_y == s.snap_y
+            && sheet.show_grid == s.show_grid
+            && sheet.snap_enable == s.snap_enable
         {
             return;
         }
+        self.push_undo();
+        self.doc.apply_sheet_settings(s);
+    }
+
+    pub fn apply_drawing_defaults(&mut self, hide_origin: bool, defaults: PrimitiveDefaults) {
+        let defaults = defaults.clamped();
+        if self.doc.hide_component_origin == hide_origin && self.doc.defaults == defaults {
+            return;
+        }
         self.push_project_undo();
-        self.doc.hide_component_origin = hide_origin;
-        self.doc.stroke_hundredths = stroke.clamp(
-            crate::consts::STROKE_HUNDREDTHS_MIN,
-            crate::consts::STROKE_HUNDREDTHS_MAX,
-        );
-        self.doc.default_filled = filled;
+        self.doc.apply_drawing_defaults(hide_origin, defaults);
     }
 
     pub fn pending_rotations(&self) -> u8 {
@@ -386,7 +408,12 @@ impl Editor {
     }
 
     pub fn set_track_width(&mut self, w: i32) {
-        self.track_width = w.max(1);
+        let w = w.max(1);
+        if self.doc.defaults.track_width == w {
+            return;
+        }
+        self.push_project_undo();
+        self.doc.defaults.track_width = w;
     }
 
     pub fn set_pending_text(&mut self, text: String) {

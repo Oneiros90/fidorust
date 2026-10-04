@@ -3,7 +3,15 @@ LD 0 0 0 1 Schematic
 LD 0 0 192 1 PCB copper side
 LD 0 192 0 1 PCB component side
 LD 0 150 150 1 Silkscreen
-PS 5 5 5 5 1 1 1 25 0
+PD LI 25
+PD BE 25
+PD RV 25 0
+PD EV 25 0
+PD PV 25 0
+PD TY 4 3 0 *
+PD PL 4
+PD PA 18 18 8 0
+PS 5 5 5 5 1 1 1
 TE 10 50 220V
 LI 75 25 105 25
 LI 75 55 105 55

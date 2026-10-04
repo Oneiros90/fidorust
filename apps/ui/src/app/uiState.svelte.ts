@@ -8,6 +8,7 @@ export class UiState {
 		| { kind: 'libraryItem'; x: number; y: number; stem: string; key: string }
 		| { kind: 'library'; x: number; y: number; stem: string }
 		| { kind: 'sheet'; x: number; y: number; pane: number; index: number }
+		| { kind: 'tool'; x: number; y: number; toolId: string }
 		| null
 	>(null);
 	rightTab = $state<'layers' | 'library'>('layers');

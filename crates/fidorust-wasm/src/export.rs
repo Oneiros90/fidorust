@@ -15,6 +15,6 @@ pub(crate) fn export_svg(app: &App, opts_json: &str) -> String {
         &layers,
         app.editor.libs(),
         opts.margin_lu.max(0.0),
-        app.editor.doc().stroke_width(),
+        &app.editor.doc().defaults,
     )
 }

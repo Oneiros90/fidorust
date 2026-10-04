@@ -31,8 +31,7 @@ pub struct StatusDto {
     pub snap_enable: bool,
     pub show_grid: bool,
     pub hide_component_origin: bool,
-    pub stroke_hundredths: i32,
-    pub default_filled: bool,
+    pub defaults: fidorust_core::PrimitiveDefaults,
     pub pending_component: Option<String>,
     pub duplicate_drag: bool,
     pub hover_hit: bool,
@@ -84,8 +83,7 @@ impl StatusDto {
             snap_enable: ed.snap_enable(),
             show_grid: ed.show_grid(),
             hide_component_origin: ed.hide_component_origin(),
-            stroke_hundredths: ed.doc().stroke_hundredths,
-            default_filled: ed.filled(),
+            defaults: ed.doc().defaults.clone(),
             pending_component: if ed.tool() == Tool::Component {
                 ed.pending_component().map(str::to_string)
             } else {

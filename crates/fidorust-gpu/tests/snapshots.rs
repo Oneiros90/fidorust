@@ -39,7 +39,7 @@ fn snapshot_tessellate_alimentatore() {
         &ed.doc().layers,
         ed.libs(),
         8.0,
-        ed.doc().stroke_width(),
+        &ed.doc().defaults,
     );
     common::assert_snapshot("alimentatore_full_export.svg", &export);
 }

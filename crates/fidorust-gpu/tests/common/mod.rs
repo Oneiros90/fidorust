@@ -18,6 +18,7 @@ pub fn tessellate_input<'a>(ed: &'a Editor, viewport: Option<(f32, f32)>) -> Tes
         hover: ed.hover_index(),
         editing_text: ed.editing_text(),
         hide_component_origin: ed.hide_component_origin(),
+        defaults: &ed.doc().defaults,
         stroke_w: ed.doc().stroke_width(),
         zoom: ed.zoom(),
         pan: ed.pan(),
@@ -54,12 +55,7 @@ pub fn tessellate_editor(ed: &Editor) -> Scene {
 }
 
 pub fn tessellate_export(ed: &Editor, layers: &fidorust_core::LayerSet) -> Scene {
-    fidorust_gpu::tessellate_export(
-        &ed.doc().primitives,
-        layers,
-        ed.libs(),
-        ed.doc().stroke_width(),
-    )
+    fidorust_gpu::tessellate_export(&ed.doc().primitives, layers, ed.libs(), &ed.doc().defaults)
 }
 
 pub fn assert_snapshot(name: &str, actual: &str) {

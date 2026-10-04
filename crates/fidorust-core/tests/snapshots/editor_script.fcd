@@ -4,7 +4,15 @@ LD 9 8 7 1 Schematic
 LD 0 192 0 1 PCB component side
 LD 0 150 150 1 Silkscreen
 LD 192 0 0 1 Layer 5
-PS 5 5 1 5 1 1 1 25 0
+PD LI 25
+PD BE 25
+PD RV 25 0
+PD EV 25 0
+PD PV 25 0
+PD TY 4 3 0 *
+PD PL 4
+PD PA 18 18 8 0
+PS 5 5 1 5 1 1 1
 LI 78 78 78 68
 RP 68 78 58 70 1
 EV 78 58 68 48 1

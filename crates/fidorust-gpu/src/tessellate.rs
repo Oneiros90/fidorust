@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use fidorust_core::consts::{AABB_CULL_EXPAND, VIEW_CULL_MARGIN};
+use fidorust_core::document::PrimitiveDefaults;
 use fidorust_core::geom::{bezier_point, Point};
 use fidorust_core::layers::{LayerId, LayerSet};
 use fidorust_core::library::LibrarySet;
@@ -16,7 +17,6 @@ use lyon::path::Path;
 use lyon::tessellation::FillRule;
 
 use crate::draft::add_draft;
-use crate::scene::DEFAULT_STROKE_W;
 use crate::shapes::{path_ellipse, path_rect, path_rounded_rect, rect_corners};
 use crate::theme::Rgb;
 use fidorust_core::ViewOverlay;
@@ -276,6 +276,18 @@ fn color(
     }
 }
 
+fn draft_stroke_width(defaults: &PrimitiveDefaults, tool: Option<Tool>) -> f32 {
+    let h = match tool {
+        Some(Tool::Line) => defaults.line_stroke_hundredths,
+        Some(Tool::Bezier) => defaults.bezier_stroke_hundredths,
+        Some(Tool::Rect) => defaults.rect.stroke_hundredths,
+        Some(Tool::Ellipse) => defaults.ellipse.stroke_hundredths,
+        Some(Tool::Poly) => defaults.poly.stroke_hundredths,
+        _ => defaults.line_stroke_hundredths,
+    };
+    h as f32 / 100.0
+}
+
 #[allow(clippy::too_many_arguments)]
 fn add_prim(
     scene: &mut Scene,
@@ -283,7 +295,7 @@ fn add_prim(
     layers: &LayerSet,
     selected: bool,
     hovered: bool,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
     theme: CanvasTheme,
     overlay: Option<&ViewOverlay>,
     top_index: Option<usize>,
@@ -292,6 +304,7 @@ fn add_prim(
         return;
     }
     let rgb = color(layers, p, selected, hovered, theme, overlay, top_index);
+    let stroke_w = defaults.stroke_width_for(p);
     fidorust_core::dispatch_primitive!(p, |q| q.tessellate(scene, rgb, selected, stroke_w));
 }
 
@@ -311,13 +324,13 @@ fn group_by_layer<T>(
 }
 
 pub fn tessellate_primitives(prims: &[Primitive], layers: &LayerSet) -> Scene {
-    tessellate_primitives_with_stroke(prims, layers, DEFAULT_STROKE_W)
+    tessellate_primitives_with_defaults(prims, layers, &PrimitiveDefaults::default())
 }
 
-fn tessellate_primitives_with_stroke(
+fn tessellate_primitives_with_defaults(
     prims: &[Primitive],
     layers: &LayerSet,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
 ) -> Scene {
     let mut scene = Scene::default();
     let n = layers.len();
@@ -330,7 +343,7 @@ fn tessellate_primitives_with_stroke(
                 layers,
                 false,
                 false,
-                stroke_w,
+                defaults,
                 CanvasTheme::Light,
                 None,
                 None,
@@ -349,6 +362,7 @@ pub struct TessellateInput<'a> {
     pub hover: Option<usize>,
     pub editing_text: Option<usize>,
     pub hide_component_origin: bool,
+    pub defaults: &'a PrimitiveDefaults,
     pub stroke_w: f32,
     pub zoom: f32,
     pub pan: (f32, f32),
@@ -367,13 +381,13 @@ pub fn tessellate_export(
     prims: &[Primitive],
     layers: &LayerSet,
     libs: &LibrarySet,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
 ) -> Scene {
     let expanded: Vec<Primitive> = prims
         .iter()
         .flat_map(|p| fidorust_core::library::expand_primitive(p, libs))
         .collect();
-    tessellate_primitives_with_stroke(&expanded, layers, stroke_w)
+    tessellate_primitives_with_defaults(&expanded, layers, defaults)
 }
 
 pub fn tessellate(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene {
@@ -434,14 +448,15 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 layers,
                 *sel,
                 *hov,
-                input.stroke_w,
+                input.defaults,
                 input.theme,
                 overlay,
                 *top,
             );
         }
         if input.layer.index() == li {
-            add_draft(&mut scene, draft, preview, input.stroke_w);
+            let draft_stroke = draft_stroke_width(input.defaults, draft.tool);
+            add_draft(&mut scene, draft, preview, draft_stroke);
         }
         scene.mark_layer_end();
     }
@@ -476,7 +491,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                     layers,
                     sel,
                     hov,
-                    input.stroke_w,
+                    input.defaults,
                     input.theme,
                     Some(overlay),
                     Some(i),

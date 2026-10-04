@@ -2,7 +2,7 @@
 
 use super::Editor;
 use crate::consts::UNDO_CAP;
-use crate::document::Sheet;
+use crate::document::{PrimitiveDefaults, Sheet};
 use crate::layers::LayerSet;
 use crate::library::Library;
 
@@ -16,8 +16,7 @@ pub(super) enum HistoryOp {
 pub(super) struct ProjectSnap {
     pub layers: LayerSet,
     pub hide_component_origin: bool,
-    pub stroke_hundredths: i32,
-    pub default_filled: bool,
+    pub defaults: PrimitiveDefaults,
     pub pcb_mode: bool,
     pub common_node_keys: Vec<String>,
     pub sheets: Vec<Sheet>,
@@ -38,8 +37,7 @@ impl Editor {
         HistoryOp::Project(ProjectSnap {
             layers: self.doc.layers.clone(),
             hide_component_origin: self.doc.hide_component_origin,
-            stroke_hundredths: self.doc.stroke_hundredths,
-            default_filled: self.doc.default_filled,
+            defaults: self.doc.defaults.clone(),
             pcb_mode: self.doc.pcb_mode,
             common_node_keys: self.doc.common_node_keys.clone(),
             sheets: self.doc.sheets.clone(),
@@ -65,8 +63,7 @@ impl Editor {
                     || self.libs.user_libraries_cloned() != snap.user;
                 self.doc.layers = snap.layers;
                 self.doc.hide_component_origin = snap.hide_component_origin;
-                self.doc.stroke_hundredths = snap.stroke_hundredths;
-                self.doc.default_filled = snap.default_filled;
+                self.doc.defaults = snap.defaults;
                 self.doc.pcb_mode = snap.pcb_mode;
                 self.doc.common_node_keys = snap.common_node_keys;
                 self.doc.sheets = snap.sheets;

@@ -1,5 +1,35 @@
 /** Mirror of fidorust-wasm json DTOs. */
 
+export type ShapeDefaults = {
+	stroke_hundredths: number;
+	filled: boolean;
+};
+
+export type TextDefaults = {
+	sy: number;
+	sx: number;
+	style: number;
+	font: string;
+};
+
+export type PadDefaults = {
+	dx: number;
+	dy: number;
+	hole: number;
+	style: 'Oval' | 'Rectangular' | 'RoundedRect';
+};
+
+export type PrimitiveDefaults = {
+	line_stroke_hundredths: number;
+	bezier_stroke_hundredths: number;
+	rect: ShapeDefaults;
+	ellipse: ShapeDefaults;
+	poly: ShapeDefaults;
+	text: TextDefaults;
+	track_width: number;
+	pad: PadDefaults;
+};
+
 export type Status = {
 	tool: string;
 	layer: number;
@@ -23,8 +53,7 @@ export type Status = {
 	snap_enable: boolean;
 	show_grid: boolean;
 	hide_component_origin: boolean;
-	stroke_hundredths: number;
-	default_filled: boolean;
+	defaults: PrimitiveDefaults;
 	pending_component: string | null;
 	duplicate_drag: boolean;
 	hover_hit: boolean;
@@ -120,8 +149,16 @@ export const defaultStatus = (): Status => ({
 	snap_enable: true,
 	show_grid: true,
 	hide_component_origin: true,
-	stroke_hundredths: 25,
-	default_filled: false,
+	defaults: {
+		line_stroke_hundredths: 25,
+		bezier_stroke_hundredths: 25,
+		rect: { stroke_hundredths: 25, filled: false },
+		ellipse: { stroke_hundredths: 25, filled: false },
+		poly: { stroke_hundredths: 25, filled: false },
+		text: { sy: 4, sx: 3, style: 0, font: 'Courier Prime' },
+		track_width: 4,
+		pad: { dx: 18, dy: 18, hole: 8, style: 'Oval' }
+	},
 	pending_component: null,
 	duplicate_drag: false,
 	hover_hit: false,

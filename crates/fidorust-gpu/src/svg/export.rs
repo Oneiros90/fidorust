@@ -1,5 +1,6 @@
 //! Native-primitive SVG export (file export path).
 
+use fidorust_core::document::PrimitiveDefaults;
 use fidorust_core::geom::Aabb;
 use fidorust_core::layers::LayerSet;
 use fidorust_core::library::{expand_primitive, LibrarySet};
@@ -19,7 +20,7 @@ pub fn export_svg(
     layers: &LayerSet,
     libs: &LibrarySet,
     margin: f32,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
 ) -> String {
     let margin = margin.max(0.0);
     let expanded: Vec<Primitive> = prims
@@ -59,7 +60,7 @@ pub fn export_svg(
         &holes,
         layers,
         n as isize - 1,
-        stroke_w,
+        defaults,
     );
     out.push_str("</svg>");
     out
@@ -136,7 +137,7 @@ fn write_prim_layers(
     holes: &[Vec<PadHole>],
     layers: &LayerSet,
     i: isize,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
 ) {
     if i < 0 {
         return;
@@ -145,15 +146,15 @@ fn write_prim_layers(
     let layer_holes = holes.get(i).map(Vec::as_slice).unwrap_or(&[]);
     if !layer_holes.is_empty() {
         out.push_str(&format!(r#"<g mask="url(#export-h{i})">"#));
-        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, stroke_w);
-        write_layer_prims(out, by_layer, layers, i, stroke_w);
+        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, defaults);
+        write_layer_prims(out, by_layer, layers, i, defaults);
         for hole in layer_holes {
             write_hole_marker(out, hole);
         }
         out.push_str("</g>");
     } else {
-        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, stroke_w);
-        write_layer_prims(out, by_layer, layers, i, stroke_w);
+        write_prim_layers(out, by_layer, holes, layers, i as isize - 1, defaults);
+        write_layer_prims(out, by_layer, layers, i, defaults);
     }
 }
 
@@ -162,17 +163,18 @@ fn write_layer_prims(
     by_layer: &[Vec<Primitive>],
     layers: &LayerSet,
     i: usize,
-    stroke_w: f32,
+    defaults: &PrimitiveDefaults,
 ) {
     let Some(prims) = by_layer.get(i) else {
         return;
     };
     for p in prims {
-        write_prim(out, p, &rgb_u8(layers.color(p.layer())), stroke_w);
+        write_prim(out, p, &rgb_u8(layers.color(p.layer())), defaults);
     }
 }
 
-fn write_prim(out: &mut String, p: &Primitive, color: &str, stroke_w: f32) {
+fn write_prim(out: &mut String, p: &Primitive, color: &str, defaults: &PrimitiveDefaults) {
+    let stroke_w = defaults.stroke_width_for(p);
     match p {
         Primitive::Line(l) => write_line_prim(out, l, color, stroke_w),
         Primitive::Rect(r) => write_rect_prim(out, r, color, stroke_w),
