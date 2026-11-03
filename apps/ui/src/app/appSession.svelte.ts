@@ -29,7 +29,6 @@ import type { ExportFormat, ExportPreviewOpts } from '../lib/exportOptions';
 import { startDesktopFileBridge } from '../lib/desktopFiles';
 import { loadUserLibraries } from '../lib/userLibraries';
 import { ensureLegacyPaneApi } from '../lib/wasmCompat';
-import type { SaveLibraryPolicy } from './fileOps';
 import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 
 export type { RecentEntry };
@@ -580,23 +579,6 @@ export class AppSession {
 	confirmDeleteLibrary = (stem: string) => comps.confirmDeleteLibrary(this, stem);
 
 	cancelDeleteLibrary = () => comps.cancelDeleteLibrary(this);
-
-	confirmSaveLocalComponents = (policy: SaveLibraryPolicy) => {
-		const d = this.dialogs.dialog;
-		if (d?.kind !== 'saveLocalComponents') return;
-		const purpose = d.purpose;
-		this.dialogs.close();
-		if (policy !== 'keep') {
-			this.engine?.mutate((app) => app.apply_save_library_policy(policy));
-		}
-		if (purpose === 'save') files.finishSaveFcd(this, 'keep');
-		else if (purpose === 'shareFcd') share.openShareFcdWithPolicy(this, 'keep');
-		else void share.openShareLinkWithPolicy(this, 'keep');
-	};
-
-	cancelSaveLocalComponents = () => {
-		if (this.dialogs.dialog?.kind === 'saveLocalComponents') this.dialogs.close();
-	};
 
 	getCursor = (name: string) => getCursor(this, name);
 	armLibraryDrag = (name: string, e: PointerEvent) => this.#libraryDrag.arm(name, e);

@@ -97,10 +97,11 @@ pub(crate) fn enter_component_edit(app: &mut App, stem: &str, key: &str) -> bool
 }
 
 pub(crate) fn edit_selected_component(app: &mut App) -> bool {
-    let Some((stem, key)) = app.editor.selected_editable_component() else {
-        return false;
-    };
-    enter_component_edit(app, &stem, &key)
+    let ok = app.editor.edit_selected_component();
+    if ok {
+        app.editor.fit_view(app.width, app.height);
+    }
+    ok
 }
 
 pub(crate) fn save_component_edit(app: &mut App) -> bool {

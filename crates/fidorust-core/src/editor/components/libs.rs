@@ -2,10 +2,11 @@
 
 use super::Editor;
 use crate::library::{
-    document_uses_user_library_components, explode_library_instances,
-    explode_user_components_in_document, fold_user_components_in_document,
-    has_equivalent_user_refs_to_rewrite, primitives_use_nonzero_layers,
-    rewrite_equivalent_user_refs_to_project, Library, LibraryKind, PROJECT_STEM,
+    document_has_raw_user_library_refs, document_uses_user_library_components,
+    explode_library_instances, explode_user_components_in_document,
+    fold_user_components_in_document, has_equivalent_user_refs_to_rewrite,
+    primitives_use_nonzero_layers, rewrite_equivalent_user_refs_to_project, Library, LibraryKind,
+    PROJECT_STEM,
 };
 use crate::SaveLibraryPolicy;
 
@@ -140,31 +141,47 @@ impl Editor {
         true
     }
 
-    /// Make fold/explode stick in the open document, not only in one serialized copy.
-    pub fn apply_save_library_policy(&mut self, policy: SaveLibraryPolicy) {
-        if matches!(policy, SaveLibraryPolicy::Keep) {
-            return;
-        }
-        if !document_uses_user_library_components(self.persistent_doc(), &self.libs) {
-            return;
+    /// Copy leftover user-library refs into the project library (live document).
+    pub fn fold_user_library_components(&mut self) -> bool {
+        if !document_has_raw_user_library_refs(self.persistent_doc(), &self.libs) {
+            return false;
         }
         self.push_project_undo();
         let mut doc = self.persistent_doc().clone();
-        match policy {
-            SaveLibraryPolicy::FoldIntoProject => {
-                fold_user_components_in_document(&mut doc, &mut self.libs);
-            }
-            SaveLibraryPolicy::ExplodeUser => {
-                explode_user_components_in_document(&mut doc, &mut self.libs);
-            }
-            SaveLibraryPolicy::Keep => {}
-        }
+        fold_user_components_in_document(&mut doc, &mut self.libs);
         if let Some(session) = &mut self.component_edit {
             session.saved_doc = doc;
         } else {
             self.doc = doc;
         }
         self.bump_libs_rev();
+        true
+    }
+
+    /// Make fold/explode stick in the open document, not only in one serialized copy.
+    pub fn apply_save_library_policy(&mut self, policy: SaveLibraryPolicy) {
+        match policy {
+            SaveLibraryPolicy::Keep => {}
+            SaveLibraryPolicy::FoldIntoProject => {
+                self.fold_user_library_components();
+            }
+            SaveLibraryPolicy::ExplodeUser => {
+                if !document_uses_user_library_components(self.persistent_doc(), &self.libs)
+                    && !document_has_raw_user_library_refs(self.persistent_doc(), &self.libs)
+                {
+                    return;
+                }
+                self.push_project_undo();
+                let mut doc = self.persistent_doc().clone();
+                explode_user_components_in_document(&mut doc, &mut self.libs);
+                if let Some(session) = &mut self.component_edit {
+                    session.saved_doc = doc;
+                } else {
+                    self.doc = doc;
+                }
+                self.bump_libs_rev();
+            }
+        }
     }
 
     pub fn local_component_uses_nonzero_layers(&self, stem: &str, key: &str) -> bool {

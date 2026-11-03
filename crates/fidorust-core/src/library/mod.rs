@@ -15,10 +15,12 @@ pub use rewrite::{
 };
 pub(crate) use save::has_equivalent_user_refs_to_rewrite;
 pub use save::{
-    document_uses_user_library_components, drawing_uses_user_library_components,
-    explode_user_components_for_save, explode_user_components_in_document,
-    fold_user_components_in_document, fold_user_components_into_project,
-    rewrite_equivalent_user_refs_to_project,
+    document_has_raw_user_library_refs, document_uses_user_library_components,
+    drawing_uses_user_library_components, embed_user_component, embed_user_component_in_document,
+    embed_user_components_in_primitives, explode_user_components_for_save,
+    explode_user_components_in_document, fold_user_components_in_document,
+    fold_user_components_into_project, is_raw_user_library_ref,
+    primitives_have_raw_user_library_refs, rewrite_equivalent_user_refs_to_project,
 };
 
 use crate::primitive::Primitive;

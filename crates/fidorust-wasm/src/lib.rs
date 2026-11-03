@@ -344,14 +344,14 @@ impl App {
                 self.editor.delete_selected();
                 true
             }
-    "Escape" => {
-            let pad_link = self.editor.tool() == Tool::PadLink;
-            self.editor.cancel_draft();
-            if pad_link {
-                let _ = fidorust_core::ext::dispatch(&mut self.editor, "padlink.cancel", "{}");
+            "Escape" => {
+                let pad_link = self.editor.tool() == Tool::PadLink;
+                self.editor.cancel_draft();
+                if pad_link {
+                    let _ = fidorust_core::ext::dispatch(&mut self.editor, "padlink.cancel", "{}");
+                }
+                true
             }
-            true
-        }
             "a" | "A" if meta => {
                 self.editor.select_all();
                 true

@@ -111,7 +111,7 @@ LI 100 100 120 100
 
 The drawing parser **stops** at a following `[FIDOLIB` / `[FIDOCAD` header, so the library primitives are not ingested into the sheet. The `[FIDOLIB project]` block is written so FidoRust keeps the definitions; older tools skip the unknown header.
 
-User-library instances stay as `MC` references (`stem.key`) and are not stored in the file. If the drawing uses those components when you save, FidoRust asks whether to keep the local references, copy the definitions into the project library for that save only, or write the expanded primitives.
+User libraries are a catalog on this device. Placing a user-library component copies its definition (and nested user-library children) into the project library; the drawing stores `MC project.KEY`. Built-in components stay as live `MC` references. Opening an older file that still names `stem.key` resolves it from the loaded user libraries; saving copies those definitions into the project block.
 
 ---
 

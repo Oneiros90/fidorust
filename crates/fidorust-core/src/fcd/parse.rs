@@ -598,7 +598,9 @@ fn is_fidoext_pcb(line: &str) -> bool {
 }
 
 fn ends_pcb_ext(line: &str) -> bool {
-    parse_fidosheet_header(line).is_some() || is_section_header(line) || line.trim().starts_with('[')
+    parse_fidosheet_header(line).is_some()
+        || is_section_header(line)
+        || line.trim().starts_with('[')
 }
 
 fn parse_lk_line(line: &str) -> Option<PadLink> {

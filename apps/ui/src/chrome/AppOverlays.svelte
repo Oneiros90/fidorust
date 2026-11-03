@@ -11,7 +11,6 @@
 	import DeleteLayerDialog from '../dialogs/DeleteLayerDialog.svelte';
 	import DeleteComponentDialog from '../dialogs/DeleteComponentDialog.svelte';
 	import DeleteLibraryDialog from '../dialogs/DeleteLibraryDialog.svelte';
-	import SaveLocalComponentsDialog from '../dialogs/SaveLocalComponentsDialog.svelte';
 	import PropertiesDialog from '../dialogs/PropertiesDialog.svelte';
 	import ShareFcdDialog from '../dialogs/ShareFcdDialog.svelte';
 	import ShareLinkDialog from '../dialogs/ShareLinkDialog.svelte';
@@ -89,8 +88,6 @@
 	<DeleteComponentDialog />
 {:else if dialog?.kind === 'deleteLibrary'}
 	<DeleteLibraryDialog />
-{:else if dialog?.kind === 'saveLocalComponents'}
-	<SaveLocalComponentsDialog />
 {:else if dialog?.kind === 'about'}
 	<AboutDialog />
 {:else if dialog?.kind === 'technologies'}

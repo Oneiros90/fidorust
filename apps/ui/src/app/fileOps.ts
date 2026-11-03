@@ -6,8 +6,6 @@ import type { App as WasmApp } from '../wasm/fidorust_wasm.js';
 import type { AppSession } from './appSession.svelte';
 import type { UnresolvedComponent } from './dialogs.svelte';
 
-export type SaveLibraryPolicy = 'keep' | 'fold' | 'explode';
-
 export type OpenedFileKind = 'fcd' | 'fcl';
 
 export type OpenedBytes = {
@@ -209,20 +207,16 @@ export function saveFile(s: AppSession) {
 		s.saveComponentEdit();
 		return;
 	}
-	if (s.engine.query((app) => app.uses_user_library_components())) {
-		s.dialogs.open({ kind: 'saveLocalComponents', purpose: 'save' });
-		return;
-	}
-	s.engine.mutate((app) => app.canonicalize_project_component_refs());
-	finishSaveFcd(s, 'keep');
+	s.engine.mutate((app) => app.apply_save_library_policy('fold'));
+	finishSaveFcd(s);
 }
 
-export function finishSaveFcd(s: AppSession, policy: SaveLibraryPolicy) {
+export function finishSaveFcd(s: AppSession) {
 	if (!s.engine) return;
 	const name = s.fileHandleName.endsWith('.fcd') ? s.fileHandleName : 'drawing.fcd';
 	download(
 		name,
-		s.engine.query((app) => app.save_fcd_with_policy(policy)),
+		s.engine.query((app) => app.save_fcd()),
 		'text/plain'
 	);
 	s.fileHandleName = name;

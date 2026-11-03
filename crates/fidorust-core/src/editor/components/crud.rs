@@ -2,12 +2,33 @@
 
 use super::is_valid_component_key;
 use super::Editor;
+use crate::document::Document;
 use crate::library::{
-    component_full_name, explode_named_everywhere, rewrite_component_names,
-    rewrite_component_names_in_libs, translate_primitives, ComponentDef,
+    component_full_name, embed_user_component, embed_user_components_in_primitives,
+    explode_named_everywhere, rewrite_component_names, rewrite_component_names_in_libs,
+    translate_primitives, ComponentDef, LibraryKind, LibrarySet,
 };
 use crate::primitive::{ComponentRef, Primitive};
 use crate::COMPONENT_ORIGIN;
+
+fn document_references_name(doc: &Document, name: &str) -> bool {
+    doc.sheets.iter().any(|sheet| {
+        sheet
+            .primitives
+            .iter()
+            .any(|p| matches!(p, Primitive::Component(c) if c.name.eq_ignore_ascii_case(name)))
+    })
+}
+
+fn project_nested_references_name(libs: &LibrarySet, name: &str) -> bool {
+    libs.project().is_some_and(|project| {
+        project.components.iter().any(|def| {
+            def.primitives
+                .iter()
+                .any(|p| matches!(p, Primitive::Component(c) if c.name.eq_ignore_ascii_case(name)))
+        })
+    })
+}
 
 impl Editor {
     pub fn create_component_from_selection(
@@ -55,11 +76,27 @@ impl Editor {
         });
         self.bump_libs_rev();
         let full = component_full_name(stem, &key);
+        let dest_is_local = self
+            .libs
+            .library(stem)
+            .is_some_and(|l| l.kind == LibraryKind::Local);
+        let instance_name = if dest_is_local {
+            embed_user_component(&full, &mut self.libs).unwrap_or(full)
+        } else {
+            let mut body = self
+                .libs
+                .library(stem)
+                .and_then(|l| l.find(&key))
+                .map(|d| d.primitives.clone())
+                .unwrap_or_default();
+            embed_user_components_in_primitives(&mut body, &mut self.libs);
+            full
+        };
         remaining.push(Primitive::Component(ComponentRef {
             pos: origin,
             rotations: 0,
             mirrored: false,
-            name: full,
+            name: instance_name,
             standard: false,
             layer: self.layer,
             use_component_layers: false,
@@ -188,6 +225,8 @@ impl Editor {
         if !src_writable || !dest_writable {
             return None;
         }
+        let src_kind = self.libs.library(stem)?.kind;
+        let dest_kind = self.libs.library(dest_stem)?.kind;
         let def = self.libs.library(stem)?.find(key)?.clone();
         self.push_project_undo();
         let dest_key = {
@@ -202,17 +241,34 @@ impl Editor {
         let old_full = component_full_name(stem, key);
         let new_full = component_full_name(dest_stem, &dest_key);
         moved.key = dest_key.clone();
-        if let Some(src) = self.libs.library_mut(stem) {
-            src.components.retain(|c| !c.key.eq_ignore_ascii_case(key));
+        let keep_src = src_kind == LibraryKind::Project
+            && dest_kind == LibraryKind::Local
+            && (document_references_name(&self.doc, &old_full)
+                || project_nested_references_name(&self.libs, &old_full));
+        if !keep_src {
+            if let Some(src) = self.libs.library_mut(stem) {
+                src.components.retain(|c| !c.key.eq_ignore_ascii_case(key));
+            }
         }
         if let Some(dest) = self.libs.library_mut(dest_stem) {
             dest.components.push(moved);
         }
-        if old_full != new_full {
+        if dest_kind == LibraryKind::Local && src_kind == LibraryKind::Project {
+            // Catalog copy: drawing instances stay on project.*
+        } else if old_full != new_full {
             self.doc.for_each_primitives_mut(|prims| {
                 rewrite_component_names(prims, &old_full, &new_full);
             });
             rewrite_component_names_in_libs(&mut self.libs, &old_full, &new_full);
+            if dest_kind == LibraryKind::Project {
+                let mut body = self
+                    .libs
+                    .library(dest_stem)
+                    .and_then(|l| l.find(&dest_key))
+                    .map(|d| d.primitives.clone())
+                    .unwrap_or_default();
+                embed_user_components_in_primitives(&mut body, &mut self.libs);
+            }
         }
         self.bump_libs_rev();
         Some(dest_key)

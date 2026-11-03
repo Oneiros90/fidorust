@@ -181,16 +181,8 @@ export const en = {
 	deleteProjectLibraryBody:
 		'All instances of project components will be split, and the project library will be emptied.',
 	deleteUserLibraryTitle: 'Delete library',
-	deleteUserLibraryBody: 'The library will be removed. Instances in the drawing will be split.',
-	saveLocalComponentsTitle: 'Local components in use',
-	saveLocalComponentsBody:
-		'This drawing uses components from user libraries that are not stored in the FCD file.',
-	saveKeepLocal: 'Keep local components',
-	saveKeepLocalHint: 'Leave them as local references. They will not be written into the file.',
-	saveFoldProject: 'Save into the project',
-	saveFoldProjectHint: 'Copy them into the project library and point the drawing at those copies.',
-	saveExplodeLocal: 'Split them',
-	saveExplodeLocalHint: 'Write the expanded primitives instead of component references.',
+	deleteUserLibraryBody:
+		'The library will be removed. Instances that still point at it will be split.',
 	editingComponent: 'Editing component',
 	saveComponent: 'Save',
 	cancelComponentEdit: 'Cancel',

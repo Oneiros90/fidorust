@@ -3,9 +3,11 @@
 use std::collections::HashMap;
 
 use super::expand::expand_primitive;
-use super::rewrite::{rewrite_component_names_in_libs_map, rewrite_component_names_map};
+use super::rewrite::rewrite_component_names_map;
 use super::{component_full_name, ComponentDef, LibraryKind, LibrarySet, PROJECT_STEM};
 use crate::document::Document;
+use crate::geom::Point;
+use crate::layers::LayerId;
 use crate::primitive::{ComponentRef, Primitive};
 
 fn primitives_use_user_components(prims: &[Primitive], libs: &LibrarySet) -> bool {
@@ -140,21 +142,117 @@ fn install_folded_copies(libs: &mut LibrarySet, used: Vec<UsedUserDef>) -> HashM
     map
 }
 
-fn fold_groups(groups: &mut [&mut [Primitive]], libs: &mut LibrarySet) {
-    libs.ensure_user_libraries();
-    let owned: Vec<Vec<Primitive>> = groups.iter().map(|g| g.to_vec()).collect();
-    let slices: Vec<&[Primitive]> = owned.iter().map(|g| g.as_slice()).collect();
-    let used = collect_groups(&slices, libs);
-    let map = install_folded_copies(libs, used);
-    for group in groups.iter_mut() {
-        rewrite_component_names_map(group, &map);
+fn rewrite_project_component_names(libs: &mut LibrarySet, map: &HashMap<String, String>) {
+    if map.is_empty() {
+        return;
     }
-    rewrite_component_names_in_libs_map(libs, &map);
+    if let Some(project) = libs.project_mut() {
+        for def in &mut project.components {
+            rewrite_component_names_map(&mut def.primitives, map);
+        }
+    }
 }
 
-/// Copy used user-library defs into the project library (clone). Rewrites MC names.
-pub fn fold_user_components_into_project(doc_prims: &mut [Primitive], libs: &mut LibrarySet) {
-    fold_groups(&mut [doc_prims], libs);
+fn seed_component(name: &str) -> Primitive {
+    Primitive::Component(ComponentRef {
+        pos: Point::new(0, 0),
+        rotations: 0,
+        mirrored: false,
+        name: name.to_string(),
+        standard: false,
+        layer: LayerId(0),
+        use_component_layers: true,
+    })
+}
+
+/// True when `mc_name` resolves to a user-library definition (ignoring equivalent project copies).
+pub fn is_raw_user_library_ref(mc_name: &str, libs: &LibrarySet) -> bool {
+    libs.lookup_raw(mc_name)
+        .is_some_and(|(lib, _)| lib.kind == LibraryKind::Local)
+}
+
+pub fn primitives_have_raw_user_library_refs(prims: &[Primitive], libs: &LibrarySet) -> bool {
+    prims
+        .iter()
+        .any(|p| matches!(p, Primitive::Component(c) if is_raw_user_library_ref(&c.name, libs)))
+}
+
+/// True when the drawing or a project-library body still names a user-library component.
+pub fn document_has_raw_user_library_refs(doc: &Document, libs: &LibrarySet) -> bool {
+    if doc
+        .sheets
+        .iter()
+        .any(|s| primitives_have_raw_user_library_refs(&s.primitives, libs))
+    {
+        return true;
+    }
+    libs.project().is_some_and(|project| {
+        project
+            .components
+            .iter()
+            .any(|def| primitives_have_raw_user_library_refs(&def.primitives, libs))
+    })
+}
+
+/// Copy the user-library defs reachable from `seed` into the project library.
+/// Rewrites nested names in the project library only; user libraries stay untouched.
+fn embed_user_tree(libs: &mut LibrarySet, seed: &[Primitive]) -> HashMap<String, String> {
+    libs.ensure_user_libraries();
+    let mut used = Vec::new();
+    collect_used_user_defs(seed, libs, &mut used);
+    if used.is_empty() {
+        return HashMap::new();
+    }
+    let map = install_folded_copies(libs, used);
+    rewrite_project_component_names(libs, &map);
+    map
+}
+
+/// Copy one user-library component (and nested user children) into the project library.
+/// Returns the `project.KEY` name. User libraries are not rewritten.
+pub fn embed_user_component(mc_name: &str, libs: &mut LibrarySet) -> Option<String> {
+    if !is_raw_user_library_ref(mc_name, libs) {
+        return None;
+    }
+    let seed = [seed_component(mc_name)];
+    let map = embed_user_tree(libs, &seed);
+    map.get(&mc_name.to_ascii_lowercase()).cloned()
+}
+
+/// Copy user-library defs used by `prims` into the project library and rewrite those names.
+pub fn embed_user_components_in_primitives(prims: &mut [Primitive], libs: &mut LibrarySet) -> bool {
+    let map = embed_user_tree(libs, prims);
+    if map.is_empty() {
+        return false;
+    }
+    rewrite_component_names_map(prims, &map);
+    true
+}
+
+/// Copy one user-library component into the project library and retarget every instance in `doc`.
+pub fn embed_user_component_in_document(
+    doc: &mut Document,
+    libs: &mut LibrarySet,
+    mc_name: &str,
+) -> Option<String> {
+    let seed = [seed_component(mc_name)];
+    let map = embed_user_tree(libs, &seed);
+    if map.is_empty() {
+        return None;
+    }
+    for sheet in &mut doc.sheets {
+        rewrite_component_names_map(&mut sheet.primitives, &map);
+    }
+    map.get(&mc_name.to_ascii_lowercase()).cloned()
+}
+
+/// Copy used user-library defs into the project library (clone). Rewrites MC names
+/// in `doc_prims` and the project library only.
+pub fn fold_user_components_into_project(
+    doc_prims: &mut [Primitive],
+    libs: &mut LibrarySet,
+) -> bool {
+    embed_user_components_in_primitives(doc_prims, libs)
 }
 
 fn explode_local_refs(prims: &mut Vec<Primitive>, libs: &LibrarySet) {
@@ -192,16 +290,23 @@ pub fn document_uses_user_library_components(doc: &Document, libs: &LibrarySet) 
         || drawing_uses_user_library_components(&[], libs)
 }
 
-pub fn fold_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) {
+pub fn fold_user_components_in_document(doc: &mut Document, libs: &mut LibrarySet) -> bool {
     libs.ensure_user_libraries();
     let owned: Vec<Vec<Primitive>> = doc.sheets.iter().map(|s| s.primitives.clone()).collect();
     let slices: Vec<&[Primitive]> = owned.iter().map(|p| p.as_slice()).collect();
     let used = collect_groups(&slices, libs);
+    if used.is_empty() {
+        return false;
+    }
     let map = install_folded_copies(libs, used);
+    if map.is_empty() {
+        return false;
+    }
     for sheet in &mut doc.sheets {
         rewrite_component_names_map(&mut sheet.primitives, &map);
     }
-    rewrite_component_names_in_libs_map(libs, &map);
+    rewrite_project_component_names(libs, &map);
+    true
 }
 
 /// Point drawing and project-library refs at `project.KEY` when lookup already

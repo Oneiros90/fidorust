@@ -182,17 +182,8 @@ export const it: typeof en = {
 	deleteProjectLibraryBody:
 		'Tutte le istanze dei componenti di progetto verranno splittate e la libreria di progetto verrà svuotata.',
 	deleteUserLibraryTitle: 'Elimina libreria',
-	deleteUserLibraryBody: 'La libreria verrà rimossa. Le istanze nel disegno verranno splittate.',
-	saveLocalComponentsTitle: 'Componenti locali in uso',
-	saveLocalComponentsBody:
-		'Questo disegno usa componenti delle librerie utente che non vengono salvati nel file FCD.',
-	saveKeepLocal: 'Mantieni i componenti locali',
-	saveKeepLocalHint: 'Restano riferimenti locali. Non verranno scritti nel file.',
-	saveFoldProject: 'Salva nel progetto',
-	saveFoldProjectHint:
-		'Vengono copiati nella libreria di progetto e il disegno passa a quelle copie.',
-	saveExplodeLocal: 'Splittali',
-	saveExplodeLocalHint: 'Nel file vengono scritte le primitive espanse al posto dei riferimenti.',
+	deleteUserLibraryBody:
+		'La libreria verrà rimossa. Le istanze che la puntano ancora verranno splittate.',
 	editingComponent: 'Modifica componente',
 	saveComponent: 'Salva',
 	cancelComponentEdit: 'Annulla',

@@ -9,6 +9,18 @@ use fidorust_core::serialize::{
 use fidorust_core::{ComponentDef, ComponentRef, Library, LibrarySet};
 use fidorust_core::{Editor, LayerId, Line, Point, Primitive, Tool};
 
+fn mc(name: &str) -> Primitive {
+    Primitive::Component(ComponentRef {
+        pos: Point::new(10, 10),
+        rotations: 0,
+        mirrored: false,
+        name: name.into(),
+        standard: !name.contains('.'),
+        layer: LayerId(0),
+        use_component_layers: true,
+    })
+}
+
 #[test]
 fn create_from_selection_replaces_with_instance() {
     let mut ed = Editor::new(builtin_libraries());
@@ -74,20 +86,25 @@ fn save_keeps_project_refs() {
 }
 
 #[test]
-fn save_keeps_local_refs() {
+fn save_literal_keeps_legacy_user_refs() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc_mut().insert(Primitive::line(
-        Point::new(5, 5),
-        Point::new(15, 5),
-        LayerId(0),
-    ));
-    ed.set_selected(vec![0]);
-    let stem = ed.create_user_library("Mine");
-    ed.create_component_from_selection(&stem, "Box").unwrap();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(5, 5),
+            Point::new(15, 5),
+            LayerId(0),
+        )],
+    });
+    ed.import_library(user);
+    ed.doc_mut().insert(mc("Mine.C01"));
     let text = serialize_document(ed.doc(), Some(ed.libs()));
-    assert!(text.contains(&format!("{stem}.C01")), "{text}");
+    assert!(text.contains("Mine.C01"), "{text}");
+    assert!(!text.contains("[FIDOLIB project]"), "{text}");
     assert!(!text.contains("[FIDOLIB Mine]"), "{text}");
-    assert!(!text.contains(&format!("[FIDOLIB {stem}]")), "{text}");
 }
 
 #[test]
@@ -127,7 +144,7 @@ fn delete_component_splits_instances() {
 }
 
 #[test]
-fn move_component_rewrites_refs() {
+fn move_project_component_to_user_library_keeps_instances() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(Primitive::line(
         Point::new(0, 0),
@@ -140,11 +157,11 @@ fn move_component_rewrites_refs() {
         .unwrap();
     let dest = ed.create_user_library("Device");
     let dest_key = ed.move_component(PROJECT_STEM, &key, &dest).unwrap();
-    assert!(ed.libs().project().unwrap().find(&key).is_none());
+    assert!(ed.libs().project().unwrap().find(&key).is_some());
     assert!(ed.libs().library(&dest).unwrap().find(&dest_key).is_some());
     match &ed.doc().primitives[0] {
-        Primitive::Component(c) => assert_eq!(c.name, format!("{dest}.{dest_key}")),
-        other => panic!("expected component, got {other:?}"),
+        Primitive::Component(c) => assert_eq!(c.name, format!("project.{key}")),
+        other => panic!("expected project instance, got {other:?}"),
     }
 }
 
@@ -465,9 +482,10 @@ fn rename_user_library_keeps_fcd_prefix() {
     assert_eq!(lib.name, "Other");
     assert_eq!(lib.file_stem, "Mine");
     match &ed.doc().primitives[0] {
-        Primitive::Component(c) => assert_eq!(c.name, "Mine.C01"),
-        other => panic!("expected component, got {other:?}"),
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected project instance, got {other:?}"),
     }
+    assert!(ed.libs().library(&stem).unwrap().find("C01").is_some());
 }
 
 #[test]
@@ -484,7 +502,10 @@ fn remove_user_library_explodes_and_drops_slot() {
     assert!(ed.remove_user_library(&stem));
     assert!(ed.libs().library(&stem).is_none());
     assert_eq!(ed.doc().primitives.len(), 1);
-    assert!(!ed.doc().primitives[0].is_component());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("project copy must remain, got {other:?}"),
+    }
 }
 
 #[test]
@@ -507,22 +528,27 @@ fn clear_project_library_explodes_and_keeps_slot() {
 #[test]
 fn save_policy_fold_copies_into_project() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc_mut().insert(Primitive::line(
-        Point::new(5, 5),
-        Point::new(15, 5),
-        LayerId(0),
-    ));
-    ed.set_selected(vec![0]);
-    let stem = ed.create_user_library("Mine");
-    ed.create_component_from_selection(&stem, "Box").unwrap();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(5, 5),
+            Point::new(15, 5),
+            LayerId(0),
+        )],
+    });
+    ed.import_library(user);
+    ed.doc_mut().insert(mc("Mine.C01"));
     assert!(ed.uses_user_library_components());
     let text =
         serialize_document_with_policy(ed.doc(), ed.libs(), SaveLibraryPolicy::FoldIntoProject);
     assert!(text.contains("project.C01"), "{text}");
     assert!(text.contains("[FIDOLIB project]"), "{text}");
-    assert!(!text.contains(&format!("{stem}.C01")), "{text}");
+    assert!(!text.contains("Mine.C01"), "{text}");
     match &ed.doc().primitives[0] {
-        Primitive::Component(c) => assert_eq!(c.name, format!("{stem}.C01")),
+        Primitive::Component(c) => assert_eq!(c.name, "Mine.C01"),
         other => panic!("editor must stay local, got {other:?}"),
     }
     assert!(ed.libs().project().unwrap().components.is_empty());
@@ -531,14 +557,19 @@ fn save_policy_fold_copies_into_project() {
 #[test]
 fn save_policy_explode_writes_primitives() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc_mut().insert(Primitive::line(
-        Point::new(5, 5),
-        Point::new(15, 5),
-        LayerId(0),
-    ));
-    ed.set_selected(vec![0]);
-    let stem = ed.create_user_library("Mine");
-    ed.create_component_from_selection(&stem, "Box").unwrap();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(5, 5),
+            Point::new(15, 5),
+            LayerId(0),
+        )],
+    });
+    ed.import_library(user);
+    ed.doc_mut().insert(mc("Mine.C01"));
     let text = serialize_document_with_policy(ed.doc(), ed.libs(), SaveLibraryPolicy::ExplodeUser);
     assert!(!text.contains("MC "), "{text}");
     assert!(text.contains("LI "), "{text}");
@@ -891,14 +922,19 @@ fn import_fcd_refuses_while_editing_component() {
 #[test]
 fn fold_sticks_and_reopen_does_not_use_user_library() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.doc_mut().insert(Primitive::line(
-        Point::new(5, 5),
-        Point::new(15, 5),
-        LayerId(0),
-    ));
-    ed.set_selected(vec![0]);
-    let stem = ed.create_user_library("Mine");
-    ed.create_component_from_selection(&stem, "Box").unwrap();
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(5, 5),
+            Point::new(15, 5),
+            LayerId(0),
+        )],
+    });
+    ed.import_library(user);
+    ed.doc_mut().insert(mc("Mine.C01"));
     assert!(ed.uses_user_library_components());
     ed.apply_save_library_policy(SaveLibraryPolicy::FoldIntoProject);
     assert!(!ed.uses_user_library_components());
@@ -909,9 +945,9 @@ fn fold_sticks_and_reopen_does_not_use_user_library() {
     assert_eq!(ed.libs().project().unwrap().components.len(), 1);
     let text = serialize_document(ed.doc(), Some(ed.libs()));
     assert!(text.contains("project.C01"), "{text}");
-    assert!(!text.contains(&format!("{stem}.C01")), "{text}");
+    assert!(!text.contains("Mine.C01"), "{text}");
 
-    let user = ed.libs().library(&stem).unwrap().clone();
+    let user = ed.libs().library("Mine").unwrap().clone();
     let mut reopened = Editor::new(builtin_libraries());
     reopened.import_library(user);
     reopened.load_text(&text).unwrap();
@@ -1113,9 +1149,284 @@ fn selected_library_component_resolves_stdlib() {
 #[test]
 fn selected_library_component_rejects_mixed_selection() {
     let mut ed = Editor::new(builtin_libraries());
-    ed.load_text("[FIDOCAD]\nMC 50 50 0 0 080\nLI 0 0 10 0 0\n").unwrap();
+    ed.load_text("[FIDOCAD]\nMC 50 50 0 0 080\nLI 0 0 10 0 0\n")
+        .unwrap();
     ed.set_selected(vec![0, 1]);
     assert!(ed.selected_library_component().is_none());
     ed.set_selected(vec![1]);
     assert!(ed.selected_library_component().is_none());
+}
+
+fn user_box_lib() -> Library {
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "C01".into(),
+        name: "Box".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(0, 0),
+            Point::new(4, 0),
+            LayerId(0),
+        )],
+    });
+    user
+}
+
+#[test]
+fn create_from_selection_in_user_library_places_project_copy() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(5, 5),
+        Point::new(15, 5),
+        LayerId(0),
+    ));
+    ed.set_selected(vec![0]);
+    let stem = ed.create_user_library("Mine");
+    let created = ed.create_component_from_selection(&stem, "Box").unwrap();
+    assert_eq!(created.0, stem);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    assert!(ed.libs().library(&stem).unwrap().find("C01").is_some());
+    assert!(ed.libs().project().unwrap().find("C01").is_some());
+    assert!(!ed.uses_user_library_components());
+}
+
+#[test]
+fn place_user_component_copies_definition_and_nested_user_child() {
+    let mut ed = Editor::new(builtin_libraries());
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "DOT".into(),
+        name: "Dot".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(0, 0),
+            Point::new(2, 0),
+            LayerId(0),
+        )],
+    });
+    user.components.push(ComponentDef {
+        key: "PAR".into(),
+        name: "Parent".into(),
+        category: String::new(),
+        primitives: vec![
+            Primitive::Component(ComponentRef {
+                pos: Point::new(100, 100),
+                rotations: 0,
+                mirrored: false,
+                name: "Mine.DOT".into(),
+                standard: false,
+                layer: LayerId(0),
+                use_component_layers: true,
+            }),
+            Primitive::Component(ComponentRef {
+                pos: Point::new(120, 100),
+                rotations: 0,
+                mirrored: false,
+                name: "080".into(),
+                standard: true,
+                layer: LayerId(0),
+                use_component_layers: true,
+            }),
+        ],
+    });
+    ed.import_library(user);
+    ed.set_pending_component(Some("Mine.PAR".into()));
+    ed.insert_pending_component_at(Point::new(10, 10));
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.PAR"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    let user_par = ed.libs().library("Mine").unwrap().find("PAR").unwrap();
+    match &user_par.primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "Mine.DOT"),
+        other => panic!("user catalog must keep nested user ref, got {other:?}"),
+    }
+    match &user_par.primitives[1] {
+        Primitive::Component(c) => assert_eq!(c.name, "080"),
+        other => panic!("expected builtin child, got {other:?}"),
+    }
+    let project = ed.libs().project().unwrap();
+    assert!(project.find("PAR").is_some());
+    assert!(project.find("DOT").is_some());
+    let project_par = project.find("PAR").unwrap();
+    match &project_par.primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.DOT"),
+        other => panic!("expected copied nested user child, got {other:?}"),
+    }
+    match &project_par.primitives[1] {
+        Primitive::Component(c) => assert_eq!(c.name, "080"),
+        other => panic!("builtin child must stay a reference, got {other:?}"),
+    }
+}
+
+#[test]
+fn editing_user_library_does_not_change_placed_copy() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.set_pending_component(Some("Mine.C01".into()));
+    ed.insert_pending_component_at(Point::new(10, 10));
+    let original = ed.libs().project().unwrap().find("C01").unwrap().clone();
+    assert!(ed.enter_component_edit("Mine", "C01"));
+    ed.set_selected(vec![0]);
+    ed.delete_selected();
+    ed.doc_mut().insert(Primitive::line(
+        Point::new(0, 0),
+        Point::new(40, 0),
+        LayerId(0),
+    ));
+    assert!(ed.save_component_edit());
+    let project_def = ed.libs().project().unwrap().find("C01").unwrap();
+    assert_eq!(project_def.primitives, original.primitives);
+    ed.set_pending_component(Some("Mine.C01".into()));
+    ed.insert_pending_component_at(Point::new(40, 40));
+    let names: Vec<_> = ed
+        .doc()
+        .primitives
+        .iter()
+        .filter_map(|p| match p {
+            Primitive::Component(c) => Some(c.name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(names, ["project.C01", "project.C02"]);
+}
+
+#[test]
+fn open_legacy_user_ref_resolves_until_save_fold() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.load_text("[FIDOCAD]\nMC 10 10 0 0 Mine.C01\n").unwrap();
+    assert_eq!(ed.unresolved_component_count(), 0);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "Mine.C01"),
+        other => panic!("open must keep the user prefix, got {other:?}"),
+    }
+    assert!(ed.libs().project().unwrap().components.is_empty());
+    ed.apply_save_library_policy(SaveLibraryPolicy::FoldIntoProject);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("save fold must rewrite, got {other:?}"),
+    }
+    assert!(ed.libs().project().unwrap().find("C01").is_some());
+    let user_def = ed.libs().library("Mine").unwrap().find("C01").unwrap();
+    assert_eq!(user_def.primitives.len(), 1);
+}
+
+#[test]
+fn place_builtin_component_stays_reference() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_pending_component(Some("080".into()));
+    ed.insert_pending_component_at(Point::new(50, 50));
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => {
+            assert_eq!(c.name, "080");
+            assert!(c.standard);
+        }
+        other => panic!("expected stdlib instance, got {other:?}"),
+    }
+    assert!(ed.libs().project().unwrap().components.is_empty());
+}
+
+#[test]
+fn remove_user_library_explodes_legacy_refs() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.doc_mut().insert(mc("Mine.C01"));
+    assert!(ed.remove_user_library("Mine"));
+    assert!(ed.libs().library("Mine").is_none());
+    assert_eq!(ed.doc().primitives.len(), 1);
+    assert!(!ed.doc().primitives[0].is_component());
+}
+
+#[test]
+fn move_user_component_between_libraries_rewrites_legacy_refs() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.doc_mut().insert(mc("Mine.C01"));
+    let dest = ed.create_user_library("Other");
+    let dest_key = ed.move_component("Mine", "C01", &dest).unwrap();
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, format!("{dest}.{dest_key}")),
+        other => panic!("expected rewritten leftover ref, got {other:?}"),
+    }
+    assert!(ed.libs().library("Mine").unwrap().find("C01").is_none());
+}
+
+#[test]
+fn edit_selected_legacy_user_instance_embeds_into_project() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.doc_mut().insert(mc("Mine.C01"));
+    ed.set_selected(vec![0]);
+    assert!(ed.edit_selected_component());
+    assert_eq!(ed.editing_component(), Some(("project", "C01")));
+    assert!(ed.cancel_component_edit());
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected embedded project instance, got {other:?}"),
+    }
+}
+
+#[test]
+fn paste_user_component_embeds_into_project() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.import_library(user_box_lib());
+    ed.paste_primitives("[FIDOCAD]\nMC 10 10 0 0 Mine.C01\n")
+        .unwrap();
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.C01"),
+        other => panic!("expected pasted project copy, got {other:?}"),
+    }
+    assert!(ed.libs().project().unwrap().find("C01").is_some());
+}
+
+#[test]
+fn fold_does_not_rewrite_user_catalog_nested_names() {
+    let mut ed = Editor::new(builtin_libraries());
+    let mut user = Library::empty_user("Mine", "Mine");
+    user.components.push(ComponentDef {
+        key: "DOT".into(),
+        name: "Dot".into(),
+        category: String::new(),
+        primitives: vec![Primitive::line(
+            Point::new(0, 0),
+            Point::new(2, 0),
+            LayerId(0),
+        )],
+    });
+    user.components.push(ComponentDef {
+        key: "PAR".into(),
+        name: "Parent".into(),
+        category: String::new(),
+        primitives: vec![Primitive::Component(ComponentRef {
+            pos: Point::new(100, 100),
+            rotations: 0,
+            mirrored: false,
+            name: "Mine.DOT".into(),
+            standard: false,
+            layer: LayerId(0),
+            use_component_layers: true,
+        })],
+    });
+    ed.import_library(user);
+    ed.doc_mut().insert(mc("Mine.PAR"));
+    ed.apply_save_library_policy(SaveLibraryPolicy::FoldIntoProject);
+    match &ed.doc().primitives[0] {
+        Primitive::Component(c) => assert_eq!(c.name, "project.PAR"),
+        other => panic!("expected project instance, got {other:?}"),
+    }
+    match &ed
+        .libs()
+        .library("Mine")
+        .unwrap()
+        .find("PAR")
+        .unwrap()
+        .primitives[0]
+    {
+        Primitive::Component(c) => assert_eq!(c.name, "Mine.DOT"),
+        other => panic!("catalog nested ref must stay, got {other:?}"),
+    }
 }

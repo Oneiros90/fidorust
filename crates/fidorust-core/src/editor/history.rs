@@ -61,7 +61,11 @@ impl Editor {
 
     fn apply_op(&mut self, op: HistoryOp) {
         match op {
-            HistoryOp::Sheet { index, sheet, links } => {
+            HistoryOp::Sheet {
+                index,
+                sheet,
+                links,
+            } => {
                 if index < self.doc.sheets.len() {
                     self.doc.sheets[index] = sheet;
                 }

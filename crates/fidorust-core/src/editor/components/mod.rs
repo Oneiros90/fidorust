@@ -39,7 +39,14 @@ impl Editor {
         if prims.is_empty() {
             return Ok(());
         }
-        self.push_undo();
+        if crate::library::primitives_have_raw_user_library_refs(&prims, &self.libs) {
+            self.push_project_undo();
+            if crate::library::embed_user_components_in_primitives(&mut prims, &mut self.libs) {
+                self.bump_libs_rev();
+            }
+        } else {
+            self.push_undo();
+        }
         self.selected.clear();
         for mut p in prims.drain(..) {
             p.set_layer(self.doc.layers.clamp_id(p.layer()));
@@ -280,8 +287,16 @@ impl Editor {
     }
 
     pub fn insert_pending_component_at(&mut self, world: Point) -> Option<usize> {
-        let name = self.pending_component.clone()?;
-        self.push_undo();
+        let mut name = self.pending_component.clone()?;
+        if crate::library::is_raw_user_library_ref(&name, &self.libs) {
+            self.push_project_undo();
+            if let Some(folded) = crate::library::embed_user_component(&name, &mut self.libs) {
+                name = folded;
+                self.bump_libs_rev();
+            }
+        } else {
+            self.push_undo();
+        }
         let pt = self.snap_pt(world);
         let standard = self.libs.is_standard(&name);
         Some(self.doc.insert(Primitive::Component(ComponentRef {
@@ -312,6 +327,33 @@ impl Editor {
 
     pub fn set_pending_follow(&mut self, on: bool) {
         self.pending_follow = on && self.pending_component.is_some();
+    }
+
+    pub fn edit_selected_component(&mut self) -> bool {
+        if self.component_edit.is_some() {
+            return false;
+        }
+        let names = self.selected_component_keys();
+        if names.is_empty() {
+            return false;
+        }
+        let embed_names: Vec<String> = names
+            .into_iter()
+            .filter(|name| crate::library::is_raw_user_library_ref(name, &self.libs))
+            .collect();
+        if !embed_names.is_empty() {
+            self.push_project_undo();
+            let mut doc = self.doc.clone();
+            for name in &embed_names {
+                crate::library::embed_user_component_in_document(&mut doc, &mut self.libs, name);
+            }
+            self.doc = doc;
+            self.bump_libs_rev();
+        }
+        let Some((stem, key)) = self.selected_editable_component() else {
+            return false;
+        };
+        self.enter_component_edit(&stem, &key)
     }
 
     pub fn enter_component_edit(&mut self, stem: &str, key: &str) -> bool {
@@ -462,4 +504,3 @@ impl Editor {
 pub(super) fn is_valid_component_key(key: &str) -> bool {
     !key.is_empty() && !key.contains(['.', '[', ']']) && !key.chars().any(char::is_whitespace)
 }
-
