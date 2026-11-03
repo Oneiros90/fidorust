@@ -368,7 +368,7 @@ impl App {
                 self.editor.rotate_selected();
                 true
             }
-            "m" | "M" if meta => {
+            "s" | "S" if !meta => {
                 self.editor.mirror_selected();
                 true
             }

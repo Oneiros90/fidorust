@@ -59,6 +59,15 @@ export const APP_SHORTCUTS: Shortcut[] = [
 		}
 	},
 	{
+		key: 'm',
+		meta: true,
+		when: (app) => app.status.selected > 0,
+		run: (app, e) => {
+			e.preventDefault();
+			app.createComponentFromSelection('project');
+		}
+	},
+	{
 		key: 'Enter',
 		alt: true,
 		when: (app) => app.status.selected > 0,

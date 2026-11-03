@@ -61,6 +61,7 @@
 		{#each writableLibs as lib (lib.stem)}
 			<MenuItem
 				label={lib.stem === 'project' ? app.t.createInProject : lib.title}
+				shortcut={lib.stem === 'project' ? 'Ctrl+M' : undefined}
 				disabled={!hasSelection}
 				onclick={() => app.createComponentFromSelection(lib.stem)}
 			/>

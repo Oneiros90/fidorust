@@ -400,6 +400,8 @@ export class AppSession {
 		if (e.defaultPrevented) return;
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('input, textarea, select, [contenteditable]')) return;
+		runShortcuts(this, e, APP_SHORTCUTS);
+		if (e.defaultPrevented) return;
 		const meta = e.metaKey || e.ctrlKey;
 		if (this.engine?.query((app) => app.key(e.key, meta))) {
 			e.preventDefault();
@@ -408,7 +410,6 @@ export class AppSession {
 			});
 			this.engine.refresh();
 		}
-		runShortcuts(this, e, APP_SHORTCUTS);
 	};
 
 	onDragOver = files.onDragOver;
