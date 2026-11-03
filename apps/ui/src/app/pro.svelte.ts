@@ -26,9 +26,13 @@ export class ProSession {
 	wasmPro = $state(false);
 	loading = $state(false);
 	circuitOn = $state(false);
+	stageKey = $state(0);
 	lastResult = $state<string | null>(null);
 	mountOverlay = $state.raw<ProPack['mount'] | null>(null);
 	private pack: ProPack | null = null;
+	private stageMount: ProPack['mountStage'] | null = null;
+	private padLinkHit: ((clientX: number, clientY: number) => boolean) | null = null;
+	private padLinkSeq = 0;
 	private unsubRefresh: (() => void) | null = null;
 	private pendingCircuit = false;
 	private embeddedPro = false;
@@ -39,18 +43,42 @@ export class ProSession {
 		return PRO_PURCHASE_URL;
 	}
 
-	host = (): ProHost => ({
-		t: {
-			proActive: this.app.t.proActive,
-			proActiveBody: this.app.t.proActiveBody,
-			proDeactivate: this.app.t.proDeactivate,
-			close: this.app.t.close
-		},
-		deactivate: () => void this.deactivate(),
-		exit: () => this.exit(),
-		extCommand: (name, payload) => this.app.engine?.extCommand(name, payload) ?? '{"ok":false}',
-		subscribeRefresh: (cb) => this.app.engine?.subscribeRefresh(cb) ?? (() => {})
-	});
+	host = (): ProHost => {
+		const session = this;
+		return {
+			t: {
+				proActive: this.app.t.proActive,
+				proActiveBody: this.app.t.proActiveBody,
+				proDeactivate: this.app.t.proDeactivate,
+				close: this.app.t.close,
+				get delete() {
+					return session.app.t.delete;
+				}
+			},
+			deactivate: () => void this.deactivate(),
+			exit: () => this.exit(),
+			extCommand: (name, payload) => this.app.engine?.extCommand(name, payload) ?? '{"ok":false}',
+			subscribeRefresh: (cb) => this.app.engine?.subscribeRefresh(cb) ?? (() => {}),
+			bindPadLinkContext: (fn) => {
+				const seq = ++this.padLinkSeq;
+				this.padLinkHit = fn;
+				return () => {
+					if (this.padLinkSeq === seq) this.padLinkHit = null;
+				};
+			}
+		};
+	};
+
+	padLinkContext = (clientX: number, clientY: number) => this.padLinkHit?.(clientX, clientY) ?? false;
+
+	stageAttach = (node: HTMLElement) => {
+		const mount = this.stageMount;
+		if (!mount) return;
+		const release = mount(node, this.host());
+		return () => {
+			release();
+		};
+	};
 
 	overlayAttach = (node: HTMLElement) => {
 		const mount = this.mountOverlay;
@@ -70,6 +98,8 @@ export class ProSession {
 	adoptPack = (pack: ProPack) => {
 		this.pack = pack;
 		this.mountOverlay = pack.mount;
+		this.stageMount = pack.mountStage ?? null;
+		this.stageKey += 1;
 		this.bindEngine();
 	};
 
@@ -136,6 +166,9 @@ export class ProSession {
 		this.pendingCircuit = false;
 		this.active = false;
 		this.mountOverlay = null;
+		this.stageMount = null;
+		this.padLinkHit = null;
+		this.stageKey += 1;
 		this.pack = null;
 		this.unsubRefresh?.();
 		this.unsubRefresh = null;
@@ -198,6 +231,9 @@ export class ProSession {
 			return true;
 		} catch (err) {
 			this.mountOverlay = null;
+			this.stageMount = null;
+			this.padLinkHit = null;
+			this.stageKey += 1;
 			this.pack = null;
 			if (!wasPro) await this.app.restoreFreeEngine();
 			this.wasmPro = this.app.engine?.capabilities().pro ?? false;

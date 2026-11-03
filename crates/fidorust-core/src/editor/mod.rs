@@ -12,7 +12,9 @@ mod view;
 mod view_overlay;
 
 pub use tools::{DblClickAction, EditorError, TextEditSession, Tool};
-pub use view_overlay::{CanvasPalette, OverlayMarker, OverlayStroke, OverlayTint, ViewOverlay};
+pub use view_overlay::{
+    CanvasPalette, OverlayMarker, OverlayPad, OverlayStroke, OverlayTint, ViewOverlay,
+};
 
 use crate::consts::{FIT_MARGIN, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN};
 use crate::document::{Document, PrimitiveDefaults, ProjectSettings};
@@ -88,8 +90,8 @@ pub struct Editor {
     editing_text: Option<usize>,
     undo: Vec<HistoryOp>,
     redo: Vec<HistoryOp>,
-    /// Pre-move / pre-handle snapshot of one sheet; committed on pointer_up if it changed.
-    drag_checkpoint: Option<(usize, crate::document::Sheet)>,
+    /// Pre-move / pre-handle snapshot of one sheet and the pad-link list.
+    drag_checkpoint: Option<(usize, crate::document::Sheet, Vec<crate::document::PadLink>)>,
     /// Layer index of an in-progress color drag; consecutive updates share one undo frame.
     layer_color_edit: Option<usize>,
     draft: Option<Draft>,
@@ -151,11 +153,15 @@ impl Editor {
     }
 
     pub fn set_tool(&mut self, tool: Tool) {
+        let prev = self.tool;
         self.tool = tool;
         self.cancel_draft();
         if tool != Tool::Component {
             self.pending_component = None;
             self.pending_follow = false;
+        }
+        if prev == Tool::PadLink && tool != Tool::PadLink {
+            let _ = crate::ext::dispatch(self, "padlink.cancel", "{}");
         }
     }
 
@@ -501,6 +507,7 @@ impl Editor {
                 p.set_layer(self.doc.layers.clamp_id(p.layer()));
             }
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
         self.push_undo();
         for (idx, &i) in self.selected.iter().enumerate() {
             if let Some(slot) = self.doc.primitives.get_mut(i) {
@@ -509,6 +516,7 @@ impl Editor {
                 }
             }
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
         Ok(true)
     }
 

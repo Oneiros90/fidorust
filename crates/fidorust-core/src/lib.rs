@@ -13,12 +13,12 @@ pub mod primitive;
 pub mod properties;
 
 pub use document::{
-    default_sheet_name, sheet_copy_name, Document, PadDefaults, PrimitiveDefaults, ProjectSettings,
-    ShapeDefaults, Sheet, TextDefaults, DEFAULT_SHEET_NAME,
+    default_sheet_name, sheet_copy_name, Document, PadDefaults, PadLink, PrimitiveDefaults,
+    ProjectSettings, ShapeDefaults, Sheet, TextDefaults, DEFAULT_SHEET_NAME,
 };
 pub use editor::{
-    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker, OverlayStroke,
-    OverlayTint, PaneState, TextEditSession, Tool, ViewOverlay,
+    CanvasPalette, CanvasTheme, DblClickAction, Editor, EditorError, OverlayMarker, OverlayPad,
+    OverlayStroke, OverlayTint, PaneState, TextEditSession, Tool, ViewOverlay,
 };
 pub use fcd::{
     parse_document, parse_document_with_project_library, parse_library, serialize_document,

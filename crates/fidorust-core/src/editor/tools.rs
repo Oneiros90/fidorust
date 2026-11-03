@@ -19,6 +19,9 @@ pub enum Tool {
     Zoom,
     Pan,
     Ruler,
+    /// Pro-only gesture. The public editor stores the tool id and does not
+    /// place geometry; the private module owns the behaviour.
+    PadLink,
 }
 
 impl Tool {
@@ -42,6 +45,7 @@ impl Tool {
             Self::Zoom => "zoom",
             Self::Pan => "pan",
             Self::Ruler => "ruler",
+            Self::PadLink => "pad-link",
         }
     }
 
@@ -72,6 +76,7 @@ impl std::str::FromStr for Tool {
             "zoom" => Self::Zoom,
             "pan" => Self::Pan,
             "ruler" => Self::Ruler,
+            "pad-link" => Self::PadLink,
             "select" => Self::Select,
             _ => return Err(()),
         })

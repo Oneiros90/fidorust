@@ -124,6 +124,7 @@ impl Editor {
                             index: hit.index,
                             handle: h,
                         });
+                        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
                     } else {
                         self.begin_drag_checkpoint();
                         self.drag = Some(Drag::Move {
@@ -132,6 +133,7 @@ impl Editor {
                             duplicate: false,
                         });
                         crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragBegin);
+                        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
                     }
                 } else {
                     self.begin_marquee(screen, shift);
@@ -176,6 +178,7 @@ impl Editor {
             Tool::Zoom => {
                 self.zoom = (self.zoom * ZOOM_TOOL_FACTOR).min(ZOOM_MAX_WHEEL);
             }
+            Tool::PadLink => {}
             Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack | Tool::Ruler => {
                 if let Some(d) = self.draft.as_mut() {
                     Self::set_draft_endpoint(d, pt);
@@ -235,6 +238,7 @@ impl Editor {
                     }
                     if !duplicate {
                         crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragChange);
+                        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryChange);
                     }
                 }
             }
@@ -243,6 +247,7 @@ impl Editor {
                 if let Some(p) = self.doc.primitives.get_mut(i) {
                     p.set_control_point(h, pt);
                 }
+                crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryChange);
             }
             Some(Drag::Pan { start_screen, pan0 }) => {
                 self.pan = (
@@ -274,6 +279,7 @@ impl Editor {
             self.apply_marquee_hits();
         }
         let was_move_drag = matches!(&self.drag, Some(Drag::Move { .. }));
+        let was_handle_drag = matches!(&self.drag, Some(Drag::Handle { .. }));
         match self.drag.take() {
             Some(Drag::Marquee { .. }) => {
                 self.drag_checkpoint = None;
@@ -295,6 +301,9 @@ impl Editor {
         }
         if was_move_drag {
             crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragEnd);
+        }
+        if was_move_drag || was_handle_drag {
+            crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
         }
         self.commit_drag_checkpoint();
         if let Some(d) = self.draft.take() {

@@ -2,13 +2,17 @@
 
 use super::Editor;
 use crate::consts::UNDO_CAP;
-use crate::document::{PrimitiveDefaults, Sheet};
+use crate::document::{PadLink, PrimitiveDefaults, Sheet};
 use crate::layers::LayerSet;
 use crate::library::Library;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum HistoryOp {
-    Sheet { index: usize, sheet: Sheet },
+    Sheet {
+        index: usize,
+        sheet: Sheet,
+        links: Vec<PadLink>,
+    },
     Project(ProjectSnap),
 }
 
@@ -19,6 +23,8 @@ pub(super) struct ProjectSnap {
     pub defaults: PrimitiveDefaults,
     pub pcb_mode: bool,
     pub common_node_groups: Vec<Vec<String>>,
+    pub pad_links: Vec<PadLink>,
+    pub pcb_ext_lines: Vec<String>,
     pub sheets: Vec<Sheet>,
     pub project: Library,
     pub user: Vec<Library>,
@@ -30,6 +36,7 @@ impl Editor {
         HistoryOp::Sheet {
             index,
             sheet: self.doc.sheets[index].clone(),
+            links: self.doc.pad_links.clone(),
         }
     }
 
@@ -40,6 +47,8 @@ impl Editor {
             defaults: self.doc.defaults.clone(),
             pcb_mode: self.doc.pcb_mode,
             common_node_groups: self.doc.common_node_groups.clone(),
+            pad_links: self.doc.pad_links.clone(),
+            pcb_ext_lines: self.doc.pcb_ext_lines.clone(),
             sheets: self.doc.sheets.clone(),
             project: self
                 .libs
@@ -52,10 +61,11 @@ impl Editor {
 
     fn apply_op(&mut self, op: HistoryOp) {
         match op {
-            HistoryOp::Sheet { index, sheet } => {
+            HistoryOp::Sheet { index, sheet, links } => {
                 if index < self.doc.sheets.len() {
                     self.doc.sheets[index] = sheet;
                 }
+                self.doc.pad_links = links;
                 self.clear_sheet_selections(index);
             }
             HistoryOp::Project(snap) => {
@@ -66,6 +76,8 @@ impl Editor {
                 self.doc.defaults = snap.defaults;
                 self.doc.pcb_mode = snap.pcb_mode;
                 self.doc.common_node_groups = snap.common_node_groups;
+                self.doc.pad_links = snap.pad_links;
+                self.doc.pcb_ext_lines = snap.pcb_ext_lines;
                 self.doc.sheets = snap.sheets;
                 if self.doc.sheets.is_empty() {
                     self.doc.sheets.push(Sheet::default());
@@ -82,10 +94,15 @@ impl Editor {
         }
     }
 
-    /// Geometry / grid-snap of the view sheet.
+    /// Geometry / grid-snap of the view sheet, plus the current pad-link list.
     pub(super) fn push_undo(&mut self) {
         self.layer_color_edit = None;
         self.push_undo_op(self.capture_sheet());
+    }
+
+    /// Snapshot before a pad-link edit that does not otherwise touch geometry.
+    pub fn snapshot_sheet_undo(&mut self) {
+        self.push_undo();
     }
 
     /// Layers, libraries, and project drawing defaults.
@@ -105,18 +122,25 @@ impl Editor {
     pub(super) fn begin_drag_checkpoint(&mut self) {
         if self.drag_checkpoint.is_none() {
             let index = self.doc.view_index();
-            self.drag_checkpoint = Some((index, self.doc.sheets[index].clone()));
+            self.drag_checkpoint = Some((
+                index,
+                self.doc.sheets[index].clone(),
+                self.doc.pad_links.clone(),
+            ));
         }
     }
 
     pub(super) fn commit_drag_checkpoint(&mut self) {
-        let Some((index, checkpoint)) = self.drag_checkpoint.take() else {
+        let Some((index, checkpoint, links)) = self.drag_checkpoint.take() else {
             return;
         };
-        if self.doc.sheets.get(index) != Some(&checkpoint) {
+        let sheet_changed = self.doc.sheets.get(index) != Some(&checkpoint);
+        let links_changed = self.doc.pad_links != links;
+        if sheet_changed || links_changed {
             self.push_undo_op(HistoryOp::Sheet {
                 index,
                 sheet: checkpoint,
+                links,
             });
         }
     }
@@ -142,6 +166,7 @@ impl Editor {
                         .get(*index)
                         .cloned()
                         .unwrap_or_else(Sheet::default),
+                    links: self.doc.pad_links.clone(),
                 },
                 HistoryOp::Project(_) => self.capture_project(),
             };
@@ -164,6 +189,7 @@ impl Editor {
                         .get(*index)
                         .cloned()
                         .unwrap_or_else(Sheet::default),
+                    links: self.doc.pad_links.clone(),
                 },
                 HistoryOp::Project(_) => self.capture_project(),
             };

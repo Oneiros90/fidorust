@@ -1,6 +1,19 @@
 //! Ephemeral canvas presentation. Not saved, not undoable, not part of the `.fcd`.
 
 use crate::geom::Point;
+use crate::primitive::PadStyle;
+
+/// Extra pad painted above the sheet, in world LU. Used when the copper belongs
+/// to a component expansion and cannot be tinted as its own primitive.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverlayPad {
+    pub pos: Point,
+    pub dx: i32,
+    pub dy: i32,
+    pub hole: i32,
+    pub style: PadStyle,
+    pub color: [u8; 4],
+}
 
 /// Extra filled circle in world LU, or screen pixels when [`Self::screen`] is set.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,6 +63,7 @@ pub struct ViewOverlay {
     pub foreground_ids: Vec<usize>,
     pub canvas: Option<CanvasPalette>,
     pub strokes: Vec<OverlayStroke>,
+    pub pads: Vec<OverlayPad>,
 }
 
 impl ViewOverlay {

@@ -85,11 +85,20 @@
 					aria-orientation="vertical"
 					aria-label={app.t.dualSheet}
 					onpointerdown={onSplitterDown}
+					oncontextmenu={(e) => {
+						if (app.status.tool === 'pad-link' && app.pro.padLinkContext(e.clientX, e.clientY)) {
+							e.preventDefault();
+							e.stopPropagation();
+						}
+					}}
 				></div>
 				<div class="pane-slot" style:flex={`${1 - app.splitRatio} 1 0`}>
 					<SheetPane pane={1} />
 				</div>
 			{/if}
+			{#key app.pro.stageKey}
+				<div class="stage-ext" {@attach app.pro.stageAttach}></div>
+			{/key}
 		</div>
 		<RightSidebar />
 	</div>
@@ -109,10 +118,17 @@
 		min-height: 0;
 	}
 	.stage {
+		position: relative;
 		flex: 1;
 		display: flex;
 		min-width: 0;
 		min-height: 0;
+	}
+	.stage-ext {
+		position: absolute;
+		inset: 0;
+		z-index: 5;
+		pointer-events: none;
 	}
 	.pane-slot {
 		min-width: 0;

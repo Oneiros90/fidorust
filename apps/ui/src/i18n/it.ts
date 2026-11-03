@@ -104,6 +104,7 @@ export const it: typeof en = {
 	connection: 'Giunzione',
 	pcbTrack: 'Pista PCB',
 	pcbPad: 'Piazzola PCB',
+	padLink: 'Collega piazzole',
 	component: 'Componente',
 	pan: 'Sposta vista',
 	ruler: 'Righello',

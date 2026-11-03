@@ -4,7 +4,8 @@ use crate::consts::{
     GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN, STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
 };
 use crate::document::{
-    sanitize_sheet_name, Document, PrimitiveDefaults, ProjectSettings, Sheet, DEFAULT_SHEET_NAME,
+    sanitize_sheet_name, Document, PadLink, PrimitiveDefaults, ProjectSettings, Sheet,
+    DEFAULT_SHEET_NAME,
 };
 use crate::geom::Point;
 use crate::layers::{standard_layer_name, LayerId, LayerInfo, LayerSet};
@@ -585,6 +586,34 @@ fn is_section_header(line: &str) -> bool {
     inner.starts_with("FIDOLIB") || inner.starts_with("FIDOCAD") || inner.starts_with("MACROCAD")
 }
 
+fn is_fidoext_pcb(line: &str) -> bool {
+    let t = line.trim();
+    let Some(inner) = t.strip_prefix('[').and_then(|s| s.strip_suffix(']')) else {
+        return false;
+    };
+    let mut parts = inner.split_whitespace();
+    let kw = parts.next().unwrap_or("");
+    let name = parts.next().unwrap_or("");
+    kw.eq_ignore_ascii_case("FIDOEXT") && name.eq_ignore_ascii_case("pcb") && parts.next().is_none()
+}
+
+fn ends_pcb_ext(line: &str) -> bool {
+    parse_fidosheet_header(line).is_some() || is_section_header(line) || line.trim().starts_with('[')
+}
+
+fn parse_lk_line(line: &str) -> Option<PadLink> {
+    let rest = line.trim();
+    let rest = if rest.len() >= 2 && rest[..2].eq_ignore_ascii_case("LK") {
+        rest[2..].trim_start()
+    } else {
+        return None;
+    };
+    if rest.is_empty() {
+        return None;
+    }
+    serde_json::from_str(rest).ok()
+}
+
 #[derive(Clone, Copy)]
 enum DocKind {
     Document,
@@ -630,11 +659,21 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
     let mut headered = vec![false];
     let mut take_project_ps = true;
     let mut saw_pd = false;
+    let mut in_pcb_ext = false;
     for raw in body.lines() {
         let line = raw.trim();
         if line.is_empty() {
             continue;
         }
+        if in_pcb_ext && !ends_pcb_ext(line) {
+            if let Some(link) = parse_lk_line(line) {
+                doc.pad_links.push(link);
+            } else {
+                doc.pcb_ext_lines.push(line.to_string());
+            }
+            continue;
+        }
+        in_pcb_ext = false;
         if let Some(name) = parse_fidosheet_header(line) {
             let empty = doc.sheets[current].primitives.is_empty();
             if empty && !headered[current] {
@@ -667,6 +706,10 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
         }
         if is_section_header(line) {
             break;
+        }
+        if is_fidoext_pcb(line) {
+            in_pcb_ext = true;
+            continue;
         }
         if skip_line(line) {
             continue;

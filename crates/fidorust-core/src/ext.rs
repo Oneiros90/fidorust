@@ -20,6 +20,12 @@ pub enum EditEvent {
     MoveDragBegin,
     MoveDragChange,
     MoveDragEnd,
+    /// A geometry edit is about to change primitives. Pad positions are still current.
+    GeometryBegin,
+    /// Primitives are mid-edit (a drag). Pad positions may already have moved.
+    GeometryChange,
+    /// The geometry edit has been written. Pad positions are final.
+    GeometryEnd,
 }
 
 static DISPATCH: OnceLock<ExtDispatch> = OnceLock::new();

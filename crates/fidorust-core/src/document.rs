@@ -7,11 +7,48 @@ use crate::consts::{
     DEFAULT_TEXT_SY, DEFAULT_TRACK_WIDTH, GRID_MAX, GRID_MIN, SNAP_MAX, SNAP_MIN,
     STROKE_HUNDREDTHS_MAX, STROKE_HUNDREDTHS_MIN,
 };
-use crate::geom::Aabb;
+use crate::geom::{Aabb, Point};
 use crate::layers::LayerSet;
 use crate::library::LibrarySet;
 use crate::primitive::{PadStyle, Primitive, DEFAULT_FONT};
 use serde::{Deserialize, Serialize};
+
+/// One saved association between a PCB pad and a schematic junction dot.
+///
+/// The free editor stores and rewrites these records. It does not decide
+/// whether the dot still exists.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PadLink {
+    #[serde(rename = "padSheet")]
+    pub pad_sheet: String,
+    pub x: i32,
+    pub y: i32,
+    pub layer: u8,
+    #[serde(rename = "dotSheet")]
+    pub dot_sheet: String,
+    pub dx: i32,
+    pub dy: i32,
+}
+
+impl PadLink {
+    pub fn pad_pos(&self) -> Point {
+        Point::new(self.x, self.y)
+    }
+
+    pub fn dot_pos(&self) -> Point {
+        Point::new(self.dx, self.dy)
+    }
+
+    pub fn set_pad_pos(&mut self, p: Point) {
+        self.x = p.x;
+        self.y = p.y;
+    }
+
+    pub fn set_dot_pos(&mut self, p: Point) {
+        self.dx = p.x;
+        self.dy = p.y;
+    }
+}
 
 /// Default name of the first sheet (Italian). English UI uses [`default_sheet_name`].
 pub const DEFAULT_SHEET_NAME: &str = "Foglio 1";
@@ -316,6 +353,12 @@ pub struct Document {
     /// Opaque to the free editor.
     #[serde(default)]
     pub common_node_groups: Vec<Vec<String>>,
+    /// Pad-to-junction associations (`LK` lines inside `[FIDOEXT pcb]`).
+    #[serde(default)]
+    pub pad_links: Vec<PadLink>,
+    /// Unrecognised lines from a `[FIDOEXT pcb]` block, preserved on save.
+    #[serde(default)]
+    pub pcb_ext_lines: Vec<String>,
     pub sheets: Vec<Sheet>,
     pub warnings: u32,
     /// True when the layer table was inferred (no `LD` lines in the file).
@@ -334,6 +377,8 @@ impl PartialEq for Document {
             && self.hide_component_origin == other.hide_component_origin
             && self.defaults == other.defaults
             && self.common_node_groups == other.common_node_groups
+            && self.pad_links == other.pad_links
+            && self.pcb_ext_lines == other.pcb_ext_lines
             && self.sheets == other.sheets
             && self.warnings == other.warnings
             && self.inferred_layers == other.inferred_layers
@@ -350,6 +395,8 @@ impl Default for Document {
             hide_component_origin: s.hide_component_origin,
             defaults: PrimitiveDefaults::default(),
             common_node_groups: Vec::new(),
+            pad_links: Vec::new(),
+            pcb_ext_lines: Vec::new(),
             sheets: vec![Sheet::default()],
             warnings: 0,
             inferred_layers: false,
@@ -611,7 +658,19 @@ impl Document {
         if self.sheet_name_taken(&name, Some(index)) {
             return false;
         }
-        self.sheets[index].name = name;
+        let old = self.sheets[index].name.clone();
+        if old == name {
+            return true;
+        }
+        self.sheets[index].name.clone_from(&name);
+        for link in &mut self.pad_links {
+            if link.pad_sheet == old {
+                link.pad_sheet.clone_from(&name);
+            }
+            if link.dot_sheet == old {
+                link.dot_sheet.clone_from(&name);
+            }
+        }
         true
     }
 
@@ -619,7 +678,10 @@ impl Document {
         if self.sheets.len() <= 1 || index >= self.sheets.len() {
             return false;
         }
+        let name = self.sheets[index].name.clone();
         self.sheets.remove(index);
+        self.pad_links
+            .retain(|link| link.pad_sheet != name && link.dot_sheet != name);
         if self.view_index >= self.sheets.len() {
             self.view_index = self.sheets.len() - 1;
         } else if self.view_index > index {
@@ -647,8 +709,12 @@ impl Document {
             .get(index)
             .cloned()
             .unwrap_or_else(Sheet::default);
+        let name = sheet.name.clone();
         out.sheets = vec![sheet];
         out.view_index = 0;
+        out.pad_links
+            .retain(|link| link.pad_sheet == name && link.dot_sheet == name);
+        out.pcb_ext_lines.clear();
         out
     }
 

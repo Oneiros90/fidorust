@@ -105,6 +105,7 @@ impl Editor {
             *duplicate = on;
         }
         crate::ext::emit_edit(self, crate::ext::EditEvent::MoveDragChange);
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryChange);
     }
 
     pub fn duplicate_selection(&mut self) {
@@ -162,6 +163,7 @@ impl Editor {
         if self.selected.is_empty() {
             return;
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
         self.push_undo();
         let mut sel = self.selected.clone();
         sel.sort_unstable();
@@ -170,6 +172,7 @@ impl Editor {
             self.doc.remove(i);
         }
         self.selected.clear();
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
     }
 
     pub fn select_all(&mut self) {
@@ -189,12 +192,14 @@ impl Editor {
         if self.selected.is_empty() {
             return;
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
         self.push_undo();
         let origin = {
             let bb = self.doc.selected_aabb(&self.selected, &self.libs);
             Point::new((bb.min.x + bb.max.x) / 2, (bb.min.y + bb.max.y) / 2)
         };
         self.rotate_at(origin);
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
     }
 
     pub(super) fn rotate_at(&mut self, origin: Point) {
@@ -284,6 +289,7 @@ impl Editor {
         if self.selected.is_empty() {
             return;
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
         self.push_undo();
         let origin = {
             let bb = self.doc.selected_aabb(&self.selected, &self.libs);
@@ -303,10 +309,12 @@ impl Editor {
                 }
             }
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
     }
 
     pub fn set_selected_layer(&mut self, layer: LayerId) {
         let layer = self.doc.layers.clamp_id(layer);
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryBegin);
         self.push_undo();
         for &i in &self.selected {
             if let Some(p) = self.doc.primitives.get_mut(i) {
@@ -316,6 +324,7 @@ impl Editor {
                 p.set_layer(layer);
             }
         }
+        crate::ext::emit_edit(self, crate::ext::EditEvent::GeometryEnd);
     }
 }
 

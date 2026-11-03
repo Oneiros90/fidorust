@@ -710,6 +710,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
         foreground_ids: vec![],
         canvas: None,
         strokes: vec![],
+        pads: vec![],
     }));
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.lines.len(), 2);
@@ -734,6 +735,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
         foreground_ids: vec![],
         canvas: None,
         strokes: vec![],
+        pads: vec![],
     }));
     let screen = tessellate_editor(&ed);
     assert!((screen.circles[0].rx - 8.0 / ed.zoom()).abs() < 1e-5);
@@ -765,6 +767,7 @@ fn overlay_markers_are_drawn_after_foreground() {
         foreground_ids: vec![0],
         canvas: None,
         strokes: vec![],
+        pads: vec![],
     }));
     let scene = tessellate_editor(&ed);
     assert!(scene.circles.len() >= 2);
@@ -799,6 +802,7 @@ fn overlay_foreground_is_drawn_after_later_layers() {
         foreground_ids: vec![0],
         canvas: None,
         strokes: vec![],
+        pads: vec![],
     }));
     let scene = tessellate_editor(&ed);
     assert_eq!(scene.lines.len(), 1);

@@ -36,6 +36,10 @@
 	{:else if name === 'pcb-pad'}
 		<circle cx="12" cy="12" r="7" />
 		<circle cx="12" cy="12" r="2.7" />
+	{:else if name === 'pad-link'}
+		<rect x="3.2" y="14.2" width="6.2" height="6.2" rx="1" />
+		<circle cx="17.2" cy="6.4" r="2.5" />
+		<line x1="8.6" y1="15.2" x2="15.2" y2="8.2" stroke-dasharray="2.1 1.7" />
 	{:else if name === 'component'}
 		<rect x="7.4" y="5.4" width="9.2" height="13.2" rx="1" />
 		<path d="M4.2 9h3.2M4.2 12h3.2M4.2 15h3.2M16.6 9h3.2M16.6 12h3.2M16.6 15h3.2" />

@@ -506,6 +506,18 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
                 scene.push_line(s.a, s.b, input.stroke_w, rgb, false);
             }
         }
+        for pad in &overlay.pads {
+            add_pcb_pad(
+                &mut scene,
+                pad.pos,
+                pad.dx,
+                pad.dy,
+                pad.hole,
+                pad.style,
+                Rgb::from_rgba_u8(pad.color),
+                false,
+            );
+        }
         for m in &overlay.markers {
             let rgb = Rgb::from_rgba_u8(m.color);
             let r = if m.screen {
@@ -518,6 +530,7 @@ fn tessellate_impl(input: TessellateInput<'_>, draft: &DraftParams<'_>) -> Scene
         if !overlay.markers.is_empty()
             || !overlay.foreground_ids.is_empty()
             || !overlay.strokes.is_empty()
+            || !overlay.pads.is_empty()
         {
             scene.mark_layer_end();
         }

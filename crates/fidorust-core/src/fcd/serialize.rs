@@ -305,12 +305,31 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
             out.push_str(&serialize_primitive(p));
         }
     }
+    out.push_str(&serialize_pcb_ext(doc));
     if let Some(libs) = libs {
         if let Some(project) = libs.project() {
             if !project.components.is_empty() {
                 out.push_str(&serialize_library(project));
             }
         }
+    }
+    out
+}
+
+fn serialize_pcb_ext(doc: &Document) -> String {
+    if doc.pad_links.is_empty() && doc.pcb_ext_lines.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("[FIDOEXT pcb]\r\n");
+    for link in &doc.pad_links {
+        let json = serde_json::to_string(link).unwrap_or_else(|_| "{}".to_string());
+        out.push_str("LK ");
+        out.push_str(&json);
+        out.push_str("\r\n");
+    }
+    for line in &doc.pcb_ext_lines {
+        out.push_str(line);
+        out.push_str("\r\n");
     }
     out
 }

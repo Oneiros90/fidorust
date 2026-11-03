@@ -317,10 +317,20 @@ impl Editor {
         self.doc.layers.ensure_len(max_layer + 1);
 
         let first_idx = self.doc.sheets.len();
+        let mut renamed: Vec<(String, String)> = Vec::new();
         for mut sheet in incoming.sheets {
+            let old = sheet.name.clone();
             sheet.name = self.doc.unique_sheet_name(&sheet.name);
+            renamed.push((old, sheet.name.clone()));
             self.doc.sheets.push(sheet);
         }
+        for link in incoming.pad_links {
+            let mut link = link;
+            link.pad_sheet = remap_imported_sheet(&link.pad_sheet, &renamed);
+            link.dot_sheet = remap_imported_sheet(&link.dot_sheet, &renamed);
+            self.doc.pad_links.push(link);
+        }
+        self.doc.pcb_ext_lines.extend(incoming.pcb_ext_lines);
 
         let pane = self.active_pane();
         self.active_pane = pane;
@@ -332,6 +342,14 @@ impl Editor {
         self.restore_active_pane();
         Ok(first_idx)
     }
+}
+
+fn remap_imported_sheet(name: &str, renamed: &[(String, String)]) -> String {
+    renamed
+        .iter()
+        .find(|(old, _)| old == name)
+        .map(|(_, new)| new.clone())
+        .unwrap_or_else(|| name.to_string())
 }
 
 fn merge_project_components(

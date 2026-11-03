@@ -102,6 +102,7 @@ export const en = {
 	connection: 'Junction',
 	pcbTrack: 'PCB track',
 	pcbPad: 'PCB pad',
+	padLink: 'Link pads',
 	component: 'Component',
 	pan: 'Pan',
 	ruler: 'Ruler',

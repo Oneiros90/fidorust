@@ -4,6 +4,15 @@
 	import { TOOL_GROUPS } from '../app/types';
 
 	const app = getAppSession();
+
+	$effect(() => {
+		if (
+			app.status.tool === 'pad-link' &&
+			(!app.pro.circuitOn || app.status.editing_component)
+		) {
+			app.tool('select');
+		}
+	});
 </script>
 
 <nav class="tools" aria-label={app.t.tools}>
@@ -28,6 +37,18 @@
 			</button>
 		{/each}
 	{/each}
+	{#if app.pro.circuitOn && !app.status.editing_component}
+		<hr class="sep" />
+		<button
+			class={['icon-btn', { active: app.status.tool === 'pad-link' }]}
+			title={app.t.padLink}
+			aria-label={app.t.padLink}
+			aria-pressed={app.status.tool === 'pad-link'}
+			onclick={() => app.tool('pad-link')}
+		>
+			<ToolIcon name="pad-link" />
+		</button>
+	{/if}
 </nav>
 
 <style>

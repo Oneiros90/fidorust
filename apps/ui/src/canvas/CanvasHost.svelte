@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { getAppSession } from '../app/appContext';
-	import { canvasLocal, dpr } from '../lib/canvasCoords';
+	import { canvasLocal, dpr, paneFromClient } from '../lib/canvasCoords';
 	import {
 		dblClickOpensProperties,
 		parseEdit,
@@ -35,6 +35,30 @@
 	let skipNextContextMenu = false;
 
 	const isActive = $derived((app.status.active_pane ?? 0) === pane);
+
+	$effect(() => {
+		if (pane !== 0) return;
+		const stage = document.querySelector('.stage');
+		if (!(stage instanceof HTMLElement)) return;
+		const outside = (e: Event) => {
+			if (!(e instanceof PointerEvent)) return;
+			if (!padLinkActive() || panning || space || textEdit) return;
+			if (e.button === 1 || e.button === 2) return;
+			const target = e.target;
+			if (!(target instanceof Element) || !target.closest('.splitter')) return;
+			if (e.type === 'pointerdown' && e.button === 0) linkPointer('down', e);
+			else if (e.type === 'pointerup' && e.button === 0) linkPointer('up', e);
+			else if (e.type === 'pointermove') linkPointer('move', e);
+		};
+		stage.addEventListener('pointerdown', outside);
+		stage.addEventListener('pointermove', outside);
+		stage.addEventListener('pointerup', outside);
+		return () => {
+			stage.removeEventListener('pointerdown', outside);
+			stage.removeEventListener('pointermove', outside);
+			stage.removeEventListener('pointerup', outside);
+		};
+	});
 
 	const canvasCursor = $derived(
 		panning
@@ -130,9 +154,26 @@
 		rightGesture = null;
 	}
 
+	function padLinkActive() {
+		return app.status.tool === 'pad-link';
+	}
+
+	function linkPointer(phase: 'down' | 'move' | 'up', e: PointerEvent) {
+		const eng = engine;
+		if (!eng) return;
+		const hit = paneFromClient(e.clientX, e.clientY);
+		if (!hit) return;
+		const payload = JSON.stringify({ phase, pane: hit.pane, sx: hit.sx, sy: hit.sy });
+		eng.mutate((wasm) => {
+			wasm.hover_pane(hit.pane);
+			wasm.ext_command('padlink.pointer', payload);
+		});
+	}
+
 	function down(e: PointerEvent) {
 		if (e.button === 2) {
 			e.preventDefault();
+			if (padLinkActive()) return;
 			if (!engine || !canvas || textEdit) return;
 			if ((e.buttons & 1) !== 0) return;
 			const p = local(e);
@@ -158,6 +199,10 @@
 		} catch {
 			/* no active pointer (synthetic events) or already captured */
 		}
+		if (padLinkActive() && !isPanInput(space, e.button, app.status.tool)) {
+			linkPointer('down', e);
+			return;
+		}
 		if (isPanInput(space, e.button, app.status.tool)) panning = true;
 		const p = local(e);
 		engine.mutate(
@@ -177,6 +222,10 @@
 		if (e.button === 1 && (e.buttons & 4) !== 0) {
 			e.preventDefault();
 			if ((app.status.active_pane ?? 0) === pane) tryStamp(engine, textEdit);
+		}
+		if (padLinkActive() && !panning && !space) {
+			linkPointer('move', e);
+			return;
 		}
 		const p = local(e);
 		if (rightGesture && engine) {
@@ -207,6 +256,16 @@
 	function leave(e: PointerEvent) {
 		if (!engine || textEdit || panning || e.buttons !== 0) return;
 		if (app.ctxMenu || app.status.duplicate_drag) return;
+		if (padLinkActive()) {
+			engine.mutate(
+				(wasm) => {
+					wasm.clear_hover();
+					wasm.ext_command('padlink.pointer', JSON.stringify({ phase: 'leave' }));
+				},
+				{ refreshFirst: true }
+			);
+			return;
+		}
 		engine.mutate(
 			(wasm) => {
 				wasm.clear_hover();
@@ -217,6 +276,7 @@
 
 	function up(e: PointerEvent) {
 		if (e.button === 2) {
+			if (padLinkActive()) return;
 			if (rightGesture?.kind === 'marquee') {
 				const p = local(e);
 				finishRightMarquee(p.x, p.y, e.clientX, e.clientY);
@@ -225,6 +285,10 @@
 			return;
 		}
 		if (!engine || textEdit) return;
+		if (e.button === 0 && padLinkActive() && !panning && !space) {
+			linkPointer('up', e);
+			return;
+		}
 		if (e.button === 1) {
 			e.preventDefault();
 			if (!panning) return;
@@ -270,6 +334,7 @@
 			skipNextContextMenu = false;
 			return;
 		}
+		if (padLinkActive() && app.pro.padLinkContext(e.clientX, e.clientY)) return;
 		if (rightGesture?.kind === 'marquee') {
 			const p = local(e);
 			finishRightMarquee(p.x, p.y, e.clientX, e.clientY);
@@ -339,6 +404,7 @@
 
 <div class="wrap" {@attach attachWrap}>
 	<canvas
+		data-pane={pane}
 		{@attach attachCanvas}
 		onpointerenter={() => {
 			if (!textEdit) app.hoverPane(pane);
@@ -350,6 +416,7 @@
 		onpointercancel={() => {
 			panning = false;
 			abortRightGesture();
+			if (padLinkActive()) engine?.extCommand('padlink.cancel', '{}');
 		}}
 		onmousedown={onMiddleDown}
 		onauxclick={(e) => {
