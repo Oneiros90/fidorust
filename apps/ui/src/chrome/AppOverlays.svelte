@@ -18,6 +18,7 @@
 	import UnresolvedComponentsDialog from '../dialogs/UnresolvedComponentsDialog.svelte';
 	import ComponentLayerWarningDialog from '../dialogs/ComponentLayerWarningDialog.svelte';
 	import LicenseDialog from '../dialogs/LicenseDialog.svelte';
+	import AutorouteDialog from '../dialogs/AutorouteDialog.svelte';
 	import ComponentGhost from '../library/ComponentGhost.svelte';
 	import LibraryItemContextMenu from '../library/LibraryItemContextMenu.svelte';
 	import LibraryContextMenu from '../library/LibraryContextMenu.svelte';
@@ -145,6 +146,8 @@
 	<ComponentLayerWarningDialog />
 {:else if dialog?.kind === 'license'}
 	<LicenseDialog />
+{:else if dialog?.kind === 'autoroute'}
+	<AutorouteDialog />
 {/if}
 
 {#if app.pro.active && app.pro.mountOverlay}

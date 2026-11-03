@@ -270,7 +270,29 @@ export const en = {
 	proLoadFailed: 'Could not load FidoRust Pro. Drawing still works without premium features.',
 	proLoading: 'Loading FidoRust Pro…',
 	circuitMode: 'Circuit',
-	circuitModeLocked: 'Circuit mode (FidoRust Pro)'
+	circuitModeLocked: 'Circuit mode (FidoRust Pro)',
+	autoroute: 'Autoroute…',
+	autorouteTitle: 'Autoroute',
+	autorouteWidth: 'Track width',
+	autorouteClearance: 'Clearance',
+	autorouteJumpers: 'Jumpers',
+	autorouteJumpersHint: 'If copper is blocked, finish the net on the component side.',
+	autorouteDiagonal: '45° corners',
+	autorouteDiagonalHint: 'If off, tracks bend only at 90°.',
+	autorouteReplace: 'Clear existing tracks',
+	autorouteReplaceHint: 'Delete every track on this sheet and route from scratch.',
+	autorouteRun: 'Route',
+	autorouteNone: 'Select the PCB components to route.',
+	autorouteNoLinks: 'No selected pad is linked to the schematic (LK).',
+	autorouteNoNets: 'The schematic does not join the selected pads into nodes that need tracks.',
+	autorouteSummary: '{components} components, {pads} pads, {nets} schematic nodes to join',
+	autorouteNetsHint:
+		'A node is a group of pads that already share a wire in the schematic. Autoroute draws copper between them.',
+	autorouteMissing: '{missing} pads have no schematic link (LK).',
+	autorouteResult: '{routed} tracks drawn ({jumpers} jumpers). {failed} left unrouted.',
+	autoroutePartial:
+		'Routed {routed} tracks ({jumpers} jumpers), but {failed} connections found no path.',
+	autorouteNothing: 'Nothing to route.'
 };
 
 export type Dict = typeof en;

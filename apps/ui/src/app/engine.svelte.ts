@@ -63,7 +63,7 @@ export class Engine {
 	extCommand = (name: string, payload: string): string => {
 		const app = this.app as WasmApp & { ext_command: (n: string, p: string) => string };
 		const out = app.ext_command(name, payload);
-		if (name === 'padlink.delete') {
+		if (name === 'padlink.delete' || name === 'router.apply') {
 			this.refresh();
 			this.app.render();
 		} else if (name === 'padlink.cancel') {

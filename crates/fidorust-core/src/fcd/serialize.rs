@@ -9,7 +9,7 @@ use crate::primitive::{
     Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
 
-use super::tokens::{font_token, push_layer};
+use super::tokens::{font_token, plus_spaces, push_layer};
 
 pub fn serialize_primitive(p: &Primitive) -> String {
     let mut s = String::new();
@@ -289,6 +289,7 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
         out.push_str(&names.join(" | "));
         out.push_str("\r\n");
     }
+    out.push_str(&serialize_pad_links(doc));
     out.push_str(&serialize_primitive_defaults(&doc.defaults));
     let multi = doc.sheets.len() > 1;
     for sheet in &doc.sheets {
@@ -316,17 +317,28 @@ fn serialize_document_body(doc: &Document, libs: Option<&LibrarySet>) -> String 
     out
 }
 
+fn serialize_pad_links(doc: &Document) -> String {
+    let mut out = String::new();
+    for link in &doc.pad_links {
+        out.push_str(&format!(
+            "LK {} {} {} {} {} {} {}\r\n",
+            plus_spaces(&link.pad_sheet),
+            link.x,
+            link.y,
+            link.layer,
+            plus_spaces(&link.dot_sheet),
+            link.dx,
+            link.dy
+        ));
+    }
+    out
+}
+
 fn serialize_pcb_ext(doc: &Document) -> String {
-    if doc.pad_links.is_empty() && doc.pcb_ext_lines.is_empty() {
+    if doc.pcb_ext_lines.is_empty() {
         return String::new();
     }
     let mut out = String::from("[FIDOEXT pcb]\r\n");
-    for link in &doc.pad_links {
-        let json = serde_json::to_string(link).unwrap_or_else(|_| "{}".to_string());
-        out.push_str("LK ");
-        out.push_str(&json);
-        out.push_str("\r\n");
-    }
     for line in &doc.pcb_ext_lines {
         out.push_str(line);
         out.push_str("\r\n");

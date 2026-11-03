@@ -81,8 +81,17 @@ pub fn font_token(font: &str) -> String {
     if font.eq_ignore_ascii_case(DEFAULT_FONT) {
         "*".into()
     } else {
-        font.replace(' ', "++")
+        plus_spaces(font)
     }
+}
+
+/// FidoCAD encodes a space inside a token as `++` (fonts, sheet names on `LK`).
+pub fn plus_spaces(s: &str) -> String {
+    s.replace(' ', "++")
+}
+
+pub fn unplus_spaces(s: &str) -> String {
+    s.replace("++", " ")
 }
 
 pub fn push_layer(out: &mut String, layer: LayerId) {
@@ -108,5 +117,7 @@ mod tests {
     fn spaces_roundtrip_via_plus() {
         assert_eq!(font_from_token("Lucida++Console"), "Lucida Console");
         assert_eq!(font_token("Lucida Console"), "Lucida++Console");
+        assert_eq!(unplus_spaces("Foglio++1"), "Foglio 1");
+        assert_eq!(plus_spaces("Foglio 1"), "Foglio++1");
     }
 }

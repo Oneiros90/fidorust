@@ -353,10 +353,10 @@ pub struct Document {
     /// Opaque to the free editor.
     #[serde(default)]
     pub common_node_groups: Vec<Vec<String>>,
-    /// Pad-to-junction associations (`LK` lines inside `[FIDOEXT pcb]`).
+    /// Pad-to-junction associations (`LK` lines, same plane as `CN`).
     #[serde(default)]
     pub pad_links: Vec<PadLink>,
-    /// Unrecognised lines from a `[FIDOEXT pcb]` block, preserved on save.
+    /// Unrecognised lines from a leftover `[FIDOEXT pcb]` block, preserved on save.
     #[serde(default)]
     pub pcb_ext_lines: Vec<String>,
     pub sheets: Vec<Sheet>,

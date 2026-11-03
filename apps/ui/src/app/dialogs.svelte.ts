@@ -19,9 +19,18 @@ export type DialogState =
 	| { kind: 'export'; format: ExportFormat }
 	| { kind: 'unresolvedComponents'; items: UnresolvedComponent[] }
 	| { kind: 'componentLayerWarning' }
-	| { kind: 'license' };
+	| { kind: 'license' }
+	| { kind: 'autoroute' };
 
 export type UnresolvedComponent = { name: string; count: number };
+
+export type AutoroutePrefs = {
+	width?: number;
+	clearance?: number;
+	jumpers?: boolean;
+	diagonal?: boolean;
+	replace?: boolean;
+};
 
 /**
  * Single dialog slot. Kind `deleteLayer` is listed first: Escape used to clear
@@ -30,6 +39,7 @@ export type UnresolvedComponent = { name: string; count: number };
 export class Dialogs {
 	dialog = $state<DialogState | null>(null);
 	isOpen = $derived(this.dialog !== null);
+	autoroutePrefs = $state<AutoroutePrefs>({});
 
 	open(d: DialogState) {
 		this.dialog = d;

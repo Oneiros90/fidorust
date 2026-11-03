@@ -19,7 +19,7 @@ use crate::primitive::{
 use encoding_rs::WINDOWS_1252;
 use thiserror::Error;
 
-use super::tokens::{extract_string, font_from_token, TokenCursor};
+use super::tokens::{extract_string, font_from_token, unplus_spaces, TokenCursor};
 
 #[derive(Debug, Error)]
 pub enum ParseError {
@@ -250,6 +250,37 @@ pub fn parse_cn_line(line: &str) -> Option<Vec<String>> {
     } else {
         Some(names)
     }
+}
+
+/// `LK <padSheet> <x> <y> <layer> <dotSheet> <dx> <dy>` — spaces in a sheet name are `++`.
+///
+/// A leftover JSON object after `LK` is still accepted so older FidoRust files load.
+pub fn parse_lk_line(line: &str) -> Option<PadLink> {
+    let line = line.trim();
+    if line.len() < 2 || !line[..2].eq_ignore_ascii_case("LK") {
+        return None;
+    }
+    let rest = &line[2..];
+    if !rest.is_empty() && !rest.as_bytes()[0].is_ascii_whitespace() {
+        return None;
+    }
+    let rest = rest.trim_start();
+    if rest.starts_with('{') {
+        return serde_json::from_str(rest).ok();
+    }
+    let t = TokenCursor::new(rest);
+    if t.len() < 7 {
+        return None;
+    }
+    Some(PadLink {
+        pad_sheet: unplus_spaces(t.get(0)?),
+        x: t.i32(1)?,
+        y: t.i32(2)?,
+        layer: t.i32(3)?.clamp(0, 255) as u8,
+        dot_sheet: unplus_spaces(t.get(4)?),
+        dx: t.i32(5)?,
+        dy: t.i32(6)?,
+    })
 }
 
 fn apply_layers(doc: &mut Document, mut defined: Vec<LayerInfo>, project: Option<&Library>) {
@@ -603,19 +634,6 @@ fn ends_pcb_ext(line: &str) -> bool {
         || line.trim().starts_with('[')
 }
 
-fn parse_lk_line(line: &str) -> Option<PadLink> {
-    let rest = line.trim();
-    let rest = if rest.len() >= 2 && rest[..2].eq_ignore_ascii_case("LK") {
-        rest[2..].trim_start()
-    } else {
-        return None;
-    };
-    if rest.is_empty() {
-        return None;
-    }
-    serde_json::from_str(rest).ok()
-}
-
 #[derive(Clone, Copy)]
 enum DocKind {
     Document,
@@ -722,6 +740,10 @@ fn parse_document_inner(text: &str) -> Result<(Document, Option<Library>), Parse
         }
         if let Some(names) = parse_cn_line(line) {
             doc.merge_common_node_keys(&names);
+            continue;
+        }
+        if let Some(link) = parse_lk_line(line) {
+            doc.pad_links.push(link);
             continue;
         }
         if apply_pd_line(line, &mut doc.defaults) {

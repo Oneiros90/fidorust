@@ -461,6 +461,11 @@ export class AppSession {
 		this.dialogs.open({ kind: 'properties', fields });
 	};
 
+	openAutoroute = () => {
+		if (!this.engine || this.status.selected === 0) return;
+		this.dialogs.open({ kind: 'autoroute' });
+	};
+
 	applyProperties = (patch: PropPatch) => {
 		if (!this.engine) return;
 		try {

@@ -99,6 +99,11 @@
 			disabled={!app.status.can_common_node}
 			onclick={app.doToggleCommonNode}
 		/>
+		<MenuItem
+			label={app.t.autoroute}
+			disabled={!hasSelection}
+			onclick={app.openAutoroute}
+		/>
 	</MenuSubmenu>
 {/if}
 <MenuSeparator />

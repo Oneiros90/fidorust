@@ -273,5 +273,27 @@ export const it: typeof en = {
 		'Impossibile caricare FidoRust Pro. Il disegno continua a funzionare senza le funzioni premium.',
 	proLoading: 'Caricamento di FidoRust Pro…',
 	circuitMode: 'Circuito',
-	circuitModeLocked: 'Modalità Circuito (FidoRust Pro)'
+	circuitModeLocked: 'Modalità Circuito (FidoRust Pro)',
+	autoroute: 'Sbroglio…',
+	autorouteTitle: 'Sbroglio',
+	autorouteWidth: 'Larghezza pista',
+	autorouteClearance: 'Isolamento',
+	autorouteJumpers: 'Ponticelli',
+	autorouteJumpersHint: 'Se il rame è chiuso, completa la rete sul lato componenti.',
+	autorouteDiagonal: 'Angoli a 45°',
+	autorouteDiagonalHint: 'Se spento, le piste piegano solo a 90°.',
+	autorouteReplace: 'Elimina le piste esistenti',
+	autorouteReplaceHint: 'Toglie tutte le piste del foglio e sbroglia da zero.',
+	autorouteRun: 'Sbroglia',
+	autorouteNone: 'Seleziona i componenti PCB da sbrogliare.',
+	autorouteNoLinks: 'Nessuna piazzola selezionata è collegata allo schema (LK).',
+	autorouteNoNets: 'Nello schema le piazzole selezionate non condividono nodi da unire con una pista.',
+	autorouteSummary: '{components} componenti, {pads} piazzole, {nets} nodi da unire nello schema',
+	autorouteNetsHint:
+		'Un nodo è un gruppo di piazzole che nello schema stanno già sullo stesso filo: lo sbroglio le collega con piste.',
+	autorouteMissing: '{missing} piazzole non hanno un collegamento (LK) allo schema.',
+	autorouteResult: '{routed} piste tracciate ({jumpers} ponticelli). {failed} non sbrogliate.',
+	autoroutePartial:
+		'Sbrogliate {routed} piste ({jumpers} ponticelli), ma {failed} connessioni non hanno trovato un percorso.',
+	autorouteNothing: 'Niente da sbrogliare.'
 };

@@ -22,8 +22,8 @@ fn fcd_roundtrip_keeps_links_and_opaque_lines() {
 LI 0 0 10 10
 [FIDOSHEET Board]
 PA 12 34 10 10 4 0 0
+LK Foglio++1 12 34 0 Board 80 20
 [FIDOEXT pcb]
-LK {\"padSheet\":\"Foglio 1\",\"x\":12,\"y\":34,\"layer\":0,\"dotSheet\":\"Board\",\"dx\":80,\"dy\":20}
 NOTE keep this
 ";
     let doc = fidorust_core::parse_document(src).expect("parse");
@@ -36,11 +36,16 @@ NOTE keep this
     assert_eq!(doc.pcb_ext_lines, vec!["NOTE keep this".to_string()]);
 
     let out = serialize_document(&doc, None);
+    assert!(
+        out.contains("LK Foglio++1 12 34 0 Board 80 20\r\n"),
+        "{out}"
+    );
+    assert!(!out.contains('{'), "pad links must not be JSON: {out}");
+    let lib_at = out.find("[FIDOLIB").unwrap_or(out.len());
+    let lk_at = out.find("LK Foglio++1").expect("lk");
+    assert!(lk_at < lib_at, "LK stays before a library");
     assert!(out.contains("[FIDOEXT pcb]\r\n"), "{out}");
     assert!(out.contains("NOTE keep this\r\n"), "{out}");
-    let lib_at = out.find("[FIDOLIB").unwrap_or(out.len());
-    let ext_at = out.find("[FIDOEXT pcb]").expect("block");
-    assert!(ext_at < lib_at, "ext block stays before a library");
     let again = fidorust_core::parse_document(&out).expect("reparse");
     assert_eq!(again.pad_links, doc.pad_links);
     assert_eq!(again.pcb_ext_lines, doc.pcb_ext_lines);
@@ -51,7 +56,27 @@ fn empty_document_omits_fidoext_block() {
     let doc = fidorust_core::parse_document("[FIDOCAD]\nLI 0 0 1 1\n").unwrap();
     let out = serialize_document(&doc, None);
     assert!(!out.contains("FIDOEXT"), "{out}");
+    assert!(!out.contains("LK "), "{out}");
     assert!(doc.pad_links.is_empty());
+}
+
+#[test]
+fn json_lk_inside_fidoext_still_loads() {
+    let src = "\
+[FIDOCAD]
+LI 0 0 1 1
+[FIDOEXT pcb]
+LK {\"padSheet\":\"Foglio 1\",\"x\":12,\"y\":34,\"layer\":0,\"dotSheet\":\"Board\",\"dx\":80,\"dy\":20}
+";
+    let doc = fidorust_core::parse_document(src).expect("parse");
+    assert_eq!(doc.pad_links.len(), 1);
+    assert_eq!(doc.pad_links[0].pad_sheet, "Foglio 1");
+    let out = serialize_document(&doc, None);
+    assert!(
+        out.contains("LK Foglio++1 12 34 0 Board 80 20\r\n"),
+        "{out}"
+    );
+    assert!(!out.contains("[FIDOEXT pcb]"), "{out}");
 }
 
 #[test]
@@ -113,8 +138,7 @@ fn import_remaps_sheet_names_inside_links() {
 LI 0 0 1 1
 [FIDOSHEET Beta]
 LI 2 2 3 3
-[FIDOEXT pcb]
-LK {\"padSheet\":\"Alpha\",\"x\":1,\"y\":2,\"layer\":3,\"dotSheet\":\"Beta\",\"dx\":4,\"dy\":5}
+LK Alpha 1 2 3 Beta 4 5
 ";
     ed.import_fcd_sheets(src).unwrap();
     let names = ed.sheet_names();
