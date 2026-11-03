@@ -277,9 +277,8 @@
 								ontoggle={(e) => {
 									app.expandedLibCats = {
 										...app.expandedLibCats,
-										[libraryCatKey(lib.stem, cat.name)]: (
-											e.currentTarget as HTMLDetailsElement
-										).open
+										[libraryCatKey(lib.stem, cat.name)]: (e.currentTarget as HTMLDetailsElement)
+											.open
 									};
 								}}
 							>

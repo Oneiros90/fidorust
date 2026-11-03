@@ -2,15 +2,7 @@ import type { Dict } from '../i18n';
 import type { PrimitiveDefaults } from './engineTypes';
 
 export type ProjectSettingsSection =
-	| 'general'
-	| 'line'
-	| 'rect'
-	| 'ellipse'
-	| 'poly'
-	| 'bezier'
-	| 'text'
-	| 'pcb-track'
-	| 'pcb-pad';
+	'general' | 'line' | 'rect' | 'ellipse' | 'poly' | 'bezier' | 'text' | 'pcb-track' | 'pcb-pad';
 
 export const TOOL_DEFAULT_SECTIONS: readonly {
 	id: ProjectSettingsSection;

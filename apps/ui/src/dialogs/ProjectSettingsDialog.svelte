@@ -2,10 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { DrawingDefaultsValues } from '../app/appSession.svelte';
 	import type { PrimitiveDefaults } from '../app/engineTypes';
-	import {
-		TOOL_DEFAULT_SECTIONS,
-		type ProjectSettingsSection
-	} from '../app/projectSettings';
+	import { TOOL_DEFAULT_SECTIONS, type ProjectSettingsSection } from '../app/projectSettings';
 	import type { Dict } from '../i18n';
 	import { clampInt } from '../lib/num';
 	import Modal from './Modal.svelte';

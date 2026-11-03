@@ -69,7 +69,8 @@ export class ProSession {
 		};
 	};
 
-	padLinkContext = (clientX: number, clientY: number) => this.padLinkHit?.(clientX, clientY) ?? false;
+	padLinkContext = (clientX: number, clientY: number) =>
+		this.padLinkHit?.(clientX, clientY) ?? false;
 
 	stageAttach = (node: HTMLElement) => {
 		const mount = this.stageMount;

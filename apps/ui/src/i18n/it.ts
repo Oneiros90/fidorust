@@ -287,7 +287,8 @@ export const it: typeof en = {
 	autorouteRun: 'Sbroglia',
 	autorouteNone: 'Seleziona i componenti PCB da sbrogliare.',
 	autorouteNoLinks: 'Nessuna piazzola selezionata è collegata allo schema (LK).',
-	autorouteNoNets: 'Nello schema le piazzole selezionate non condividono nodi da unire con una pista.',
+	autorouteNoNets:
+		'Nello schema le piazzole selezionate non condividono nodi da unire con una pista.',
 	autorouteSummary: '{components} componenti, {pads} piazzole, {nets} nodi da unire nello schema',
 	autorouteNetsHint:
 		'Un nodo è un gruppo di piazzole che nello schema stanno già sullo stesso filo: lo sbroglio le collega con piste.',

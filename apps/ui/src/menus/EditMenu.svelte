@@ -73,20 +73,16 @@
 		onclick={app.doSplit}
 	/>
 	<MenuItem
-		label={
-			app.status.selected_library_name
-				? app.t.editComponent.replace('{name}', app.status.selected_library_name)
-				: app.t.editComponentNone
-		}
+		label={app.status.selected_library_name
+			? app.t.editComponent.replace('{name}', app.status.selected_library_name)
+			: app.t.editComponentNone}
 		disabled={!app.status.can_edit_component || editing}
 		onclick={app.editSelectedComponent}
 	/>
 	<MenuItem
-		label={
-			app.status.selected_library_name
-				? app.t.selectInLibrary.replace('{name}', app.status.selected_library_name)
-				: app.t.selectInLibraryNone
-		}
+		label={app.status.selected_library_name
+			? app.t.selectInLibrary.replace('{name}', app.status.selected_library_name)
+			: app.t.selectInLibraryNone}
 		disabled={!app.status.selected_library_stem}
 		onclick={app.selectSelectedLibraryComponent}
 	/>
@@ -99,11 +95,7 @@
 			disabled={!app.status.can_common_node}
 			onclick={app.doToggleCommonNode}
 		/>
-		<MenuItem
-			label={app.t.autoroute}
-			disabled={!hasSelection}
-			onclick={app.openAutoroute}
-		/>
+		<MenuItem label={app.t.autoroute} disabled={!hasSelection} onclick={app.openAutoroute} />
 	</MenuSubmenu>
 {/if}
 <MenuSeparator />

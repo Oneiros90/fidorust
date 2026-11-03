@@ -6,10 +6,7 @@
 	const app = getAppSession();
 
 	$effect(() => {
-		if (
-			app.status.tool === 'pad-link' &&
-			(!app.pro.circuitOn || app.status.editing_component)
-		) {
+		if (app.status.tool === 'pad-link' && (!app.pro.circuitOn || app.status.editing_component)) {
 			app.tool('select');
 		}
 	});
