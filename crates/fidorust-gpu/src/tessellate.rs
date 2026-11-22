@@ -8,8 +8,8 @@ use fidorust_core::geom::{bezier_point, Point};
 use fidorust_core::layers::{LayerId, LayerSet};
 use fidorust_core::library::LibrarySet;
 use fidorust_core::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
-    BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text, BEZIER_SEGMENTS_DRAW, ITALIC_SHEAR, STYLE_ITALIC, STYLE_MIRRORED,
 };
 use fidorust_core::{CanvasTheme, Tool};
 use lyon::math::point;
@@ -64,6 +64,18 @@ impl Tessellate for Rect {
         } else {
             scene.stroke_poly(&pts, true, stroke_w, rgb, selected);
         }
+    }
+}
+
+impl Tessellate for PcbBoard {
+    fn tessellate(&self, scene: &mut Scene, rgb: [f32; 4], selected: bool, stroke_w: f32) {
+        Rect {
+            a: self.a,
+            b: self.b,
+            filled: self.filled,
+            layer: self.layer,
+        }
+        .tessellate(scene, rgb, selected, stroke_w);
     }
 }
 
@@ -286,6 +298,7 @@ fn draft_stroke_width(defaults: &PrimitiveDefaults, tool: Option<Tool>) -> f32 {
         Some(Tool::Line) => defaults.line_stroke_hundredths,
         Some(Tool::Bezier) => defaults.bezier_stroke_hundredths,
         Some(Tool::Rect) => defaults.rect.stroke_hundredths,
+        Some(Tool::PcbBoard) => defaults.board.stroke_hundredths,
         Some(Tool::Ellipse) => defaults.ellipse.stroke_hundredths,
         Some(Tool::Poly) => defaults.poly.stroke_hundredths,
         _ => defaults.line_stroke_hundredths,

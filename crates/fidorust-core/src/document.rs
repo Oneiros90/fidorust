@@ -223,6 +223,9 @@ pub struct PrimitiveDefaults {
     pub line_stroke_hundredths: i32,
     pub bezier_stroke_hundredths: i32,
     pub rect: ShapeDefaults,
+    /// PCB board outline. Missing in older project JSON.
+    #[serde(default)]
+    pub board: ShapeDefaults,
     pub ellipse: ShapeDefaults,
     pub poly: ShapeDefaults,
     pub text: TextDefaults,
@@ -236,6 +239,7 @@ impl Default for PrimitiveDefaults {
             line_stroke_hundredths: DEFAULT_STROKE_HUNDREDTHS,
             bezier_stroke_hundredths: DEFAULT_STROKE_HUNDREDTHS,
             rect: ShapeDefaults::default(),
+            board: ShapeDefaults::default(),
             ellipse: ShapeDefaults::default(),
             poly: ShapeDefaults::default(),
             text: TextDefaults::default(),
@@ -251,6 +255,7 @@ impl PrimitiveDefaults {
             line_stroke_hundredths: clamp_stroke(self.line_stroke_hundredths),
             bezier_stroke_hundredths: clamp_stroke(self.bezier_stroke_hundredths),
             rect: self.rect.clamped(),
+            board: self.board.clamped(),
             ellipse: self.ellipse.clamped(),
             poly: self.poly.clamped(),
             text: self.text.clamped(),
@@ -265,6 +270,8 @@ impl PrimitiveDefaults {
         self.bezier_stroke_hundredths = stroke;
         self.rect.stroke_hundredths = stroke;
         self.rect.filled = filled;
+        self.board.stroke_hundredths = stroke;
+        self.board.filled = filled;
         self.ellipse.stroke_hundredths = stroke;
         self.ellipse.filled = filled;
         self.poly.stroke_hundredths = stroke;
@@ -276,6 +283,7 @@ impl PrimitiveDefaults {
             Primitive::Line(_) => self.line_stroke_hundredths,
             Primitive::Bezier(_) => self.bezier_stroke_hundredths,
             Primitive::Rect(_) => self.rect.stroke_hundredths,
+            Primitive::PcbBoard(_) => self.board.stroke_hundredths,
             Primitive::Ellipse(_) => self.ellipse.stroke_hundredths,
             Primitive::Poly(_) => self.poly.stroke_hundredths,
             _ => self.line_stroke_hundredths,

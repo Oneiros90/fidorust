@@ -178,6 +178,17 @@ fn write_prim(out: &mut String, p: &Primitive, color: &str, defaults: &Primitive
     match p {
         Primitive::Line(l) => write_line_prim(out, l, color, stroke_w),
         Primitive::Rect(r) => write_rect_prim(out, r, color, stroke_w),
+        Primitive::PcbBoard(b) => write_rect_prim(
+            out,
+            &Rect {
+                a: b.a,
+                b: b.b,
+                filled: b.filled,
+                layer: b.layer,
+            },
+            color,
+            stroke_w,
+        ),
         Primitive::Poly(poly) => write_poly_prim(out, poly, color, stroke_w),
         Primitive::Ellipse(e) => write_ellipse_prim(out, e, color, stroke_w),
         Primitive::Bezier(b) => write_bezier_prim(out, b, color, stroke_w),

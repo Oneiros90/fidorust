@@ -21,6 +21,7 @@ export const TOOL_GROUPS = [
 	],
 	[
 		['pcb-track', 'pcbTrack'],
-		['pcb-pad', 'pcbPad']
+		['pcb-pad', 'pcbPad'],
+		['pcb-board', 'pcbBoard']
 	]
 ] as const;

@@ -2,7 +2,16 @@ import type { Dict } from '../i18n';
 import type { PrimitiveDefaults } from './engineTypes';
 
 export type ProjectSettingsSection =
-	'general' | 'line' | 'rect' | 'ellipse' | 'poly' | 'bezier' | 'text' | 'pcb-track' | 'pcb-pad';
+	| 'general'
+	| 'line'
+	| 'rect'
+	| 'ellipse'
+	| 'poly'
+	| 'bezier'
+	| 'text'
+	| 'pcb-track'
+	| 'pcb-pad'
+	| 'pcb-board';
 
 export const TOOL_DEFAULT_SECTIONS: readonly {
 	id: ProjectSettingsSection;
@@ -16,7 +25,8 @@ export const TOOL_DEFAULT_SECTIONS: readonly {
 	{ id: 'bezier', toolId: 'bezier', label: 'bezier' },
 	{ id: 'text', toolId: 'text', label: 'text' },
 	{ id: 'pcb-track', toolId: 'pcb-track', label: 'pcbTrack' },
-	{ id: 'pcb-pad', toolId: 'pcb-pad', label: 'pcbPad' }
+	{ id: 'pcb-pad', toolId: 'pcb-pad', label: 'pcbPad' },
+	{ id: 'pcb-board', toolId: 'pcb-board', label: 'pcbBoard' }
 ];
 
 const TOOL_SECTION_IDS = new Set(TOOL_DEFAULT_SECTIONS.map((s) => s.toolId));
@@ -34,6 +44,7 @@ export function defaultPrimitiveDefaults(): PrimitiveDefaults {
 		line_stroke_hundredths: 25,
 		bezier_stroke_hundredths: 25,
 		rect: { stroke_hundredths: 25, filled: false },
+		board: { stroke_hundredths: 25, filled: false },
 		ellipse: { stroke_hundredths: 25, filled: false },
 		poly: { stroke_hundredths: 25, filled: false },
 		text: { sy: 4, sx: 3, style: 0, font: 'Courier Prime' },

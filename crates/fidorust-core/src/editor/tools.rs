@@ -15,6 +15,7 @@ pub enum Tool {
     Connection,
     PcbTrack,
     PcbPad,
+    PcbBoard,
     Component,
     Zoom,
     Pan,
@@ -41,6 +42,7 @@ impl Tool {
             Self::Connection => "connection",
             Self::PcbTrack => "pcb-track",
             Self::PcbPad => "pcb-pad",
+            Self::PcbBoard => "pcb-board",
             Self::Component => "component",
             Self::Zoom => "zoom",
             Self::Pan => "pan",
@@ -49,11 +51,11 @@ impl Tool {
         }
     }
 
-    /// Line, rect, ellipse, and PCB track: drag or click-click to place two points.
+    /// Line, rect, ellipse, PCB track, and PCB board: drag or click-click to place two points.
     pub fn is_two_point_draw(self) -> bool {
         matches!(
             self,
-            Self::Line | Self::Rect | Self::Ellipse | Self::PcbTrack
+            Self::Line | Self::Rect | Self::Ellipse | Self::PcbTrack | Self::PcbBoard
         )
     }
 }
@@ -72,6 +74,7 @@ impl std::str::FromStr for Tool {
             "connection" => Self::Connection,
             "pcb-track" => Self::PcbTrack,
             "pcb-pad" => Self::PcbPad,
+            "pcb-board" => Self::PcbBoard,
             "component" | "macro" => Self::Component,
             "zoom" => Self::Zoom,
             "pan" => Self::Pan,

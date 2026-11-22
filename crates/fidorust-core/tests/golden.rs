@@ -3,7 +3,7 @@ use fidorust_core::primitive::STYLE_MIRRORED;
 use fidorust_core::serialize::{serialize_document, serialize_primitive};
 use fidorust_core::{
     ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PadStyle,
-    PcbPad, PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform,
+    PcbBoard, PcbPad, PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform,
     COMPONENT_ORIGIN, DEFAULT_FONT,
 };
 
@@ -508,6 +508,29 @@ fn click_click_places_rect() {
             assert!(filled);
         }
         other => panic!("expected one rect, got {other:?}"),
+    }
+}
+
+#[test]
+fn click_click_places_pcb_board() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_tool(Tool::PcbBoard);
+    ed.doc_mut().snap = 1;
+    ed.set_filled(true);
+    let a = Point::new(0, 10);
+    let b = Point::new(10, 20);
+    click_click(&mut ed, a, b);
+    match &ed.doc().primitives[..] {
+        [Primitive::PcbBoard(PcbBoard {
+            a: pa,
+            b: pb,
+            filled,
+            ..
+        })] => {
+            assert_eq!((*pa, *pb), (a, b));
+            assert!(filled);
+        }
+        other => panic!("expected one board, got {other:?}"),
     }
 }
 
@@ -1206,6 +1229,49 @@ fn pd_lines_roundtrip_per_tool() {
     assert!(!out.contains("PS 5 5 5 5 1 1 1 25"));
     let doc2 = parse_document(&out).unwrap();
     assert_eq!(doc.defaults, doc2.defaults);
+    assert!(out.contains("PD BV 25 0\r\n"));
+}
+
+#[test]
+fn pcb_board_fcd_roundtrip() {
+    let outline = parse_primitive_line("BV 2 3 20 30").unwrap();
+    assert!(matches!(
+        outline,
+        Primitive::PcbBoard(PcbBoard {
+            filled: false,
+            layer: LayerId(0),
+            ..
+        })
+    ));
+    assert_eq!(serialize_primitive(&outline), "BV 2 3 20 30\r\n");
+    let filled = parse_primitive_line("BP 2 3 20 30 4").unwrap();
+    assert!(matches!(
+        filled,
+        Primitive::PcbBoard(PcbBoard {
+            filled: true,
+            layer: LayerId(4),
+            ..
+        })
+    ));
+    assert_eq!(serialize_primitive(&filled), "BP 2 3 20 30 4\r\n");
+    let src = "[FIDOCAD]\nPD BV 12 1\nBP 0 0 10 8 2\n";
+    let doc = parse_document(src).unwrap();
+    assert_eq!(doc.defaults.board.stroke_hundredths, 12);
+    assert!(doc.defaults.board.filled);
+    assert!(matches!(
+        &doc.primitives[0],
+        Primitive::PcbBoard(PcbBoard {
+            filled: true,
+            layer: LayerId(2),
+            ..
+        })
+    ));
+    let out = serialize_document(&doc, None);
+    assert!(out.contains("PD BV 12 1\r\n"));
+    assert!(out.contains("BP 0 0 10 8 2\r\n"));
+    let doc2 = parse_document(&out).unwrap();
+    assert_eq!(doc.defaults, doc2.defaults);
+    assert_eq!(doc.primitives, doc2.primitives);
 }
 
 #[test]

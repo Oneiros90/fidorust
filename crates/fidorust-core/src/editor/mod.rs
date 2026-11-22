@@ -169,6 +169,7 @@ impl Editor {
         if self.doc.defaults.rect.filled == on
             && self.doc.defaults.ellipse.filled == on
             && self.doc.defaults.poly.filled == on
+            && self.doc.defaults.board.filled == on
         {
             return;
         }
@@ -176,6 +177,7 @@ impl Editor {
         self.doc.defaults.rect.filled = on;
         self.doc.defaults.ellipse.filled = on;
         self.doc.defaults.poly.filled = on;
+        self.doc.defaults.board.filled = on;
     }
 
     pub fn set_layer(&mut self, n: u8) {
@@ -254,6 +256,7 @@ impl Editor {
             Tool::Rect => self.doc.defaults.rect.filled,
             Tool::Ellipse => self.doc.defaults.ellipse.filled,
             Tool::Poly => self.doc.defaults.poly.filled,
+            Tool::PcbBoard => self.doc.defaults.board.filled,
             _ => self.doc.defaults.rect.filled,
         }
     }
@@ -265,6 +268,7 @@ impl Editor {
             Tool::Rect => self.doc.defaults.rect.stroke_hundredths,
             Tool::Ellipse => self.doc.defaults.ellipse.stroke_hundredths,
             Tool::Poly => self.doc.defaults.poly.stroke_hundredths,
+            Tool::PcbBoard => self.doc.defaults.board.stroke_hundredths,
             _ => self.doc.defaults.line_stroke_hundredths,
         };
         h as f32 / 100.0

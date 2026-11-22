@@ -11,6 +11,10 @@
   "common_node_on": false,
   "defaults": {
     "bezier_stroke_hundredths": 25,
+    "board": {
+      "filled": false,
+      "stroke_hundredths": 25
+    },
     "ellipse": {
       "filled": false,
       "stroke_hundredths": 25

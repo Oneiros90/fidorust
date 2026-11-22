@@ -13,8 +13,8 @@ use crate::library::{
     max_used_layer_index, ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM,
 };
 use crate::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbPad, PcbTrack, Poly, Primitive,
-    Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbBoard, PcbPad, PcbTrack, Poly,
+    Primitive, Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
 };
 use encoding_rs::WINDOWS_1252;
 use thiserror::Error;
@@ -161,6 +161,15 @@ pub fn apply_pd_line(line: &str, defaults: &mut PrimitiveDefaults) -> bool {
             }
             if let Some(v) = t.i32(2) {
                 defaults.rect.filled = v != 0;
+            }
+        }
+        "BV" => {
+            if let Some(v) = t.i32(1) {
+                defaults.board.stroke_hundredths =
+                    v.clamp(STROKE_HUNDREDTHS_MIN, STROKE_HUNDREDTHS_MAX);
+            }
+            if let Some(v) = t.i32(2) {
+                defaults.board.filled = v != 0;
             }
         }
         "EV" => {
@@ -419,6 +428,17 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
                 a: t.point(0)?,
                 b: t.point(2)?,
                 filled: op == "RP",
+                layer: t.layer_or_default(4),
+            }))
+        }
+        "BP" | "BV" => {
+            if t.len() < 4 {
+                return None;
+            }
+            Some(Primitive::PcbBoard(PcbBoard {
+                a: t.point(0)?,
+                b: t.point(2)?,
+                filled: op == "BP",
                 layer: t.layer_or_default(4),
             }))
         }

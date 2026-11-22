@@ -5,7 +5,7 @@ use crate::consts::{ZOOM_MAX_WHEEL, ZOOM_TOOL_FACTOR};
 use crate::geom::Point;
 use crate::hit::{hit_test, marquee_select, HitQuery};
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
 };
 
 impl Editor {
@@ -179,7 +179,12 @@ impl Editor {
                 self.zoom = (self.zoom * ZOOM_TOOL_FACTOR).min(ZOOM_MAX_WHEEL);
             }
             Tool::PadLink => {}
-            Tool::Line | Tool::Rect | Tool::Ellipse | Tool::PcbTrack | Tool::Ruler => {
+            Tool::Line
+            | Tool::Rect
+            | Tool::Ellipse
+            | Tool::PcbTrack
+            | Tool::PcbBoard
+            | Tool::Ruler => {
                 if let Some(d) = self.draft.as_mut() {
                     Self::set_draft_endpoint(d, pt);
                 } else {
@@ -386,6 +391,12 @@ impl Editor {
                 a,
                 b,
                 filled: self.doc.defaults.rect.filled,
+                layer: self.layer,
+            }),
+            Tool::PcbBoard => Primitive::PcbBoard(PcbBoard {
+                a,
+                b,
+                filled: self.doc.defaults.board.filled,
                 layer: self.layer,
             }),
             Tool::Ellipse => Primitive::Ellipse(Ellipse {

@@ -38,6 +38,7 @@
 			line_stroke_hundredths: d.line_stroke_hundredths,
 			bezier_stroke_hundredths: d.bezier_stroke_hundredths,
 			rect: { ...d.rect },
+			board: { ...d.board },
 			ellipse: { ...d.ellipse },
 			poly: { ...d.poly },
 			text: { ...d.text },
@@ -51,6 +52,7 @@
 	let lineStrokeLu = $state(untrack(() => values.defaults.line_stroke_hundredths / 100));
 	let bezierStrokeLu = $state(untrack(() => values.defaults.bezier_stroke_hundredths / 100));
 	let rectStrokeLu = $state(untrack(() => values.defaults.rect.stroke_hundredths / 100));
+	let boardStrokeLu = $state(untrack(() => values.defaults.board.stroke_hundredths / 100));
 	let ellipseStrokeLu = $state(untrack(() => values.defaults.ellipse.stroke_hundredths / 100));
 	let polyStrokeLu = $state(untrack(() => values.defaults.poly.stroke_hundredths / 100));
 
@@ -76,6 +78,10 @@
 				rect: {
 					...defaults.rect,
 					stroke_hundredths: clampStrokeLu(rectStrokeLu)
+				},
+				board: {
+					...defaults.board,
+					stroke_hundredths: clampStrokeLu(boardStrokeLu)
 				},
 				ellipse: {
 					...defaults.ellipse,
@@ -228,6 +234,16 @@
 						onchange={(e) => setStyleBit(STYLE_UNDERLINE, e.currentTarget.checked)}
 					/>
 					{t.propUnderlined}
+				</label>
+			{:else if section === 'pcb-board'}
+				<h3>{t.pcbBoard}</h3>
+				<label>
+					{t.propThickness}
+					<input type="number" min="0.01" max="20" step="0.05" bind:value={boardStrokeLu} />
+				</label>
+				<label class="chk">
+					<input type="checkbox" bind:checked={defaults.board.filled} />
+					{t.propFilled}
 				</label>
 			{:else if section === 'pcb-track'}
 				<h3>{t.pcbTrack}</h3>

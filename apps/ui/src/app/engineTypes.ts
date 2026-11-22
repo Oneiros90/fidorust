@@ -23,6 +23,7 @@ export type PrimitiveDefaults = {
 	line_stroke_hundredths: number;
 	bezier_stroke_hundredths: number;
 	rect: ShapeDefaults;
+	board: ShapeDefaults;
 	ellipse: ShapeDefaults;
 	poly: ShapeDefaults;
 	text: TextDefaults;
@@ -158,6 +159,7 @@ export const defaultStatus = (): Status => ({
 		line_stroke_hundredths: 25,
 		bezier_stroke_hundredths: 25,
 		rect: { stroke_hundredths: 25, filled: false },
+		board: { stroke_hundredths: 25, filled: false },
 		ellipse: { stroke_hundredths: 25, filled: false },
 		poly: { stroke_hundredths: 25, filled: false },
 		text: { sy: 4, sx: 3, style: 0, font: 'Courier Prime' },

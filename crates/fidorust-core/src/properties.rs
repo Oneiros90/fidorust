@@ -2,7 +2,8 @@
 
 use crate::layers::LayerId;
 use crate::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -165,6 +166,7 @@ fn attrib_order(first: &Primitive) -> &'static [PropField] {
         Primitive::Connection(_) => Connection::fields(),
         Primitive::PcbTrack(_) => PcbTrack::fields(),
         Primitive::PcbPad(_) => PcbPad::fields(),
+        Primitive::PcbBoard(_) => PcbBoard::fields(),
         Primitive::Component(_) => ComponentRef::fields(),
     }
 }

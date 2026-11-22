@@ -6,7 +6,8 @@ use crate::library::{
     explode_user_components_in_document, fold_user_components_in_document, Library, LibrarySet,
 };
 use crate::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text,
 };
 
 use super::tokens::{font_token, plus_spaces, push_layer};
@@ -27,6 +28,22 @@ pub fn serialize_primitive(p: &Primitive) -> String {
             s.push_str(&format!(
                 "{} {} {} {} {}",
                 if *filled { "RP" } else { "RV" },
+                a.x,
+                a.y,
+                b.x,
+                b.y
+            ));
+            push_layer(&mut s, *layer);
+        }
+        Primitive::PcbBoard(PcbBoard {
+            a,
+            b,
+            filled,
+            layer,
+        }) => {
+            s.push_str(&format!(
+                "{} {} {} {} {}",
+                if *filled { "BP" } else { "BV" },
                 a.x,
                 a.y,
                 b.x,
@@ -173,6 +190,11 @@ pub fn serialize_primitive_defaults(defaults: &PrimitiveDefaults) -> String {
         "PD RV {} {}\r\n",
         defaults.rect.stroke_hundredths,
         vis(defaults.rect.filled)
+    ));
+    out.push_str(&format!(
+        "PD BV {} {}\r\n",
+        defaults.board.stroke_hundredths,
+        vis(defaults.board.filled)
     ));
     out.push_str(&format!(
         "PD EV {} {}\r\n",

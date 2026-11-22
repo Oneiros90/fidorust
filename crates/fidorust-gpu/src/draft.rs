@@ -37,7 +37,7 @@ pub(crate) fn add_draft(
                 scene.push_ellipse(a, b, params.filled, stroke_w, preview, false);
             }
         }
-        Some(Tool::Rect) => {
+        Some(Tool::Rect) | Some(Tool::PcbBoard) => {
             if a != b {
                 let corners = rect_corners(a, b);
                 if params.filled {

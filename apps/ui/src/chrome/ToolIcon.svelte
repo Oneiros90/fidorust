@@ -36,6 +36,12 @@
 	{:else if name === 'pcb-pad'}
 		<circle cx="12" cy="12" r="7" />
 		<circle cx="12" cy="12" r="2.7" />
+	{:else if name === 'pcb-board'}
+		<path d="M8 4.2H4.2V8" />
+		<path d="M16 4.2h3.8V8" />
+		<path d="M8 19.8H4.2V16" />
+		<path d="M16 19.8h3.8V16" />
+		<rect x="7.2" y="7.2" width="9.6" height="9.6" />
 	{:else if name === 'pad-link'}
 		<rect x="3.2" y="14.2" width="6.2" height="6.2" rx="1" />
 		<circle cx="17.2" cy="6.4" r="2.5" />

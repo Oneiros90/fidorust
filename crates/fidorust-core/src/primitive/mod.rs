@@ -6,6 +6,7 @@ mod connection;
 mod ellipse;
 mod line;
 mod pad;
+mod pcb_board;
 mod pcb_pad;
 mod pcb_track;
 mod poly;
@@ -19,6 +20,7 @@ pub use connection::Connection;
 pub use ellipse::Ellipse;
 pub use line::Line;
 pub use pad::PadStyle;
+pub use pcb_board::PcbBoard;
 pub use pcb_pad::PcbPad;
 pub use pcb_track::PcbTrack;
 pub use poly::Poly;
@@ -51,6 +53,7 @@ pub enum Primitive {
     Connection(Connection),
     PcbTrack(PcbTrack),
     PcbPad(PcbPad),
+    PcbBoard(PcbBoard),
     Component(ComponentRef),
 }
 
@@ -67,6 +70,7 @@ macro_rules! dispatch_primitive {
             $crate::primitive::Primitive::Connection($p) => $body,
             $crate::primitive::Primitive::PcbTrack($p) => $body,
             $crate::primitive::Primitive::PcbPad($p) => $body,
+            $crate::primitive::Primitive::PcbBoard($p) => $body,
             $crate::primitive::Primitive::Component($p) => $body,
         }
     };
@@ -115,6 +119,14 @@ impl Primitive {
     }
     pub fn pcb_pad(pad: PcbPad) -> Self {
         Self::PcbPad(pad)
+    }
+    pub fn pcb_board(a: Point, b: Point, filled: bool, layer: LayerId) -> Self {
+        Self::PcbBoard(PcbBoard {
+            a,
+            b,
+            filled,
+            layer,
+        })
     }
     pub fn component_ref(m: ComponentRef) -> Self {
         Self::Component(m)
@@ -246,6 +258,13 @@ impl Primitive {
             Primitive::Connection(_) => "SA",
             Primitive::PcbTrack(_) => "PL",
             Primitive::PcbPad(_) => "PA",
+            Primitive::PcbBoard(b) => {
+                if b.filled {
+                    "BP"
+                } else {
+                    "BV"
+                }
+            }
             Primitive::Component(_) => "MC",
         }
     }
