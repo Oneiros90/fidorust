@@ -262,7 +262,12 @@ fn color(
         if let Some(c) = top_index.and_then(|i| overlay.tint_color(i)) {
             Rgb::from_rgba_u8(c)
         } else if let Some(ink) = overlay.ink {
-            Rgb::from_rgba_u8(ink)
+            let rgba = if p.layer().index() == 0 {
+                ink
+            } else {
+                overlay.other_ink.unwrap_or(ink)
+            };
+            Rgb::from_rgba_u8(rgba)
         } else {
             Rgb::from_rgba_u8(layers.color(p.layer()))
         }

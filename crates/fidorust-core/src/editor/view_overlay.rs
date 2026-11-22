@@ -55,7 +55,10 @@ pub struct OverlayStroke {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ViewOverlay {
     /// Replace layer ink for primitives that are not tinted or selected.
+    /// With [`Self::other_ink`], this colour is only the first layer.
     pub ink: Option<[u8; 4]>,
+    /// Ink for layers after the first. `None` keeps [`Self::ink`] on every layer.
+    pub other_ink: Option<[u8; 4]>,
     /// First match wins.
     pub tints: Vec<OverlayTint>,
     pub markers: Vec<OverlayMarker>,

@@ -697,6 +697,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
     }));
     ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
         ink: Some([0, 0, 0, 255]),
+        other_ink: None,
         tints: vec![fidorust_core::OverlayTint {
             ids: vec![0],
             color: [255, 0, 0, 255],
@@ -725,6 +726,7 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
 
     ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
         ink: Some([0, 0, 0, 255]),
+        other_ink: None,
         tints: vec![],
         markers: vec![fidorust_core::OverlayMarker {
             pos: Point::new(0, 0),
@@ -747,6 +749,51 @@ fn view_overlay_recolors_by_top_level_index_and_draws_markers() {
 }
 
 #[test]
+fn overlay_other_ink_keeps_only_the_first_layer_black() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 0),
+        b: Point::new(20, 0),
+        layer: LayerId(0),
+    }));
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 10),
+        b: Point::new(20, 10),
+        layer: LayerId(1),
+    }));
+    ed.doc_mut().primitives.push(Primitive::Line(Line {
+        a: Point::new(0, 20),
+        b: Point::new(20, 20),
+        layer: LayerId(2),
+    }));
+    let gray = [160, 160, 160, 255];
+    ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
+        ink: Some([0, 0, 0, 255]),
+        other_ink: Some(gray),
+        tints: vec![fidorust_core::OverlayTint {
+            ids: vec![1],
+            color: [255, 0, 0, 255],
+        }],
+        ..Default::default()
+    }));
+    let scene = tessellate_editor(&ed);
+    assert_eq!(scene.lines.len(), 3);
+    let black = Rgb::from_rgba_u8([0, 0, 0, 255]);
+    let dim = Rgb::from_rgba_u8(gray);
+    let red = Rgb::from_rgba_u8([255, 0, 0, 255]);
+    assert!((scene.lines[0].r - black[0]).abs() < 1e-5);
+    assert!((scene.lines[0].g - black[1]).abs() < 1e-5);
+    assert!((scene.lines[0].b - black[2]).abs() < 1e-5);
+    assert!(
+        (scene.lines[1].r - red[0]).abs() < 1e-5,
+        "a tint still wins on a later layer"
+    );
+    assert!((scene.lines[2].r - dim[0]).abs() < 1e-5);
+    assert!((scene.lines[2].g - dim[1]).abs() < 1e-5);
+    assert!((scene.lines[2].b - dim[2]).abs() < 1e-5);
+}
+
+#[test]
 fn overlay_markers_are_drawn_after_foreground() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut()
@@ -757,6 +804,7 @@ fn overlay_markers_are_drawn_after_foreground() {
         }));
     ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
         ink: None,
+        other_ink: None,
         tints: vec![],
         markers: vec![fidorust_core::OverlayMarker {
             pos: Point::new(0, 0),
@@ -794,6 +842,7 @@ fn overlay_foreground_is_drawn_after_later_layers() {
     }));
     ed.set_view_overlay(Some(fidorust_core::ViewOverlay {
         ink: None,
+        other_ink: None,
         tints: vec![fidorust_core::OverlayTint {
             ids: vec![0],
             color: [255, 0, 0, 255],
