@@ -45,9 +45,8 @@ impl Editor {
         self.store_active_pane();
         self.split = on;
         if on {
-            self.panes[1].sheet_index = self.panes[0].sheet_index;
-            self.panes[1].zoom = self.panes[0].zoom;
-            self.panes[1].pan = self.panes[0].pan;
+            let current = self.panes[0].sheet_index;
+            self.panes[1].sheet_index = companion_sheet(current, self.doc.sheets.len());
             self.panes[1].selected.clear();
             self.panes[1].hover = None;
             self.panes[1].hover_hit = false;
@@ -341,6 +340,22 @@ impl Editor {
         self.panes[pane].hover_index = None;
         self.restore_active_pane();
         Ok(first_idx)
+    }
+}
+
+/// Sheet shown in the pane that appears when split view turns on.
+/// The sheet already on screen stays on the left. The right pane takes the next
+/// sheet, or the previous one when the current sheet is last. The same sheet
+/// is repeated only when the project has a single sheet.
+fn companion_sheet(current: usize, count: usize) -> usize {
+    if count <= 1 {
+        return 0;
+    }
+    let current = current.min(count - 1);
+    if current + 1 < count {
+        current + 1
+    } else {
+        current - 1
     }
 }
 

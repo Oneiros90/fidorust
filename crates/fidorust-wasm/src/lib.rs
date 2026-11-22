@@ -337,6 +337,14 @@ impl App {
         self.editor.fit_view(w, h);
     }
 
+    /// Fit a pane to its current canvas size without moving the active pane.
+    #[wasm_bindgen]
+    pub fn fit_pane_keeping_active(&mut self, pane: u32) {
+        let pane = (pane as usize).min(1);
+        let (w, h) = self.sizes[pane];
+        self.editor.fit_pane_view(pane, w, h);
+    }
+
     #[wasm_bindgen]
     pub fn key(&mut self, key: &str, meta: bool) -> bool {
         match key {

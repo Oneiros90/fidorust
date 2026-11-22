@@ -60,7 +60,6 @@ export const it: typeof en = {
 	defaultLineWidth: 'Spessore di default delle linee',
 	defaultFill: 'Riempimento di default delle forme',
 	fit: 'Adatta alla finestra',
-	pcbMode: 'Modalità PCB 1:1',
 	dualSheet: 'Doppio foglio',
 	sheets: 'Fogli',
 	addSheet: 'Nuovo foglio',

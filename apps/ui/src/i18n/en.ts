@@ -58,7 +58,6 @@ export const en = {
 	defaultLineWidth: 'Default line thickness',
 	defaultFill: 'Default shape fill',
 	fit: 'Fit to window',
-	pcbMode: 'PCB mode 1:1',
 	dualSheet: 'Dual sheet',
 	sheets: 'Sheets',
 	addSheet: 'New sheet',

@@ -1895,3 +1895,58 @@ fn both_panes_can_show_the_same_sheet() {
     ed.set_active_pane(0);
     assert_eq!(ed.selected().len(), 1);
 }
+
+#[test]
+fn split_opens_the_other_sheet() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 0);
+    assert_eq!(ed.pane_sheet_index(1), 0);
+
+    ed.load_text("[FIDOCAD]\n[FIDOSHEET A]\nLI 0 0 1 1\n[FIDOSHEET B]\nLI 2 2 3 3\n")
+        .unwrap();
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 0);
+    assert_eq!(ed.pane_sheet_index(1), 1);
+
+    ed.set_split(false);
+    ed.set_pane_sheet(0, 1);
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 1);
+    assert_eq!(ed.pane_sheet_index(1), 0);
+
+    ed.load_text("[FIDOCAD]\n[FIDOSHEET A]\nLI 0 0 1 1\n[FIDOSHEET B]\nLI 2 2 3 3\n[FIDOSHEET C]\nLI 4 4 5 5\n")
+        .unwrap();
+    ed.set_pane_sheet(0, 1);
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 1);
+    assert_eq!(ed.pane_sheet_index(1), 2);
+
+    ed.set_split(false);
+    ed.set_pane_sheet(0, 2);
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 2);
+    assert_eq!(ed.pane_sheet_index(1), 1);
+}
+
+#[test]
+fn split_fit_keeps_the_pane_you_were_on() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.load_text("[FIDOCAD]\n[FIDOSHEET A]\nLI 0 0 10 10\n[FIDOSHEET B]\nLI 0 0 1000 800\n")
+        .unwrap();
+    ed.set_split(true);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(1), 1);
+    let zoom0 = ed.pane_zoom(0);
+    ed.fit_pane_view(1, 200.0, 120.0);
+    assert_eq!(ed.active_pane(), 0);
+    assert_eq!(ed.pane_sheet_index(0), 0);
+    assert_eq!(ed.pane_zoom(0), zoom0);
+    assert!(ed.pane_zoom(1) < zoom0);
+    assert_eq!(ed.pane_sheet_index(1), 1);
+}

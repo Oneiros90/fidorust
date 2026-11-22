@@ -16,6 +16,7 @@ export function ensureLegacyPaneApi(app: WasmApp): WasmApp {
 	fill('detach_pane_canvas', () => {});
 	fill('hover_pane', () => {});
 	fill('fit_pane', () => a.fit());
+	fill('fit_pane_keeping_active', (pane) => a.fit_pane(pane));
 	fill('wheel_on', (_pane, x, y, delta) => a.wheel(x, y, delta));
 	fill('dblclick_on', (_pane, x, y) => a.dblclick(x, y));
 	fill('world_to_screen_json_on', (_pane, wx, wy) => a.world_to_screen_json(wx, wy));

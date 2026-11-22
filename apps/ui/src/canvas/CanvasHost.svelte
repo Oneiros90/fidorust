@@ -90,8 +90,11 @@
 		canvas.height = Math.max(1, Math.floor(r.height * scale));
 		canvas.style.width = `${r.width}px`;
 		canvas.style.height = `${r.height}px`;
+		const fitThisPane = app.fitSplitPane === pane && r.width > 1 && r.height > 1;
+		if (fitThisPane) app.fitSplitPane = null;
 		engine.query((wasm) => {
 			wasm.resize_pane(pane, canvas!.width, canvas!.height);
+			if (fitThisPane) wasm.fit_pane_keeping_active(pane);
 			wasm.render();
 		});
 	}

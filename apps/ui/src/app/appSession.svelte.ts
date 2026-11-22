@@ -82,6 +82,8 @@ export class AppSession {
 	#titleSig = '';
 	#titleEpoch = $state(0);
 	splitRatio = $state(this.#session?.splitRatio ?? 0.5);
+	/** Right pane to fit once it has a real canvas size. Set when split view opens. */
+	fitSplitPane: number | null = null;
 
 	windowTitle = $derived.by(() => {
 		void this.#titleEpoch;
@@ -527,12 +529,6 @@ export class AppSession {
 	doInvert = () => edit.doInvert(this);
 	fit = () => edit.fit(this);
 	duplicateSelection = () => edit.duplicateSelection(this);
-
-	togglePcb = () => {
-		this.engine?.mutate((app) => {
-			app.set_pcb_mode(!this.status.pcb);
-		});
-	};
 
 	pickComponent = (stem: string, key: string) => comps.pickComponent(this, stem, key);
 

@@ -13,4 +13,3 @@
 	disabled={!!app.status.editing_component}
 	onclick={app.toggleSplit}
 />
-<MenuItem label={app.t.pcbMode} onclick={app.togglePcb} />

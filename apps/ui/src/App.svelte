@@ -74,35 +74,37 @@
 	{/if}
 	<div class="body">
 		<ToolSidebar />
-		<div class="stage" {@attach bindStage}>
-			<div class="pane-slot" style:flex={`${app.status.split ? app.splitRatio : 1} 1 0`}>
-				<SheetPane pane={0} />
-			</div>
-			{#if app.status.split}
-				<div
-					class="splitter"
-					role="separator"
-					aria-orientation="vertical"
-					aria-label={app.t.dualSheet}
-					onpointerdown={onSplitterDown}
-					oncontextmenu={(e) => {
-						if (app.status.tool === 'pad-link' && app.pro.padLinkContext(e.clientX, e.clientY)) {
-							e.preventDefault();
-							e.stopPropagation();
-						}
-					}}
-				></div>
-				<div class="pane-slot" style:flex={`${1 - app.splitRatio} 1 0`}>
-					<SheetPane pane={1} />
+		<div class="center">
+			<div class="stage" {@attach bindStage}>
+				<div class="pane-slot" style:flex={`${app.status.split ? app.splitRatio : 1} 1 0`}>
+					<SheetPane pane={0} />
 				</div>
-			{/if}
-			{#key app.pro.stageKey}
-				<div class="stage-ext" {@attach app.pro.stageAttach}></div>
-			{/key}
+				{#if app.status.split}
+					<div
+						class="splitter"
+						role="separator"
+						aria-orientation="vertical"
+						aria-label={app.t.dualSheet}
+						onpointerdown={onSplitterDown}
+						oncontextmenu={(e) => {
+							if (app.status.tool === 'pad-link' && app.pro.padLinkContext(e.clientX, e.clientY)) {
+								e.preventDefault();
+								e.stopPropagation();
+							}
+						}}
+					></div>
+					<div class="pane-slot" style:flex={`${1 - app.splitRatio} 1 0`}>
+						<SheetPane pane={1} />
+					</div>
+				{/if}
+				{#key app.pro.stageKey}
+					<div class="stage-ext" {@attach app.pro.stageAttach}></div>
+				{/key}
+			</div>
+			<StatusBar />
 		</div>
 		<RightSidebar />
 	</div>
-	<StatusBar />
 </div>
 <AppOverlays />
 
@@ -115,6 +117,13 @@
 	.body {
 		flex: 1;
 		display: flex;
+		min-height: 0;
+	}
+	.center {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
 		min-height: 0;
 	}
 	.stage {

@@ -121,4 +121,17 @@ impl Editor {
         );
         self.store_active_pane();
     }
+
+    /// Fit one pane to `w`×`h` canvas pixels and leave the pane you were using active.
+    pub fn fit_pane_view(&mut self, pane: usize, w: f32, h: f32) {
+        let pane = if self.split { pane.min(1) } else { 0 };
+        let prev = self.active_pane();
+        if pane != prev {
+            self.set_active_pane(pane);
+        }
+        self.fit_view(w, h);
+        if pane != prev {
+            self.set_active_pane(prev);
+        }
+    }
 }

@@ -10,6 +10,7 @@ export function hoverPane(s: AppSession, pane: number) {
 
 export function setSplit(s: AppSession, on: boolean) {
 	if (s.status.editing_component) return;
+	s.fitSplitPane = on ? 1 : null;
 	s.engine?.mutate((app) => {
 		app.set_split(on);
 	});

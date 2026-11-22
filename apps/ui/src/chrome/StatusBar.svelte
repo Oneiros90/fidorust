@@ -16,6 +16,19 @@
 	let update = $state<LatestRelease | null>(null);
 
 	const updateLabel = $derived(update ? app.t.updateTo.replace('{version}', update.tag) : '');
+	const activePane = $derived(app.status.active_pane ?? 0);
+
+	let versionWidth = $state(0);
+
+	function trackVersion(node: HTMLElement) {
+		const apply = () => {
+			versionWidth = node.offsetWidth;
+		};
+		apply();
+		const ro = new ResizeObserver(apply);
+		ro.observe(node);
+		return () => ro.disconnect();
+	}
 
 	onMount(() => {
 		void (async () => {
@@ -30,65 +43,88 @@
 	};
 </script>
 
+{#snippet readout(reserveEnd: boolean)}
+	<div
+		class="row"
+		style:padding-right={reserveEnd && versionWidth > 0 ? `${versionWidth}px` : undefined}
+	>
+		<span class="title">{app.status.title || app.t.statusReady}</span>
+		<span>{app.t.layer} {app.status.layer}</span>
+		<span>{app.status.x}, {app.status.y} LU</span>
+		{#if app.status.pcb}
+			<span>{app.status.xmm.toFixed(2)} × {app.status.ymm.toFixed(2)} mm</span>
+		{/if}
+		<span>{Math.round(app.status.zoom * 100)}%</span>
+		<span>{app.status.n} obj</span>
+		{#if app.status.selected}
+			<span>sel {app.status.selected}</span>
+		{:else if app.status.hover_op}
+			<span>{app.status.hover_op}</span>
+		{/if}
+		{#if app.status.pending_component}<span>{app.t.component}: {app.status.pending_component}</span
+			>{/if}
+		<span class="pills">
+			<StatusSettingPill
+				label={app.t.statusSnap}
+				x={app.status.snap}
+				y={app.status.snap_y}
+				enabled={app.status.snap_enable}
+				enabledLabel={app.t.enableSnap}
+				offLabel={app.t.statusOff}
+				min={1}
+				max={20}
+				onX={(v) => app.setSnap(v, app.status.snap_y)}
+				onY={(v) => app.setSnap(app.status.snap, v)}
+				onEnabled={app.setSnapEnable}
+			/>
+			<StatusSettingPill
+				label={app.t.statusGrid}
+				x={app.status.grid}
+				y={app.status.grid_y}
+				enabled={app.status.show_grid}
+				enabledLabel={app.t.showGrid}
+				offLabel={app.t.statusOff}
+				min={1}
+				max={40}
+				onX={(v) => app.setGrid(v, app.status.grid_y)}
+				onY={(v) => app.setGrid(app.status.grid, v)}
+				onEnabled={app.setShowGrid}
+			/>
+		</span>
+	</div>
+{/snippet}
+
 <footer class="status">
-	<span>{app.status.title || app.t.statusReady}</span>
-	<span>{app.t.layer} {app.status.layer}</span>
-	<span>{app.status.x}, {app.status.y} LU</span>
-	{#if app.status.pcb}
-		<span>{app.status.xmm.toFixed(2)} × {app.status.ymm.toFixed(2)} mm</span>
-	{/if}
-	<span>{Math.round(app.status.zoom * 100)}%</span>
-	<span>{app.status.n} obj</span>
-	{#if app.status.selected}
-		<span>sel {app.status.selected}</span>
-	{:else if app.status.hover_op}
-		<span>{app.status.hover_op}</span>
-	{/if}
-	{#if app.status.pending_component}<span>{app.t.component}: {app.status.pending_component}</span
-		>{/if}
-	<span class="pills">
-		<StatusSettingPill
-			label={app.t.statusSnap}
-			x={app.status.snap}
-			y={app.status.snap_y}
-			enabled={app.status.snap_enable}
-			enabledLabel={app.t.enableSnap}
-			offLabel={app.t.statusOff}
-			min={1}
-			max={20}
-			onX={(v) => app.setSnap(v, app.status.snap_y)}
-			onY={(v) => app.setSnap(app.status.snap, v)}
-			onEnabled={app.setSnapEnable}
-		/>
-		<StatusSettingPill
-			label={app.t.statusGrid}
-			x={app.status.grid}
-			y={app.status.grid_y}
-			enabled={app.status.show_grid}
-			enabledLabel={app.t.showGrid}
-			offLabel={app.t.statusOff}
-			min={1}
-			max={40}
-			onX={(v) => app.setGrid(v, app.status.grid_y)}
-			onY={(v) => app.setGrid(app.status.grid, v)}
-			onEnabled={app.setShowGrid}
-		/>
-	</span>
-	<span class="version">
+	<div class="track">
+		{#if app.status.split}
+			<div class="slot" style:flex={`${app.splitRatio} 1 0`}>
+				{#if activePane === 0}
+					{@render readout(false)}
+				{/if}
+			</div>
+			<div class="split-gap" aria-hidden="true"></div>
+			<div class="slot" style:flex={`${1 - app.splitRatio} 1 0`}>
+				{#if activePane === 1}
+					{@render readout(true)}
+				{/if}
+			</div>
+		{:else}
+			{@render readout(true)}
+		{/if}
+	</div>
+	<div class="version" {@attach trackVersion}>
 		<span>{displayVersion(appVersion)}</span>
 		{#if update}
 			<button type="button" class="update-pill" onclick={openUpdate}>{updateLabel}</button>
 		{/if}
-	</span>
+	</div>
 </footer>
 
 <style>
 	.status {
 		display: flex;
-		flex-wrap: nowrap;
-		align-items: center;
-		gap: 16px;
-		padding: 4px 12px;
+		align-items: stretch;
+		flex-shrink: 0;
 		font-size: 12px;
 		font-family: var(--mono);
 		background: var(--bg-menu);
@@ -97,10 +133,40 @@
 		white-space: nowrap;
 		overflow: visible;
 		position: relative;
-		z-index: var(--z-menubar);
+		z-index: var(--z-flyout);
 	}
-	.status > * {
+	.track {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		overflow: visible;
+	}
+	.slot {
+		min-width: 0;
+		display: flex;
+		overflow: visible;
+	}
+	.split-gap {
+		flex: 0 0 6px;
+	}
+	.row {
+		display: flex;
+		flex: 1 1 auto;
+		flex-wrap: nowrap;
+		align-items: center;
+		gap: 16px;
+		min-width: 0;
+		width: 100%;
+		padding: 4px 12px;
+		overflow: visible;
+	}
+	.row > :not(.title) {
 		flex-shrink: 0;
+	}
+	.title {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.pills {
 		display: inline-flex;
@@ -108,23 +174,16 @@
 		align-items: center;
 		gap: 6px;
 	}
-	@media (hover: none), (max-width: 720px) {
-		.status {
-			overflow-x: auto;
-			overflow-y: hidden;
-			scrollbar-width: none;
-			overscroll-behavior-x: contain;
-		}
-		.status::-webkit-scrollbar {
-			display: none;
-		}
-	}
 	.version {
-		margin-left: auto;
+		position: absolute;
+		right: 0;
+		top: 0;
+		height: 100%;
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		flex-shrink: 0;
+		padding: 0 12px 0 16px;
+		background: var(--bg-menu);
 		white-space: nowrap;
 	}
 	.update-pill {
