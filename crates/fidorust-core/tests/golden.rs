@@ -264,6 +264,34 @@ fn text_angle_90_hit_is_above_origin() {
 }
 
 #[test]
+fn rotate_selected_swaps_pad_width_and_height() {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::PcbPad(PcbPad {
+        pos: Point::new(10, 20),
+        dx: 40,
+        dy: 12,
+        hole: 8,
+        style: PadStyle::Rectangular,
+        layer: LayerId(1),
+    }));
+    ed.set_selected(vec![0]);
+    ed.rotate_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::PcbPad(pad) => {
+            assert_eq!(pad.pos, Point::new(10, 20));
+            assert_eq!((pad.dx, pad.dy), (12, 40));
+            assert_eq!(pad.hole, 8);
+        }
+        _ => panic!("expected pad"),
+    }
+    ed.rotate_selected();
+    match &ed.doc().primitives[0] {
+        Primitive::PcbPad(pad) => assert_eq!((pad.dx, pad.dy), (40, 12)),
+        _ => panic!("expected pad"),
+    }
+}
+
+#[test]
 fn rotate_selected_increments_text_angle() {
     let mut ed = Editor::new(builtin_libraries());
     ed.doc_mut().insert(sample_text(Point::new(10, 20), "AB"));

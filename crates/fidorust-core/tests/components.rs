@@ -7,7 +7,7 @@ use fidorust_core::serialize::{
     SaveLibraryPolicy,
 };
 use fidorust_core::{ComponentDef, ComponentRef, Library, LibrarySet};
-use fidorust_core::{Editor, LayerId, Line, Point, Primitive, Tool};
+use fidorust_core::{Editor, LayerId, Line, PadStyle, PcbPad, Point, Primitive, Tool};
 
 fn mc(name: &str) -> Primitive {
     Primitive::Component(ComponentRef {
@@ -765,6 +765,43 @@ fn rotating_a_component_twice_matches_rotating_its_parts_twice() {
         dump_doc_primitives(&as_component),
         dump_doc_primitives(&as_parts)
     );
+}
+
+fn rectangular_pad_component() -> Editor {
+    let mut ed = Editor::new(builtin_libraries());
+    ed.doc_mut().insert(Primitive::PcbPad(PcbPad {
+        pos: Point::new(40, 10),
+        dx: 12,
+        dy: 20,
+        hole: 4,
+        style: PadStyle::Oval,
+        layer: LayerId(1),
+    }));
+    ed.set_selected(vec![0]);
+    ed.create_component_from_selection(PROJECT_STEM, "Pad")
+        .expect("created");
+    ed
+}
+
+#[test]
+fn rotating_a_component_swaps_pad_size_like_rotating_the_pad() {
+    let mut as_component = rectangular_pad_component();
+    as_component.rotate_selected();
+    as_component.split_selected_components();
+
+    let mut as_parts = rectangular_pad_component();
+    as_parts.split_selected_components();
+    as_parts.select_all();
+    as_parts.rotate_selected();
+
+    assert_eq!(
+        dump_doc_primitives(&as_component),
+        dump_doc_primitives(&as_parts)
+    );
+    match &as_parts.doc().primitives[0] {
+        Primitive::PcbPad(pad) => assert_eq!((pad.dx, pad.dy), (20, 12)),
+        _ => panic!("expected pad"),
+    }
 }
 
 fn component_name(p: &Primitive) -> &str {

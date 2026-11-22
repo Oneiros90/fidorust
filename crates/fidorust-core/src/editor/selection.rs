@@ -340,6 +340,11 @@ fn rotate_primitive(p: &mut Primitive, origin: Point) {
         Primitive::Text(t) => {
             t.angle = (t.angle + 90).rem_euclid(360);
         }
+        // Pads stay axis-aligned. A quarter turn swaps width and height,
+        // matching `apply_transform` for an odd component rotation.
+        Primitive::PcbPad(pad) => {
+            std::mem::swap(&mut pad.dx, &mut pad.dy);
+        }
         _ => {}
     }
 }
