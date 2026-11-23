@@ -2,9 +2,9 @@ use fidorust_core::parse::{builtin_libraries, parse_document, parse_primitive_li
 use fidorust_core::primitive::STYLE_MIRRORED;
 use fidorust_core::serialize::{serialize_document, serialize_primitive};
 use fidorust_core::{
-    ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PadStyle,
-    PcbBoard, PcbPad, PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool, Transform,
-    COMPONENT_ORIGIN, DEFAULT_FONT,
+    ComponentRef, Connection, DblClickAction, Document, Editor, Ellipse, LayerId, Line, PadAccess,
+    PadStyle, PcbBoard, PcbPad, PcbTrack, Point, Poly, Primitive, PropPatch, Rect, Text, Tool,
+    Transform, COMPONENT_ORIGIN, DEFAULT_FONT,
 };
 
 const WEBSITE_SAMPLE: &str = r#"[FIDOCAD]
@@ -273,6 +273,7 @@ fn rotate_selected_swaps_pad_width_and_height() {
         hole: 8,
         style: PadStyle::Rectangular,
         layer: LayerId(1),
+        access: PadAccess::Both,
     }));
     ed.set_selected(vec![0]);
     ed.rotate_selected();
@@ -390,12 +391,37 @@ fn mirror_selected_toggles_text_mirrored_like_the_property() {
 fn pcb_pad_and_track() {
     let p = parse_primitive_line("PA 100 100 18 18 8 0 1").unwrap();
     match p {
-        Primitive::PcbPad(PcbPad { hole, layer, .. }) => {
+        Primitive::PcbPad(PcbPad {
+            hole,
+            layer,
+            access,
+            ..
+        }) => {
             assert_eq!(hole, 8);
             assert_eq!(layer.0, 1);
+            assert_eq!(access, PadAccess::Both);
         }
         _ => panic!(),
     }
+    assert_eq!(serialize_primitive(&p), "PA 100 100 18 18 8 0 1\r\n");
+    let solder = parse_primitive_line("PA 10 20 18 12 8 1 0 1").unwrap();
+    match &solder {
+        Primitive::PcbPad(pad) => {
+            assert_eq!(pad.layer.0, 0);
+            assert_eq!(pad.access, PadAccess::Solder);
+        }
+        _ => panic!(),
+    }
+    assert_eq!(serialize_primitive(&solder), "PA 10 20 18 12 8 1 0 1\r\n");
+    let component = parse_primitive_line("PA 10 20 18 12 8 0 2 2").unwrap();
+    match &component {
+        Primitive::PcbPad(pad) => assert_eq!(pad.access, PadAccess::Component),
+        _ => panic!(),
+    }
+    assert_eq!(
+        serialize_primitive(&component),
+        "PA 10 20 18 12 8 0 2 2\r\n"
+    );
     let t = parse_primitive_line("PL 0 0 50 0 10 1").unwrap();
     match t {
         Primitive::PcbTrack(PcbTrack { width, layer, .. }) => {

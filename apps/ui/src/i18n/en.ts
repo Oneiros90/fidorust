@@ -201,6 +201,7 @@ export const en = {
 	propSizeY: 'Height',
 	propIntDiam: 'Hole diameter',
 	propPadStyle: 'Style',
+	propPadReach: 'Reach',
 	propText: 'Text',
 	propFontFace: 'Font',
 	propFontHeight: 'Font height',
@@ -213,6 +214,9 @@ export const en = {
 	padRound: 'Round',
 	padSquare: 'Square',
 	padSquareRounded: 'Rounded square',
+	padReachBoth: 'Both faces',
+	padReachSolder: 'Solder side only',
+	padReachComponent: 'Component side only',
 	layer: 'Layer',
 	componentLayerWarningTitle: 'Component layers',
 	componentLayerWarningBody:
@@ -275,8 +279,8 @@ export const en = {
 	autorouteTitle: 'Autoroute',
 	autorouteWidth: 'Track width',
 	autorouteClearance: 'Clearance',
-	autorouteJumpers: 'Jumpers',
-	autorouteJumpersHint: 'If copper is blocked, finish the net on the component side.',
+	autorouteJumpers: 'Vias',
+	autorouteJumpersHint: 'If this side is blocked, drill a via and continue on the other face.',
 	autorouteDiagonal: '45° corners',
 	autorouteDiagonalHint: 'If off, tracks bend only at 90°.',
 	autorouteReplace: 'Clear existing tracks',
@@ -289,9 +293,9 @@ export const en = {
 	autorouteNetsHint:
 		'A node is a group of pads that already share a wire in the schematic. Autoroute draws copper between them.',
 	autorouteMissing: '{missing} pads have no schematic link (LK).',
-	autorouteResult: '{routed} tracks drawn ({jumpers} jumpers). {failed} left unrouted.',
+	autorouteResult: '{routed} tracks drawn ({jumpers} vias). {failed} left unrouted.',
 	autoroutePartial:
-		'Routed {routed} tracks ({jumpers} jumpers), but {failed} connections found no path.',
+		'Routed {routed} tracks ({jumpers} vias), but {failed} connections found no path.',
 	autorouteNothing: 'Nothing to route.'
 };
 

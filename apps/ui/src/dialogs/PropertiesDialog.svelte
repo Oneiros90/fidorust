@@ -70,6 +70,7 @@
 		else if (kind === 'int') edit[id] = { state: 'int', value: Number(raw) };
 		else if (kind === 'string' || kind === 'choice') edit[id] = { state: 'string', value: raw };
 		else if (kind === 'layer') edit[id] = { state: 'layer', value: Number(raw) };
+		else if (kind === 'padReach') edit[id] = { state: 'padReach', value: raw };
 		else edit[id] = { state: 'padStyle', value: raw };
 	}
 
@@ -89,7 +90,11 @@
 		{#each fields as field (field.id)}
 			<label
 				class={[
-					field.id === 'text' || field.id === 'useComponentLayers' ? 'full' : '',
+					field.id === 'text' ||
+					field.id === 'useComponentLayers' ||
+					field.id === 'padReach'
+						? 'full'
+						: '',
 					field.id === 'useComponentLayers' && 'check',
 					field.kind.kind === 'layer' && useComponentLayersOn && 'off'
 				]}
@@ -178,6 +183,17 @@
 						<option value="Round">{t.padRound}</option>
 						<option value="Square">{t.padSquare}</option>
 						<option value="SquareRounded">{t.padSquareRounded}</option>
+					</select>
+				{:else if field.kind.kind === 'padReach'}
+					<select
+						disabled={field.readOnly}
+						value={getValue(field.id)}
+						onchange={(e) => setValue(field.id, 'padReach', e.currentTarget.value)}
+					>
+						<option value="">{t.indeterminate}</option>
+						<option value="Both">{t.padReachBoth}</option>
+						<option value="Solder">{t.padReachSolder}</option>
+						<option value="Component">{t.padReachComponent}</option>
 					</select>
 				{/if}
 			</label>

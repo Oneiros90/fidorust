@@ -6,8 +6,8 @@ use crate::library::{
     explode_user_components_in_document, fold_user_components_in_document, Library, LibrarySet,
 };
 use crate::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive,
-    Rect, Text,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadAccess, PcbBoard, PcbPad, PcbTrack, Poly,
+    Primitive, Rect, Text,
 };
 
 use super::tokens::{font_token, plus_spaces, push_layer};
@@ -102,12 +102,21 @@ pub fn serialize_primitive(p: &Primitive) -> String {
             hole,
             style,
             layer,
+            access,
         }) => {
             s.push_str(&format!(
                 "PA {} {} {} {} {} {}",
                 pos.x, pos.y, dx, dy, hole, *style as i32
             ));
-            push_layer(&mut s, *layer);
+            if *access == PadAccess::Both {
+                push_layer(&mut s, *layer);
+            } else {
+                s.push(' ');
+                s.push_str(&layer.0.to_string());
+                s.push(' ');
+                s.push_str(&access.to_i32().to_string());
+                s.push_str("\r\n");
+            }
         }
         Primitive::Text(Text {
             pos,

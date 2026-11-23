@@ -88,6 +88,17 @@
       }
     },
     {
+      "id": "padReach",
+      "kind": {
+        "kind": "padReach"
+      },
+      "readOnly": false,
+      "value": {
+        "state": "padReach",
+        "value": "Both"
+      }
+    },
+    {
       "id": "layer",
       "kind": {
         "kind": "layer"

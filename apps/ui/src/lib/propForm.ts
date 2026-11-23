@@ -11,6 +11,7 @@ export type PropFieldId =
 	| 'sizeY'
 	| 'intDiam'
 	| 'padStyle'
+	| 'padReach'
 	| 'text'
 	| 'fontFace'
 	| 'fontHeight'
@@ -27,6 +28,7 @@ export type PropFieldKind =
 	| { kind: 'string' }
 	| { kind: 'layer' }
 	| { kind: 'padStyle' }
+	| { kind: 'padReach' }
 	| { kind: 'choice'; options: string[] };
 
 export type PropFieldValue =
@@ -35,7 +37,8 @@ export type PropFieldValue =
 	| { state: 'int'; value: number }
 	| { state: 'string'; value: string }
 	| { state: 'layer'; value: number }
-	| { state: 'padStyle'; value: string };
+	| { state: 'padStyle'; value: string }
+	| { state: 'padReach'; value: string };
 
 export type PropFormField = {
 	id: PropFieldId;
@@ -53,6 +56,7 @@ export type PropPatch = Partial<{
 	sizeY: number;
 	intDiam: number;
 	padStyle: string;
+	padReach: string;
 	text: string;
 	fontFace: string;
 	fontHeight: number;
@@ -73,6 +77,7 @@ export const fieldLabels: Record<PropFieldId, keyof Dict> = {
 	sizeY: 'propSizeY',
 	intDiam: 'propIntDiam',
 	padStyle: 'propPadStyle',
+	padReach: 'propPadReach',
 	text: 'propText',
 	fontFace: 'propFontFace',
 	fontHeight: 'propFontHeight',
@@ -136,6 +141,7 @@ export function editStateToPatch(state: Partial<Record<PropFieldId, PropFieldVal
 			if (flag?.state === 'bool' && flag.value) continue;
 			patch.layer = v.value;
 		} else if (v.state === 'padStyle') patch.padStyle = v.value;
+		else if (v.state === 'padReach') patch.padReach = v.value;
 	}
 	return patch;
 }

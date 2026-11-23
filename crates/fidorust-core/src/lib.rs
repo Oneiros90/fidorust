@@ -28,8 +28,8 @@ pub use geom::{Aabb, Point, Transform};
 pub use layers::{ExportLayerOverlay, LayerId, LayerSet, MAX_LAYERS, MICRON_PER_LU};
 pub use library::{ComponentDef, Library, LibraryKind, LibrarySet, LOCAL_STEM, PROJECT_STEM};
 pub use primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbBoard, PcbPad, PcbTrack, Poly,
-    Primitive, Rect, Text, TextLayout, TextStyle, DEFAULT_FONT,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadAccess, PadStyle, PcbBoard, PcbPad,
+    PcbTrack, Poly, Primitive, Rect, Text, TextLayout, TextStyle, DEFAULT_FONT,
 };
 pub use properties::{PropFormField, PropPatch};
 

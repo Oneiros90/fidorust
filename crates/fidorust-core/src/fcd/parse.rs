@@ -13,8 +13,8 @@ use crate::library::{
     max_used_layer_index, ComponentDef, Library, LibraryKind, LibrarySet, PROJECT_STEM,
 };
 use crate::primitive::{
-    Bezier, ComponentRef, Connection, Ellipse, Line, PadStyle, PcbBoard, PcbPad, PcbTrack, Poly,
-    Primitive, Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
+    Bezier, ComponentRef, Connection, Ellipse, Line, PadAccess, PadStyle, PcbBoard, PcbPad,
+    PcbTrack, Poly, Primitive, Rect, Text, DEFAULT_FONT, MAX_POLY_VERTICES,
 };
 use encoding_rs::WINDOWS_1252;
 use thiserror::Error;
@@ -505,6 +505,7 @@ pub fn parse_primitive_line(line: &str) -> Option<Primitive> {
                 hole: t.i32(4)?,
                 style: PadStyle::from_i32(t.i32(5)?),
                 layer: t.layer_or_default(6),
+                access: t.i32(7).map(PadAccess::from_i32).unwrap_or(PadAccess::Both),
             }))
         }
         "MC" => {

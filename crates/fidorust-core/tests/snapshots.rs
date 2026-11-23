@@ -4,8 +4,8 @@ use fidorust_core::parse::{builtin_libraries, parse_document, parse_library};
 use fidorust_core::properties::{apply_selection_props, selection_props_form, PropPatch};
 use fidorust_core::serialize::{serialize_clipboard, serialize_document};
 use fidorust_core::{
-    Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point,
-    Poly, Primitive, Rect, Text, Tool, DEFAULT_FONT,
+    Bezier, ComponentRef, Connection, Editor, Ellipse, LayerId, Line, PadAccess, PcbPad, PcbTrack,
+    Point, Poly, Primitive, Rect, Text, Tool, DEFAULT_FONT,
 };
 
 fn roundtrip(src: &str) -> String {
@@ -114,6 +114,7 @@ fn snapshot_selection_props_mixed() {
         hole: 8,
         style: fidorust_core::PadStyle::Oval,
         layer: LayerId(2),
+        access: PadAccess::Both,
     });
     let homogeneous = selection_props_form(&[&rect, &rect]);
     let mixed = selection_props_form(&[&line, &rect]);
@@ -189,6 +190,7 @@ fn snapshot_primitive_json_shapes() {
             hole: 8,
             style: fidorust_core::PadStyle::RoundedRect,
             layer: LayerId(1),
+            access: PadAccess::Both,
         }),
         Primitive::Component(ComponentRef {
             pos: Point::new(10, 20),

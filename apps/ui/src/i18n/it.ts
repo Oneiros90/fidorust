@@ -202,6 +202,7 @@ export const it: typeof en = {
 	propSizeY: 'Altezza',
 	propIntDiam: 'Diametro foro',
 	propPadStyle: 'Stile',
+	propPadReach: 'Accesso',
 	propText: 'Testo',
 	propFontFace: 'Font',
 	propFontHeight: 'Altezza carattere',
@@ -214,6 +215,9 @@ export const it: typeof en = {
 	padRound: 'Tondo',
 	padSquare: 'Quadrato',
 	padSquareRounded: 'Quadrato arrotondato',
+	padReachBoth: 'Entrambe le facce',
+	padReachSolder: 'Solo lato saldature',
+	padReachComponent: 'Solo lato componenti',
 	layer: 'Layer',
 	componentLayerWarningTitle: 'Layer del componente',
 	componentLayerWarningBody:
@@ -278,8 +282,8 @@ export const it: typeof en = {
 	autorouteTitle: 'Sbroglio',
 	autorouteWidth: 'Larghezza pista',
 	autorouteClearance: 'Isolamento',
-	autorouteJumpers: 'Ponticelli',
-	autorouteJumpersHint: 'Se il rame è chiuso, completa la rete sul lato componenti.',
+	autorouteJumpers: 'Vias',
+	autorouteJumpersHint: 'Se il lato in uso è chiuso, fora un vias e prosegue sull\'altra faccia.',
 	autorouteDiagonal: 'Angoli a 45°',
 	autorouteDiagonalHint: 'Se spento, le piste piegano solo a 90°.',
 	autorouteReplace: 'Elimina le piste esistenti',
@@ -293,8 +297,8 @@ export const it: typeof en = {
 	autorouteNetsHint:
 		'Un nodo è un gruppo di piazzole che nello schema stanno già sullo stesso filo: lo sbroglio le collega con piste.',
 	autorouteMissing: '{missing} piazzole non hanno un collegamento (LK) allo schema.',
-	autorouteResult: '{routed} piste tracciate ({jumpers} ponticelli). {failed} non sbrogliate.',
+	autorouteResult: '{routed} piste tracciate ({jumpers} vias). {failed} non sbrogliate.',
 	autoroutePartial:
-		'Sbrogliate {routed} piste ({jumpers} ponticelli), ma {failed} connessioni non hanno trovato un percorso.',
+		'Sbrogliate {routed} piste ({jumpers} vias), ma {failed} connessioni non hanno trovato un percorso.',
 	autorouteNothing: 'Niente da sbrogliare.'
 };

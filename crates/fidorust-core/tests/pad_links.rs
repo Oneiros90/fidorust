@@ -1,6 +1,6 @@
 use fidorust_core::parse::builtin_libraries;
 use fidorust_core::serialize::serialize_document;
-use fidorust_core::{Editor, LayerId, PadLink, PcbPad, Point, Primitive};
+use fidorust_core::{Editor, LayerId, PadAccess, PadLink, PcbPad, Point, Primitive};
 
 fn link(pad_sheet: &str, dot_sheet: &str, x: i32, y: i32) -> PadLink {
     PadLink {
@@ -110,6 +110,7 @@ fn link_edit_and_pad_move_share_one_undo_step() {
         hole: 4,
         style: fidorust_core::PadStyle::Oval,
         layer: LayerId(0),
+        access: PadAccess::Both,
     }));
     ed.doc_mut().pad_links = vec![link(&name, &name, 10, 20)];
     ed.snapshot_sheet_undo();

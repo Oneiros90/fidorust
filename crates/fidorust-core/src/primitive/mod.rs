@@ -19,7 +19,7 @@ pub use component::ComponentRef;
 pub use connection::Connection;
 pub use ellipse::Ellipse;
 pub use line::Line;
-pub use pad::PadStyle;
+pub use pad::{PadAccess, PadStyle};
 pub use pcb_board::PcbBoard;
 pub use pcb_pad::PcbPad;
 pub use pcb_track::PcbTrack;

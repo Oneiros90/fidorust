@@ -2,8 +2,8 @@ mod common;
 
 use fidorust_core::parse::{builtin_libraries, parse_document};
 use fidorust_core::{
-    CanvasTheme, Connection, Editor, Ellipse, LayerId, Line, PcbPad, PcbTrack, Point, Primitive,
-    Rect, Text, Tool, DEFAULT_FONT,
+    CanvasTheme, Connection, Editor, Ellipse, LayerId, Line, PadAccess, PcbPad, PcbTrack, Point,
+    Primitive, Rect, Text, Tool, DEFAULT_FONT,
 };
 use fidorust_gpu::font::{glyph_covers, install_hit_hooks};
 use fidorust_gpu::{tessellate_primitives, Rgb, Scene};
@@ -37,6 +37,7 @@ fn tessellate_rounded_pcb_pad_uses_fills() {
             hole: 4,
             style: fidorust_core::primitive::PadStyle::RoundedRect,
             layer: fidorust_core::LayerId(0),
+            access: PadAccess::Both,
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -57,6 +58,7 @@ fn tessellate_oval_pcb_pad_has_circular_hole() {
             hole: 25,
             style: fidorust_core::primitive::PadStyle::Oval,
             layer: fidorust_core::LayerId(0),
+            access: PadAccess::Both,
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);
@@ -88,6 +90,7 @@ fn dense_oval_pad_thumb_stays_compact() {
                 hole: 6,
                 style: fidorust_core::primitive::PadStyle::Oval,
                 layer: fidorust_core::LayerId(0),
+                access: PadAccess::Both,
             }));
     }
     let mut ed = Editor::new(builtin_libraries());
@@ -246,6 +249,7 @@ fn export_svg_includes_ellipses_and_smart_holes() {
             hole: 8,
             style: fidorust_core::primitive::PadStyle::Oval,
             layer: fidorust_core::LayerId(0),
+            access: PadAccess::Both,
         }));
     doc.primitives
         .push(fidorust_core::Primitive::PcbTrack(PcbTrack {
@@ -321,6 +325,7 @@ fn export_svg_keeps_beziers_and_text_native() {
             hole: 6,
             style: fidorust_core::primitive::PadStyle::RoundedRect,
             layer: fidorust_core::LayerId(0),
+            access: PadAccess::Both,
         }));
     let mut ed = Editor::new(builtin_libraries());
     ed.set_doc(doc);

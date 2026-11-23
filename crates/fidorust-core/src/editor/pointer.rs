@@ -5,7 +5,8 @@ use crate::consts::{ZOOM_MAX_WHEEL, ZOOM_TOOL_FACTOR};
 use crate::geom::Point;
 use crate::hit::{hit_test, marquee_select, HitQuery};
 use crate::primitive::{
-    Bezier, Connection, Ellipse, Line, PcbBoard, PcbPad, PcbTrack, Poly, Primitive, Rect, Text,
+    Bezier, Connection, Ellipse, Line, PadAccess, PcbBoard, PcbPad, PcbTrack, Poly, Primitive,
+    Rect, Text,
 };
 
 impl Editor {
@@ -155,6 +156,7 @@ impl Editor {
                     hole: self.doc.defaults.pad.hole,
                     style: self.doc.defaults.pad.style,
                     layer: self.layer,
+                    access: PadAccess::Both,
                 }));
             }
             Tool::Text => {

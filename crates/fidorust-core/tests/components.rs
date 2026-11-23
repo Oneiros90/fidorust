@@ -7,7 +7,7 @@ use fidorust_core::serialize::{
     SaveLibraryPolicy,
 };
 use fidorust_core::{ComponentDef, ComponentRef, Library, LibrarySet};
-use fidorust_core::{Editor, LayerId, Line, PadStyle, PcbPad, Point, Primitive, Tool};
+use fidorust_core::{Editor, LayerId, Line, PadAccess, PadStyle, PcbPad, Point, Primitive, Tool};
 
 fn mc(name: &str) -> Primitive {
     Primitive::Component(ComponentRef {
@@ -776,6 +776,7 @@ fn rectangular_pad_component() -> Editor {
         hole: 4,
         style: PadStyle::Oval,
         layer: LayerId(1),
+        access: PadAccess::Both,
     }));
     ed.set_selected(vec![0]);
     ed.create_component_from_selection(PROJECT_STEM, "Pad")

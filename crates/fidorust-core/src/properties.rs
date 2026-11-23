@@ -20,6 +20,7 @@ pub enum PropField {
     SizeY,
     IntDiam,
     PadStyle,
+    PadReach,
     Text,
     FontFace,
     FontHeight,
@@ -39,6 +40,7 @@ pub enum PropFieldKind {
     String,
     Layer,
     PadStyle,
+    PadReach,
     Choice { options: Vec<String> },
 }
 
@@ -51,6 +53,7 @@ pub enum PropFieldValue {
     String { value: String },
     Layer { value: i32 },
     PadStyle { value: String },
+    PadReach { value: String },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -83,6 +86,8 @@ pub struct PropPatch {
     pub int_diam: Option<i32>,
     #[serde(default)]
     pub pad_style: Option<String>,
+    #[serde(default)]
+    pub pad_reach: Option<String>,
     #[serde(default)]
     pub text: Option<String>,
     #[serde(default)]
@@ -188,6 +193,7 @@ fn field_kind(field: PropField) -> PropFieldKind {
         PropField::Text | PropField::FontFace => PropFieldKind::String,
         PropField::Layer => PropFieldKind::Layer,
         PropField::PadStyle => PropFieldKind::PadStyle,
+        PropField::PadReach => PropFieldKind::PadReach,
     }
 }
 
@@ -289,6 +295,12 @@ fn patch_to_fields(patch: &PropPatch) -> BTreeMap<PropField, PropFieldValue> {
         m.insert(
             PropField::PadStyle,
             PropFieldValue::PadStyle { value: v.clone() },
+        );
+    }
+    if let Some(v) = &patch.pad_reach {
+        m.insert(
+            PropField::PadReach,
+            PropFieldValue::PadReach { value: v.clone() },
         );
     }
     if let Some(v) = &patch.text {

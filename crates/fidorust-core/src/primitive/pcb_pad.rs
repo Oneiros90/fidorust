@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::geom::{Aabb, Point};
 use crate::layers::LayerId;
 
-use super::pad::PadStyle;
+use super::pad::{PadAccess, PadStyle};
 use super::traits::{set_pos, Geometry, HitTest};
 use crate::properties::{apply_layer, read_layer, PropField, PropFieldValue, PropSource};
 use std::str::FromStr;
@@ -18,6 +18,13 @@ pub struct PcbPad {
     pub hole: i32,
     pub style: PadStyle,
     pub layer: LayerId,
+    /// Omitted from `.fcd` and JSON when it is [`PadAccess::Both`].
+    #[serde(default, skip_serializing_if = "access_is_both")]
+    pub access: PadAccess,
+}
+
+fn access_is_both(access: &PadAccess) -> bool {
+    *access == PadAccess::Both
 }
 
 impl Geometry for PcbPad {
@@ -92,6 +99,7 @@ impl PropSource for PcbPad {
             PropField::SizeY,
             PropField::IntDiam,
             PropField::PadStyle,
+            PropField::PadReach,
         ]
     }
     fn read(&self, field: PropField) -> Option<PropFieldValue> {
@@ -101,6 +109,9 @@ impl PropSource for PcbPad {
             PropField::IntDiam => Some(PropFieldValue::Int { value: self.hole }),
             PropField::PadStyle => Some(PropFieldValue::PadStyle {
                 value: self.style.to_string(),
+            }),
+            PropField::PadReach => Some(PropFieldValue::PadReach {
+                value: self.access.to_string(),
             }),
             _ => read_layer(self.layer, field),
         }
@@ -122,6 +133,14 @@ impl PropSource for PcbPad {
             (PropField::PadStyle, PropFieldValue::PadStyle { value: v }) => {
                 if let Ok(s) = PadStyle::from_str(v) {
                     self.style = s;
+                    true
+                } else {
+                    false
+                }
+            }
+            (PropField::PadReach, PropFieldValue::PadReach { value: v }) => {
+                if let Ok(a) = PadAccess::from_str(v) {
+                    self.access = a;
                     true
                 } else {
                     false

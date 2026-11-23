@@ -368,7 +368,7 @@ mod tests {
 
     #[test]
     fn pad_hole_clicks_through_to_track() {
-        use crate::primitive::{PadStyle, PcbPad, PcbTrack};
+        use crate::primitive::{PadAccess, PadStyle, PcbPad, PcbTrack};
         let prims = vec![
             Primitive::PcbTrack(PcbTrack {
                 a: Point::new(0, 10),
@@ -383,6 +383,7 @@ mod tests {
                 hole: 8,
                 style: PadStyle::Oval,
                 layer: LayerId(1),
+                access: PadAccess::Both,
             }),
         ];
         let through = pick(&prims, &[], Point::new(10, 10), 4.0);
@@ -393,7 +394,7 @@ mod tests {
 
     #[test]
     fn oval_pad_beats_later_track_on_same_layer() {
-        use crate::primitive::{PadStyle, PcbPad, PcbTrack};
+        use crate::primitive::{PadAccess, PadStyle, PcbPad, PcbTrack};
         // Same stacking as GPU: tracks are fills, oval pads are circles drawn after.
         let prims = vec![
             Primitive::PcbPad(PcbPad {
@@ -403,6 +404,7 @@ mod tests {
                 hole: 4,
                 style: PadStyle::Oval,
                 layer: LayerId(0),
+                access: PadAccess::Both,
             }),
             Primitive::PcbTrack(PcbTrack {
                 a: Point::new(0, 10),
